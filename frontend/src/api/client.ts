@@ -1,4 +1,22 @@
-const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3001/api";
+// `||` (no `??`): un VITE_API_URL definido pero vacío (p.ej. mal copiado al
+// configurar Vercel) debe caer también al valor por defecto, no quedarse
+// como cadena vacía — eso convertiría toda petición en una ruta relativa
+// al propio dominio del frontend en vez de al backend.
+const BASE_URL = ((import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:3001/api").replace(
+  /\/+$/,
+  ""
+);
+
+if (import.meta.env.PROD && !/^https?:\/\//.test(BASE_URL)) {
+  // VITE_API_URL debe ser el origen completo del backend (https://tu-servicio.onrender.com/api),
+  // nunca una ruta relativa (p.ej. "/api") — si no, esto queda mudo en consola
+  // y las peticiones fallan con un "Unexpected token '<'" críptico (ver
+  // apiFetch más abajo) porque acaban golpeando el propio dominio del
+  // frontend en vez del backend. Ver backend/docs/despliegue.md.
+  console.error(
+    `VITE_API_URL ("${BASE_URL}") no parece una URL absoluta. Debe incluir "https://" y el dominio del backend, no una ruta relativa.`
+  );
+}
 
 export class ApiError extends Error {
   status: number;
@@ -32,7 +50,21 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   });
 
   const text = await res.text();
-  const data: unknown = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // La causa más habitual es VITE_API_URL mal configurada (vacía o
+      // relativa): la petición acaba golpeando el propio dominio del
+      // frontend, que responde con el index.html de la SPA en vez de con
+      // la API — de ahí el "Unexpected token '<'" de JSON.parse si se deja
+      // sin capturar. Ver backend/docs/despliegue.md.
+      throw new Error(
+        `Respuesta no válida de ${BASE_URL}${path} (¿VITE_API_URL mal configurada? revisa que apunte al backend, no al propio frontend)`
+      );
+    }
+  }
 
   if (!res.ok) {
     throw new ApiError(res.status, data);

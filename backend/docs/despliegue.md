@@ -178,3 +178,29 @@ omite este paso.
    pulsa "Suscribirme": debe redirigir a Stripe Checkout de verdad, no
    dar un 500 (si da 500, revisa `STRIPE_SECRET_KEY`/`STRIPE_PRICE_ID` en
    Render).
+
+### "Unexpected token '<', <!DOCTYPE... is not valid JSON"
+
+Si cualquier llamada a la API falla con este error nada más entrar,
+`VITE_API_URL` no está llegando como URL absoluta al bundle de producción,
+así que las peticiones acaban como rutas relativas (`/preguntas/temas` en
+vez de `https://tu-servicio.onrender.com/api/preguntas/temas`) — el
+navegador las resuelve contra el propio dominio de Vercel, cuyo
+`vercel.json` (rewrite SPA) responde con `index.html` para cualquier ruta
+que no sea un archivo estático, y eso es HTML donde se esperaba JSON.
+`frontend/src/api/client.ts` ya cae a un valor por defecto si
+`VITE_API_URL` falta o queda vacía, y avisa por consola si no parece una
+URL absoluta — pero ese aviso no sustituye a configurarla bien. Para
+arreglarlo:
+
+1. En Vercel → Settings → Environment Variables, confirma que
+   `VITE_API_URL` es la URL **completa** del backend, con `https://` y
+   terminada en `/api` (`https://tu-servicio.onrender.com/api`) — nunca
+   solo `/api` ni el dominio sin `https://`.
+2. Confirma que está definida para el entorno que estás probando
+   (Production/Preview/Development son configuraciones separadas en
+   Vercel).
+3. **Vuelve a desplegar** después de cambiarla: Vite incrusta
+   `VITE_API_URL` en el bundle en el momento del build, no la lee en
+   tiempo de ejecución — cambiar la variable sin redesplegar no tiene
+   ningún efecto sobre un build ya hecho.
