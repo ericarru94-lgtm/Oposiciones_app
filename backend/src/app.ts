@@ -9,6 +9,18 @@ import { stripeRouter } from "./routes/stripe";
 import { stripeWebhookHandler } from "./routes/stripeWebhook";
 
 /**
+ * Orígenes desde los que el navegador puede llamar a esta API. En
+ * desarrollo/E2E son puertos fijos de este repo (`npm run dev` y el modo
+ * `--mode e2e`, ver `frontend/vite.config.ts` y `frontend/playwright.config.ts`);
+ * en producción es el dominio real del frontend en Vercel, vía `FRONTEND_URL`
+ * (la misma variable que ya usan las URLs de éxito/cancelación de Stripe en
+ * `routes/stripe.ts`) — ver `backend/docs/despliegue.md`.
+ */
+const origenesPermitidos = ["http://localhost:5173", "http://localhost:5174", process.env.FRONTEND_URL].filter(
+  (origen): origen is string => Boolean(origen)
+);
+
+/**
  * App de Express sin `listen()`, para poder importarla tanto desde
  * server.ts como desde los tests (supertest habla directamente con la
  * app sin necesidad de abrir un puerto real).
@@ -16,7 +28,7 @@ import { stripeWebhookHandler } from "./routes/stripeWebhook";
 export function crearApp() {
   const app = express();
 
-  app.use(cors());
+  app.use(cors({ origin: origenesPermitidos }));
 
   // El webhook de Stripe necesita el body crudo (sin JSON-parsear) para
   // verificar la firma, así que se monta ANTES de express.json() global

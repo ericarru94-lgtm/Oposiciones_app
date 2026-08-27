@@ -140,8 +140,10 @@ hospedada de Stripe la haría lenta y frágil. Lo que sí cubre
 `e2e/upgrade-auth.spec.ts` es el tramo que sí depende de este proyecto: sin
 sesión, "Suscribirme" lleva al registro/login real (Clerk o su bypass de
 E2E) en vez de al backend, y al volver autenticado el checkout se dispara
-solo (sin un segundo clic) — en este entorno acaba en un 500 porque
-`STRIPE_SECRET_KEY` no está configurado en `.env.e2e` a propósito, lo cual
-de todas formas confirma que la llamada se intentó. El botón "Suscribirme"
+solo (sin un segundo clic) — en este entorno acaba en el 500 controlado de
+"STRIPE_PRICE_ID no está configurado en el servidor" (`STRIPE_SECRET_KEY`
+y `STRIPE_PRICE_ID` quedan vacíos a propósito en `.env.e2e`, ver
+`backend/docs/testing.md`), lo cual de todas formas confirma que la
+llamada se intentó. El botón "Suscribirme"
 ya autenticado se comprueba visible/habilitado en `e2e/daily-limit.spec.ts`,
 sin pulsarlo (evita depender de la página hospedada de Stripe).

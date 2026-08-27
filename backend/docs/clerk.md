@@ -114,6 +114,12 @@ Backend (`backend/.env`):
 
 Backend (`backend/.env.e2e`, exclusivo de E2E):
 - `AUTH_TEST_BYPASS_SECRET`: habilita el bypass de autenticación de arriba.
+- `CLERK_SECRET_KEY`/`CLERK_PUBLISHABLE_KEY` deben quedar **vacías
+  explícitamente** (`CLERK_SECRET_KEY=`, no omitirlas) — `@prisma/client`
+  carga su propio `.env` al inicializarse y, si se omiten, las rellenaría
+  solas con las reales de `backend/.env`, activando el `clerkMiddleware()`
+  real en un entorno que no tiene red hacia Clerk. Ver el bug real
+  documentado en `backend/docs/testing.md`.
 
 Frontend (`frontend/.env`):
 - `VITE_CLERK_PUBLISHABLE_KEY`: clave publicable de la misma instancia de
@@ -123,6 +129,9 @@ Frontend (`frontend/.env`):
 Frontend (`frontend/.env.e2e`, exclusivo de E2E):
 - `VITE_E2E_AUTH_BYPASS_SECRET`: debe coincidir exactamente con
   `AUTH_TEST_BYPASS_SECRET` del backend de E2E.
+- `VITE_CLERK_PUBLISHABLE_KEY` debe quedar **vacía explícitamente** por el
+  mismo motivo que arriba, pero por la cascada de `.env`/`.env.[modo]` de
+  Vite en vez de por Prisma — mismo efecto, mecanismo distinto.
 
 ## Adoptar el progreso del onboarding tras el alta
 

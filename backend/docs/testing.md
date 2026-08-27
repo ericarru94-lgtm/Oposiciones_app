@@ -109,3 +109,48 @@ Verificación manual de que el segundo arreglo aguanta: 25 llamadas
 seguidas a `/responder` con `FREE_PLAN_DAILY_LIMIT=20` devuelven 20×`200`
 y 5×`429` (nunca una conexión caída), y `/api/health` sigue respondiendo
 después.
+
+3. **Las claves reales de `.env` se filtraban a `.env.e2e` por dos vías
+   independientes, rompiendo el aislamiento.** Al añadir claves reales de
+   Clerk a `backend/.env` para probar el login en local, la suite E2E
+   completa se rompió (toda petición se colgaba o devolvía 500) aunque
+   `.env.e2e` nunca las define. La causa, en dos sitios distintos:
+   - **Backend**: `@prisma/client` carga su propio `.env` por defecto al
+     inicializarse (una funcionalidad documentada de Prisma, no un bug
+     suyo) — cualquier variable que `.env.e2e` no defina explícitamente
+     se rellena sola con el valor real de `backend/.env`. Con
+     `CLERK_SECRET_KEY`/`CLERK_PUBLISHABLE_KEY` filtradas así, `app.ts`
+     montaba el `clerkMiddleware()` **real** en vez del paso-a-través, y
+     ese middleware intentaba una negociación con Clerk (cookie/handshake
+     de "dev browser") que, sin red hacia clerk.com, dejaba la petición
+     colgada — de ahí el "Cargando…" indefinido en la UI. `STRIPE_SECRET_KEY`
+     se filtraba igual, y `/crear-checkout-session` acababa llamando de
+     verdad a `api.stripe.com` (bloqueado) en vez de fallar limpio por
+     falta de clave.
+   - **Frontend**: Vite carga en cascada `.env` + `.env.[modo]`, así que
+     `VITE_CLERK_PUBLISHABLE_KEY` (ausente en `frontend/.env.e2e` a
+     propósito) también se rellenaba con la real de `frontend/.env`,
+     activando `SessionProviderClerk` en vez del modo de bypass — que
+     entonces se quedaba esperando para siempre a que cargara el script
+     de Clerk (bloqueado).
+
+   Además, `server.ts` cargaba su propio `.env` por defecto
+   (`import "dotenv/config"`) incluso cuando ya se había arrancado
+   envuelto en `dotenv -e .env.e2e --`, duplicando el mismo problema por
+   una tercera vía.
+
+   Arreglo, en dos partes:
+   1. `server.ts` ya no carga ningún `.env` por su cuenta — cada script de
+      `package.json` (`dev`, `test`, `e2e:serve`...) es responsable de
+      envolver su propio arranque con `dotenv -e <archivo>`.
+   2. `.env.e2e`/`.env.test` (backend) y `.env.e2e` (frontend) definen
+      **explícitamente vacías** las claves de Clerk/Stripe en vez de
+      omitirlas — un valor vacío sí cuenta como "ya definida" tanto para
+      Prisma como para Vite, así que bloquea el relleno con la real. Ver
+      los comentarios en esos archivos y en `backend/docs/clerk.md`.
+
+   La lección general: en cualquier mecanismo de entornos en cascada
+   (Prisma, Vite, dotenv-cli con varios `-e`...), una variable sensible
+   que un entorno "aislado" quiere mantener sin definir debe fijarse
+   **vacía explícitamente**, nunca dejarse ausente y confiar en que nadie
+   la rellene desde un archivo más genérico.

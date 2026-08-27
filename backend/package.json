@@ -5,9 +5,11 @@
   "description": "Backend de la app de preparación de oposiciones (Auxiliar Administrativo del Estado)",
   "type": "commonjs",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "dotenv -e .env -- tsx watch src/server.ts",
+    "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "start:prod": "prisma migrate deploy && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
@@ -26,6 +28,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "prisma": "^5.20.0",
     "stripe": "^22.6.0",
     "zod": "^3.23.8"
   },
@@ -35,7 +38,6 @@
     "@types/node": "^20.14.9",
     "@types/supertest": "^7.2.1",
     "dotenv-cli": "^11.0.0",
-    "prisma": "^5.20.0",
     "supertest": "^7.2.2",
     "tsx": "^4.19.1",
     "typescript": "^5.5.4",

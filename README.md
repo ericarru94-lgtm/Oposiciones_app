@@ -291,6 +291,14 @@ en el frontend); el backend no tiene endpoints de alta con contraseña.
   [`backend/docs/stripe.md`](backend/docs/stripe.md) para el detalle de
   qué eventos maneja.
 
+## Despliegue
+
+Backend en Render + frontend en Vercel: variables de entorno exactas para
+cada uno, build/start commands, cómo se aplican las migraciones de Prisma
+de forma segura en producción y el checklist de después de desplegar
+(webhook de Stripe, dominios autorizados en Clerk) en
+[`backend/docs/despliegue.md`](backend/docs/despliegue.md).
+
 ## Próximos pasos
 
 1. **Reportar preguntas dudosas**: hoy `reportes_usuario` existe en el
