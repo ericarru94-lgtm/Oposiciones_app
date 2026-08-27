@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
@@ -10,8 +10,10 @@ import type { ProgresoPorTema, ProgresoResumen } from "../api/types";
 export function Home() {
   const { token } = useSession();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
   const [resumen, setResumen] = useState<ProgresoResumen | null>(null);
+  const pagoCompletado = searchParams.get("checkout") === "success";
 
   useEffect(() => {
     if (!token) return;
@@ -26,6 +28,17 @@ export function Home() {
 
   return (
     <AppLayout>
+      {pagoCompletado && (
+        <div className="mb-6 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <span>¡Pago completado! Tu cuenta pasará a premium en unos segundos.</span>
+          <button
+            onClick={() => setSearchParams({}, { replace: true })}
+            className="ml-4 text-emerald-600 hover:text-emerald-800"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
       <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Tu progreso</h1>

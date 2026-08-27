@@ -1,9 +1,8 @@
 # Oposiciones App — Auxiliar Administrativo del Estado
 
 App de preparación de oposiciones con banco de preguntas, mini-test sin
-registro, repetición espaciada (SM-2), panel de progreso y frontend web
-responsive. La monetización de pago (cobro real) queda para una fase
-posterior; el paywall/UI ya existe.
+registro, repetición espaciada (SM-2), panel de progreso, frontend web
+responsive y suscripción premium mensual vía Stripe (modo test/sandbox).
 
 ## Estado actual
 
@@ -28,10 +27,11 @@ posterior; el paywall/UI ya existe.
 - ✅ Tests de frontend: componentes (Vitest + Testing Library, API
   mockeada) y E2E (Playwright, contra un backend+frontend+BD dedicados —
   ver [`backend/docs/testing.md`](backend/docs/testing.md)).
-- 🔶 Stripe (en progreso): `Usuario` ya tiene los campos de suscripción
-  (`stripeCustomerId`, `stripeSubscriptionId`, `stripeSubscriptionStatus`)
-  y el script para crear el producto/precio recurrente. Falta el Checkout
-  Session desde `/upgrade` y el webhook — ver [Stripe](#stripe) más abajo.
+- ✅ Suscripción premium mensual con Stripe (modo test): botón
+  "Suscribirme" en `/upgrade` crea una Checkout Session; un webhook
+  sincroniza el estado de la suscripción (`plan`/`premiumHasta`), lo que
+  automáticamente exime del límite diario — ver
+  [`backend/docs/stripe.md`](backend/docs/stripe.md).
 
 ## Estructura
 
@@ -143,8 +143,11 @@ el Home no muestre todo en cero nada más registrarse).
 
 ## Stripe
 
-Estado: modelo de datos y producto/precio listos; falta el Checkout
-Session y el webhook (siguiente iteración).
+Suscripción premium mensual completa: Checkout Session desde `/upgrade` +
+webhook que mantiene al día `Usuario.plan`. Detalle completo del flujo,
+cómo se deriva `plan`/`premiumHasta` de cada evento, y cómo probarlo con
+`stripe listen` en local, en
+[`backend/docs/stripe.md`](backend/docs/stripe.md).
 
 ### Variables de entorno (`backend/.env`, nunca en el repo)
 
@@ -153,8 +156,12 @@ Session y el webhook (siguiente iteración).
   se usa en el backend; la publicable no hace falta en el frontend
   mientras el checkout sea el hosted de Stripe (redirect por `session.url`,
   sin Stripe.js).
-- `STRIPE_PRICE_ID`: id del precio recurrente mensual (`price_...`), lo
-  rellena `npm run stripe:setup-producto`.
+- `STRIPE_PRICE_ID`: id del precio recurrente mensual (`price_...`), creado
+  con `npm run stripe:setup-producto` (o a mano en el Dashboard).
+- `STRIPE_WEBHOOK_SECRET`: firma del endpoint de webhook (`whsec_...`),
+  la da `stripe listen` en local o el Dashboard en producción.
+- `FRONTEND_URL`: origen del frontend (por defecto
+  `http://localhost:5173`), para las URLs de éxito/cancelación del Checkout.
 
 ### Crear el producto/precio (`npm run stripe:setup-producto`)
 
@@ -162,8 +169,8 @@ Session y el webhook (siguiente iteración).
 idempotente vía `lookup_key: "premium-mensual"`) el producto "Premium
 mensual" y su precio de 4,99 €/mes recurrente. Este entorno de desarrollo
 tiene bloqueada la salida directa a `api.stripe.com` por política de red
-del sandbox, así que este script se ejecutó **localmente, fuera de este
-contenedor**, contra la cuenta de test del usuario:
+del sandbox, así que el producto/precio se creó **a mano en el Dashboard
+de Stripe** (fuera de este contenedor) y su id se guardó en `.env`.
 
 ```bash
 cd backend
@@ -176,11 +183,11 @@ npm run stripe:setup-producto
 ### Modelo de datos
 
 `Usuario.plan`/`premiumHasta` siguen siendo el gate que usa el resto de
-la app (p.ej. `lib/dailyLimit.ts`); a partir de ahora los mantiene al día
-el webhook de Stripe, nunca se escriben a mano. Campos nuevos:
-`stripeCustomerId`, `stripeSubscriptionId` (únicos, uno de cada por
-usuario) y `stripeSubscriptionStatus` (el string crudo que manda
-Stripe — solo `active`/`trialing` habilitan `plan = premium`).
+la app (p.ej. `lib/dailyLimit.ts`), y ahora los mantiene al día el webhook
+de Stripe — nunca se escriben a mano. Campos nuevos: `stripeCustomerId`,
+`stripeSubscriptionId` (únicos, uno de cada por usuario) y
+`stripeSubscriptionStatus` (el string crudo que manda Stripe — solo
+`active`/`trialing` habilitan `plan = premium`).
 
 ## Tests
 
@@ -252,17 +259,24 @@ Todas las rutas cuelgan de `/api`.
   → edita y/o cambia el estado. Rechaza (400) marcar `estado: "verificada"`
   si la pregunta no queda con una `respuestaCorrecta`.
 
+### Stripe
+- `POST /stripe/crear-checkout-session` (requiere sesión) → `{ url }`.
+  Crea/reutiliza el Customer del usuario y una Checkout Session en modo
+  suscripción; el frontend redirige el navegador a `url`.
+- `POST /stripe/webhook` (público, verificado por firma
+  `STRIPE_WEBHOOK_SECRET`) → sincroniza `plan`/`premiumHasta`/
+  `stripeSubscriptionStatus` a partir de los eventos de Stripe. Ver
+  [`backend/docs/stripe.md`](backend/docs/stripe.md) para el detalle de
+  qué eventos maneja.
+
 ## Próximos pasos
 
-1. **Stripe: Checkout + webhook** (siguiente iteración): endpoint que cree
-   un Checkout Session con `STRIPE_PRICE_ID` y redirija desde `/upgrade`;
-   endpoint de webhook (`checkout.session.completed`,
-   `customer.subscription.updated/deleted`, fallo de pago) que actualice
-   `plan`/`premiumHasta`/`stripeSubscriptionStatus` verificando la firma
-   con `STRIPE_WEBHOOK_SECRET`.
-2. **Reportar preguntas dudosas**: hoy `reportes_usuario` existe en el
+1. **Reportar preguntas dudosas**: hoy `reportes_usuario` existe en el
    modelo pero no hay forma de incrementarlo desde la UI; añadir un botón
    "reportar" en el test y, cuando supere un umbral, degradar la pregunta
    a `borrador` para que vuelva a la cola de revisión.
+2. **Stripe, siguiente nivel**: portal de cliente de Stripe (self-service
+   para cancelar/cambiar tarjeta), y pasar de modo test a producción
+   (claves live + endpoint de webhook real en el Dashboard).
 3. **CI**: las tres suites de test corren en local; falta un workflow que
    las ejecute en cada push/PR (levantando Postgres como servicio).

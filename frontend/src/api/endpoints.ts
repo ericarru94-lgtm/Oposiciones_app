@@ -116,3 +116,10 @@ export function actualizarPreguntaAdmin(token: string, id: string, cambios: Camb
     token,
   });
 }
+
+// --- Stripe ---
+
+/** Crea una Checkout Session de Stripe; redirigir el navegador a `url` (window.location.href). */
+export function crearCheckoutSession(token: string) {
+  return apiFetch<{ url: string }>("/stripe/crear-checkout-session", { method: "POST", token });
+}

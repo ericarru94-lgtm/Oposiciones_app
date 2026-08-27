@@ -8,7 +8,9 @@
  * Requiere STRIPE_SECRET_KEY en backend/.env (modo test/sandbox).
  */
 import "dotenv/config";
-import { stripe } from "../lib/stripe";
+import { obtenerStripe } from "../lib/stripe";
+
+const stripe = obtenerStripe();
 
 const LOOKUP_KEY = "premium-mensual";
 const NOMBRE_PRODUCTO = "Oposiciones App — Premium mensual";
