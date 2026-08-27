@@ -44,6 +44,8 @@ const aleatoriasQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
   tipo: z.nativeEnum(TipoPregunta).optional(),
   bloque: z.nativeEnum(Bloque).optional(),
+  /** Filtra a un tema concreto (p.ej. el test de arranque del onboarding sobre Constitución). */
+  temaId: z.coerce.number().int().positive().optional(),
   estado: z.enum(["borrador", "verificada"]).default(EstadoPregunta.verificada),
 });
 
@@ -57,13 +59,13 @@ preguntasRouter.get("/aleatorias", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
-  const { limit, tipo, bloque, estado } = parsed.data;
+  const { limit, tipo, bloque, temaId, estado } = parsed.data;
 
   const preguntas = await prisma.pregunta.findMany({
     where: {
       estado,
       ...(tipo ? { tipo } : {}),
-      ...(bloque ? { tema: { bloque } } : {}),
+      ...(temaId ? { temaId } : bloque ? { tema: { bloque } } : {}),
     },
     select: { id: true, enunciado: true, opciones: true, tipo: true, temaId: true },
   });

@@ -1,0 +1,50 @@
+import { useEffect, useState } from "react";
+import { TestRunner, type ResumenTest } from "./TestRunner";
+import type { PreguntaParaResponder } from "../api/types";
+
+interface CargadorTestProps {
+  titulo: string;
+  cargar: () => Promise<PreguntaParaResponder[]>;
+  onFinalizar: (resumen: ResumenTest) => void;
+  onLimiteAlcanzado: () => void;
+}
+
+/** Carga las preguntas de un test antes de montar el TestRunner, con estados de carga/error. */
+export function CargadorTest({ titulo, cargar, onFinalizar, onLimiteAlcanzado }: CargadorTestProps) {
+  const [preguntas, setPreguntas] = useState<PreguntaParaResponder[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    cargar()
+      .then((p) => {
+        if (!cancelado) setPreguntas(p);
+      })
+      .catch((err) => {
+        if (!cancelado) setError(err instanceof Error ? err.message : "No se pudieron cargar las preguntas");
+      });
+    return () => {
+      cancelado = true;
+    };
+    // Se ejecuta una sola vez al montar este paso; `cargar` se define en el
+    // padre para este paso concreto y no debe volver a dispararse.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (error) {
+    return <p className="mx-auto max-w-lg rounded-2xl bg-white p-8 text-center text-rose-600 shadow-sm">{error}</p>;
+  }
+
+  if (!preguntas) {
+    return <p className="mx-auto max-w-lg rounded-2xl bg-white p-8 text-center text-slate-500 shadow-sm">Cargando…</p>;
+  }
+
+  return (
+    <TestRunner
+      titulo={titulo}
+      preguntas={preguntas}
+      onFinalizar={onFinalizar}
+      onLimiteAlcanzado={onLimiteAlcanzado}
+    />
+  );
+}

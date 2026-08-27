@@ -1,9 +1,9 @@
 # Oposiciones App — Auxiliar Administrativo del Estado
 
 App de preparación de oposiciones con banco de preguntas, mini-test sin
-registro, repetición espaciada (SM-2) y panel de progreso. Este repo
-arranca por el **esqueleto de datos + backend**; el frontend y la
-monetización llegan en fases posteriores.
+registro, repetición espaciada (SM-2), panel de progreso y frontend web
+responsive. La monetización de pago (cobro real) queda para una fase
+posterior; el paywall/UI ya existe.
 
 ## Estado actual
 
@@ -11,13 +11,18 @@ monetización llegan en fases posteriores.
   progreso SM-2, intentos.
 - ✅ Importación del dataset `preguntas_auxiliar_estado_combinado.json`
   (414 preguntas, 28 temas).
-- ✅ API REST básica: auth, mini-test sin registro, respuesta a preguntas,
-  "repasar hoy" con SM-2, resumen de progreso, límite diario del plan
-  gratuito.
+- ✅ API REST: auth, mini-test sin registro, respuesta a preguntas,
+  "repasar hoy" con SM-2, progreso por tema, racha, evolución del %
+  de acierto, límite diario del plan gratuito.
 - ✅ Tests de integración del flujo borrador/verificada/anulada (ver
   [`backend/docs/estados-preguntas.md`](backend/docs/estados-preguntas.md)).
-- ⬜ Frontend (onboarding, home, test, panel de progreso).
-- ⬜ Monetización freemium (suscripción mensual).
+- ✅ Frontend (React + Vite + Tailwind): onboarding sin registro (mini-test
+  → nivel de partida → primer test sobre Constitución → alta de cuenta),
+  home con progreso por tema y racha, test una pregunta a la vez con
+  feedback y fuente, panel de progreso, pantalla de upgrade al alcanzar
+  el límite diario.
+- ⬜ Cobro real (Stripe u otro proveedor) para el plan premium.
+- ⬜ Herramienta de verificación editorial (borrador → verificada).
 
 ## Estructura
 
@@ -26,10 +31,17 @@ backend/
   prisma/schema.prisma        modelo de datos
   data/*.json                 dataset de preguntas (copia del original)
   src/
-    server.ts                 servidor Express
+    server.ts / app.ts        servidor y app de Express (separados para poder testear)
     routes/                   auth, preguntas, progreso
-    lib/                      prisma client, SM-2, límite diario
+    lib/                      prisma client, SM-2, límite diario, reclamo de intentos anónimos
     scripts/import-questions.ts   importador idempotente del JSON
+frontend/
+  src/
+    api/                      cliente fetch tipado
+    context/SessionContext    token, sesión anónima, nivel de onboarding pendiente
+    components/               TestRunner (motor de test), tarjetas, gráfico de evolución
+    pages/onboarding/         mini-test → nivel → primer test (Constitución) → alta de cuenta
+    pages/                    Home, Progreso, RepasarHoy, PracticarTema, Upgrade, Login
 ```
 
 ## Modelo de datos
@@ -100,6 +112,22 @@ npm run import:questions
 npm run import:questions -- /ruta/a/otro_dataset.json
 ```
 
+## Frontend
+
+```bash
+cd frontend
+cp .env.example .env   # VITE_API_URL, por defecto http://localhost:3001/api
+npm install
+npm run dev            # http://localhost:5173, requiere el backend corriendo
+```
+
+Ver [`frontend/README.md`](frontend/README.md) para la estructura y el
+flujo de sesión anónima → cuenta (el onboarding se responde sin cuenta con
+un `sesionAnonima` en localStorage; al registrarse o iniciar sesión justo
+después, esos intentos se reasignan al usuario y su progreso SM-2 se
+reconstruye — ver `backend/src/lib/reclamarIntentosAnonimos.ts` — para que
+el Home no muestre todo en cero nada más registrarse).
+
 ## Tests
 
 ```bash
@@ -119,14 +147,16 @@ para el detalle de qué cubre cada test del flujo borrador/verificada/anulada.
 Todas las rutas cuelgan de `/api`.
 
 ### Auth
-- `POST /auth/registro` `{ email, password, nivelInicial? }` → `{ token, usuario }`
-- `POST /auth/login` `{ email, password }` → `{ token, usuario }`
+- `POST /auth/registro` `{ email, password, nivelInicial?, sesionAnonima? }` → `{ token, usuario }`
+- `POST /auth/login` `{ email, password, sesionAnonima? }` → `{ token, usuario }`
 - `GET /auth/me` (Bearer token) → datos del usuario
 - `PATCH /auth/me/onboarding` `{ nivelInicial }` → guarda el resultado del onboarding
 
 ### Preguntas
-- `GET /preguntas/aleatorias?limit=10&tipo=teorica|psicotecnica&bloque=I|II&estado=verificada`
+- `GET /preguntas/aleatorias?limit=10&tipo=teorica|psicotecnica&bloque=I|II&temaId=&estado=verificada|borrador`
   Mini-test sin registro: preguntas al azar **sin** la respuesta correcta.
+  `temaId` filtra a un tema concreto (usado por el onboarding para el
+  primer test sobre Constitución).
 - `POST /preguntas/:id/responder` `{ opcion: "a"|"b"|"c"|"d", sesionAnonima?, tiempoMs? }`
   Funciona con o sin token (usa `sesionAnonima` si no hay usuario). Devuelve
   si acertó, la respuesta correcta, explicación/fuente y el estado del
@@ -138,18 +168,24 @@ Todas las rutas cuelgan de `/api`.
   preguntas nuevas hasta agotar el límite diario restante.
 - `POST /progreso/:preguntaId/revisar` `{ calidad: 0-5 }` → aplica SM-2
   con una calidad explícita (para una UI tipo Anki: otra vez/difícil/bien/fácil).
+  El frontend actual no la usa (usa `/responder` para todo, incluido el
+  repaso), pero queda disponible para una UI de repaso alternativa.
 - `GET /progreso/resumen` → totales, precisión, preguntas en seguimiento,
-  pendientes de hoy (para el panel de progreso).
+  pendientes de hoy y racha de días consecutivos.
+- `GET /progreso/por-tema` → por cada uno de los 28 temas: preguntas
+  verificadas, contestadas, aciertos y precisión (home + puntos débiles).
+- `GET /progreso/evolucion?dias=14` → serie diaria de intentos/aciertos
+  para el gráfico de evolución del % de acierto.
 
 ## Próximos pasos
 
-1. **Frontend** (React/Vite + Tailwind sugerido): onboarding con nivel de
-   partida, home con "repasar hoy", flujo de test con feedback y fuente,
-   panel de progreso, mini-test sin registro usando `sesionAnonima`
-   persistida en localStorage.
+1. **Cobro real**: integrar un proveedor de pago (p.ej. Stripe) en la
+   pantalla de upgrade, webhook de alta/renovación/cancelación que
+   actualice `Usuario.plan` y `premiumHasta`.
 2. **Verificación editorial**: herramienta/admin para pasar preguntas de
    `borrador` a `verificada` (añadir `explicacion`/`fuente`), y flujo de
    `reportes_usuario` para que los usuarios señalen preguntas dudosas.
-3. **Monetización freemium**: tabla de suscripciones + integración de
-   pago (p.ej. Stripe), upgrade de `plan` a `premium` y `premiumHasta`,
-   webhook de renovación/cancelación.
+3. **Tests de frontend**: la suite de tests hoy solo cubre el backend; el
+   flujo de onboarding se validó manualmente con Playwright (ver capturas
+   generadas durante el desarrollo) pero no hay tests automatizados de UI
+   todavía.
