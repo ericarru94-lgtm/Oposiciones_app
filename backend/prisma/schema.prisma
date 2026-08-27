@@ -1,0 +1,150 @@
+// Prisma schema for the Oposiciones prep app (Auxiliar Administrativo del Estado)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------------
+// Catálogo de contenidos
+// --------------------------------------------------------------------------
+
+enum Bloque {
+  I
+  II
+}
+
+enum TipoPregunta {
+  teorica
+  psicotecnica
+}
+
+enum OrigenPregunta {
+  examen_oficial
+  generada_ia
+}
+
+enum EstadoPregunta {
+  borrador
+  verificada
+  anulada
+}
+
+enum Opcion {
+  a
+  b
+  c
+  d
+}
+
+model Tema {
+  id        Int          @id @default(autoincrement())
+  bloque    Bloque
+  numero    Int
+  nombre    String
+  preguntas Pregunta[]
+
+  @@unique([bloque, numero])
+}
+
+/// Pregunta del banco de preguntas. El campo `id` reutiliza el identificador
+/// del dataset de origen (p.ej. "q0001") para poder re-importar sin duplicar.
+model Pregunta {
+  id                     String         @id
+  tema                   Tema?          @relation(fields: [temaId], references: [id])
+  temaId                 Int?
+  enunciado              String
+  opciones               Json // array de 4 strings, orden = a,b,c,d
+  respuestaCorrecta      Opcion?
+  explicacion            String?
+  fuente                 String?
+  origen                 OrigenPregunta
+  convocatoria           String?
+  estado                 EstadoPregunta @default(borrador)
+  fechaVerificacion      DateTime?
+  reportesUsuario        Int            @default(0)
+  tipo                   TipoPregunta
+  esPreguntaReserva      Boolean        @default(false)
+  numeroOriginalExamen   Int?
+
+  progresos Progreso[]
+  intentos  Intento[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tipo, estado])
+  @@index([temaId])
+}
+
+// --------------------------------------------------------------------------
+// Usuarios y progreso
+// --------------------------------------------------------------------------
+
+enum Plan {
+  free
+  premium
+}
+
+model Usuario {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  nivelInicial  String? // resultado del onboarding (p.ej. "principiante", "intermedio", "avanzado")
+  plan          Plan     @default(free)
+  premiumHasta  DateTime? // fin de suscripción activa, null si nunca ha pagado
+  createdAt     DateTime @default(now())
+
+  progresos Progreso[]
+  intentos  Intento[]
+}
+
+/// Estado de repetición espaciada (SM-2) por usuario y pregunta.
+model Progreso {
+  id              String    @id @default(cuid())
+  usuario         Usuario   @relation(fields: [usuarioId], references: [id])
+  usuarioId       String
+  pregunta        Pregunta  @relation(fields: [preguntaId], references: [id])
+  preguntaId      String
+
+  // Parámetros SM-2
+  repeticiones    Int       @default(0)
+  factorFacilidad Float     @default(2.5)
+  intervaloDias   Int       @default(0)
+  proximaRevision DateTime  @default(now())
+  ultimaRevision  DateTime?
+  ultimaCalidad   Int? // calidad 0-5 de la última respuesta (algoritmo SM-2)
+
+  vecesVista      Int       @default(0)
+  vecesCorrecta   Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([usuarioId, preguntaId])
+  @@index([usuarioId, proximaRevision])
+}
+
+/// Registro de cada respuesta dada, tanto de usuarios registrados como
+/// anónimos (mini-test sin registro). Sirve para el panel de progreso y
+/// para aplicar el límite diario del plan gratuito.
+model Intento {
+  id             String    @id @default(cuid())
+  usuario        Usuario?  @relation(fields: [usuarioId], references: [id])
+  usuarioId      String?
+  /// Identificador de sesión anónima (cookie/localStorage) cuando no hay usuario.
+  sesionAnonima  String?
+  pregunta       Pregunta  @relation(fields: [preguntaId], references: [id])
+  preguntaId     String
+  opcionElegida  Opcion?
+  esCorrecta     Boolean
+  tiempoMs       Int?
+  createdAt      DateTime  @default(now())
+
+  @@index([usuarioId, createdAt])
+  @@index([sesionAnonima, createdAt])
+}

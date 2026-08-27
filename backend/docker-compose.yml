@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: oposiciones
+      POSTGRES_PASSWORD: oposiciones
+      POSTGRES_DB: oposiciones
+    ports:
+      - "5432:5432"
+    volumes:
+      - oposiciones_db_data:/var/lib/postgresql/data
+
+volumes:
+  oposiciones_db_data:
