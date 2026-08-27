@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authRequerido } from "../middleware/auth";
+import { asyncHandler } from "../lib/asyncHandler";
 import { siguienteEstadoSM2 } from "../lib/sm2";
 import { haAlcanzadoLimiteDiario } from "../lib/dailyLimit";
 
@@ -17,7 +18,7 @@ const hoyQuerySchema = z.object({
  * más preguntas nuevas (sin progreso todavía) hasta completar el límite
  * diario restante del plan gratuito.
  */
-progresoRouter.get("/hoy", async (req, res) => {
+progresoRouter.get("/hoy", asyncHandler(async (req, res) => {
   const parsed = hoyQuerySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { limit } = parsed.data;
@@ -67,7 +68,7 @@ progresoRouter.get("/hoy", async (req, res) => {
       esNueva: true,
     })),
   });
-});
+}));
 
 const revisarSchema = z.object({
   calidad: z.number().int().min(0).max(5),
@@ -77,7 +78,7 @@ const revisarSchema = z.object({
  * Registra el resultado de un repaso con una calidad SM-2 explícita (0-5),
  * típico de una UI estilo Anki ("otra vez / difícil / bien / fácil").
  */
-progresoRouter.post("/:preguntaId/revisar", async (req, res) => {
+progresoRouter.post("/:preguntaId/revisar", asyncHandler(async (req, res) => {
   const parsed = revisarSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { calidad } = parsed.data;
@@ -125,7 +126,7 @@ progresoRouter.post("/:preguntaId/revisar", async (req, res) => {
   });
 
   res.json({ progreso });
-});
+}));
 
 function claveDiaLocal(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -161,7 +162,7 @@ async function calcularRacha(usuarioId: string): Promise<{ dias: number; ultimaA
 }
 
 /** Resumen para el home y el panel de progreso: totales, precisión y racha. */
-progresoRouter.get("/resumen", async (req, res) => {
+progresoRouter.get("/resumen", asyncHandler(async (req, res) => {
   const usuarioId = req.auth!.usuarioId;
 
   const [totalIntentos, aciertos, preguntasEnSeguimiento, pendientesHoy, racha] =
@@ -183,14 +184,14 @@ progresoRouter.get("/resumen", async (req, res) => {
     pendientesHoy,
     racha,
   });
-});
+}));
 
 /**
  * Progreso por tema (para el grid de la home y los "puntos débiles" del
  * panel de progreso): cuántas preguntas verificadas tiene el tema, cuántas
  * distintas ha contestado el usuario y su precisión en ese tema.
  */
-progresoRouter.get("/por-tema", async (req, res) => {
+progresoRouter.get("/por-tema", asyncHandler(async (req, res) => {
   const usuarioId = req.auth!.usuarioId;
 
   const temas = await prisma.tema.findMany({ orderBy: [{ bloque: "asc" }, { numero: "asc" }] });
@@ -224,14 +225,14 @@ progresoRouter.get("/por-tema", async (req, res) => {
   );
 
   res.json({ temas: porTema });
-});
+}));
 
 const evolucionQuerySchema = z.object({
   dias: z.coerce.number().int().min(1).max(90).default(14),
 });
 
 /** Serie diaria de intentos/aciertos, para el gráfico de evolución del % de acierto. */
-progresoRouter.get("/evolucion", async (req, res) => {
+progresoRouter.get("/evolucion", asyncHandler(async (req, res) => {
   const parsed = evolucionQuerySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { dias } = parsed.data;
@@ -270,4 +271,4 @@ progresoRouter.get("/evolucion", async (req, res) => {
   }
 
   res.json({ serie });
-});
+}));

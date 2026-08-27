@@ -25,6 +25,9 @@ posterior; el paywall/UI ya existe.
   cuentas listadas en `ADMIN_EMAILS`): cola de preguntas en borrador
   filtrable por bloque/tema, edición de enunciado/opciones/respuesta/
   explicación/fuente, verificar o anular.
+- ✅ Tests de frontend: componentes (Vitest + Testing Library, API
+  mockeada) y E2E (Playwright, contra un backend+frontend+BD dedicados —
+  ver [`backend/docs/testing.md`](backend/docs/testing.md)).
 - ⬜ Cobro real (Stripe u otro proveedor) para el plan premium.
 
 ## Estructura
@@ -138,16 +141,27 @@ el Home no muestre todo en cero nada más registrarse).
 ## Tests
 
 ```bash
-cd backend
-cp .env.test.example .env.test   # ajusta DATABASE_URL si hace falta
-npm test
+# Backend (Vitest + Supertest, BD de test dedicada oposiciones_test)
+cd backend && cp .env.test.example .env.test && npm test
+
+# Frontend: componentes (Vitest + Testing Library, sin BD)
+cd frontend && npm test
+
+# Frontend: E2E (Playwright, backend+frontend+BD dedicados: puertos 3002/5174, oposiciones_e2e)
+cd frontend
+cp .env.e2e.example .env.e2e
+cp ../backend/.env.e2e.example ../backend/.env.e2e
+npm run test:e2e
 ```
 
-Usa una base de datos de test real y separada (no toca los datos de
-desarrollo). `npm test` aplica las migraciones automáticamente antes de
-correr la suite. Ver
+Ninguna de las tres suites toca la base de datos de desarrollo. Ver
+[`backend/docs/testing.md`](backend/docs/testing.md) para la estrategia
+completa (qué cubre cada nivel, cómo está aislado el entorno de E2E, y dos
+bugs reales de producción — desbordamiento de fecha en SM-2 y un error
+async sin capturar que tumbaba todo el servidor — que esta suite encontró
+al escribirla) y
 [`backend/docs/estados-preguntas.md`](backend/docs/estados-preguntas.md#tests)
-para el detalle de qué cubre cada test del flujo borrador/verificada/anulada.
+para el detalle del flujo borrador/verificada/anulada.
 
 ## API
 
@@ -203,7 +217,5 @@ Todas las rutas cuelgan de `/api`.
    modelo pero no hay forma de incrementarlo desde la UI; añadir un botón
    "reportar" en el test y, cuando supere un umbral, degradar la pregunta
    a `borrador` para que vuelva a la cola de revisión.
-3. **Tests de frontend**: la suite de tests hoy solo cubre el backend; los
-   flujos de onboarding y de revisión editorial se validaron manualmente
-   con Playwright (ver capturas generadas durante el desarrollo) pero no
-   hay tests automatizados de UI todavía.
+3. **CI**: las tres suites de test corren en local; falta un workflow que
+   las ejecute en cada push/PR (levantando Postgres como servicio).

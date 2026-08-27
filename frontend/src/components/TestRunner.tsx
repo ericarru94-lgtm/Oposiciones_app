@@ -59,6 +59,7 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
           No hay preguntas disponibles para este test todavía. Vuelve a intentarlo más tarde.
         </p>
         <button
+          data-testid="volver-vacio"
           onClick={() => onFinalizar({ totalPreguntas: 0, aciertos: 0, fallos: 0, duracionMs: 0 })}
           className="mt-4 rounded-lg bg-slate-800 px-4 py-2 text-white"
         >
@@ -71,16 +72,20 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
   if (terminado) {
     const porcentaje = resumen.totalPreguntas > 0 ? Math.round((resumen.aciertos / resumen.totalPreguntas) * 100) : 0;
     return (
-      <div className="mx-auto max-w-lg rounded-2xl bg-white p-8 text-center shadow-sm">
+      <div data-testid="resumen" className="mx-auto max-w-lg rounded-2xl bg-white p-8 text-center shadow-sm">
         <h2 className="text-xl font-semibold text-slate-900">¡Test completado!</h2>
         <p className="mt-1 text-sm text-slate-500">{titulo}</p>
         <div className="mt-6 grid grid-cols-3 gap-4">
           <div>
-            <p className="text-2xl font-bold text-emerald-600">{resumen.aciertos}</p>
+            <p data-testid="resumen-aciertos" className="text-2xl font-bold text-emerald-600">
+              {resumen.aciertos}
+            </p>
             <p className="text-xs text-slate-500">Aciertos</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-rose-600">{resumen.fallos}</p>
+            <p data-testid="resumen-fallos" className="text-2xl font-bold text-rose-600">
+              {resumen.fallos}
+            </p>
             <p className="text-xs text-slate-500">Fallos</p>
           </div>
           <div>
@@ -90,6 +95,7 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
         </div>
         <p className="mt-4 text-sm text-slate-600">{porcentaje}% de aciertos</p>
         <button
+          data-testid="continuar"
           onClick={() => onFinalizar(resumen)}
           className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700"
         >
@@ -165,6 +171,7 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
             return (
               <button
                 key={opcion}
+                data-testid={`opcion-${opcion}`}
                 disabled={!!feedback || enviando}
                 onClick={() => elegirOpcion(opcion)}
                 className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors disabled:cursor-default ${estilo}`}
@@ -179,7 +186,7 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
         {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
         {feedback && (
-          <div className="mt-5 rounded-lg bg-slate-50 p-4 text-sm">
+          <div data-testid="feedback" className="mt-5 rounded-lg bg-slate-50 p-4 text-sm">
             <p className={feedback.esCorrecta ? "font-semibold text-emerald-700" : "font-semibold text-rose-700"}>
               {feedback.esCorrecta ? "¡Correcto!" : `Incorrecto. La respuesta correcta es la ${feedback.respuestaCorrecta}.`}
             </p>
@@ -191,6 +198,7 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
               </p>
             )}
             <button
+              data-testid="siguiente"
               onClick={siguiente}
               className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
             >

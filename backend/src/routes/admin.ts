@@ -2,10 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authRequerido, requiereAdmin } from "../middleware/auth";
+import { asyncHandler } from "../lib/asyncHandler";
 import { Bloque, EstadoPregunta, Opcion } from "@prisma/client";
 
 export const adminRouter = Router();
-adminRouter.use(authRequerido, requiereAdmin);
+adminRouter.use(authRequerido, asyncHandler(requiereAdmin));
 
 const listaQuerySchema = z.object({
   estado: z.enum(["borrador", "verificada", "anulada"]).default("borrador"),
@@ -23,7 +24,7 @@ const listaQuerySchema = z.object({
  * ordenada por tema para poder revisar "de forma ordenada" en vez de al
  * azar.
  */
-adminRouter.get("/preguntas", async (req, res) => {
+adminRouter.get("/preguntas", asyncHandler(async (req, res) => {
   const parsed = listaQuerySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { estado, bloque, temaId, sinTema, limit } = parsed.data;
@@ -47,10 +48,10 @@ adminRouter.get("/preguntas", async (req, res) => {
   });
 
   res.json({ preguntas });
-});
+}));
 
 /** Recuento por tema (y sin tema, para psicotécnicas) del estado pedido, para pintar el filtro con "cuántas quedan". */
-adminRouter.get("/resumen-temas", async (req, res) => {
+adminRouter.get("/resumen-temas", asyncHandler(async (req, res) => {
   const estadoParsed = z.enum(["borrador", "verificada", "anulada"]).default("borrador").safeParse(req.query.estado);
   if (!estadoParsed.success) return res.status(400).json({ error: estadoParsed.error.flatten() });
   const estado = estadoParsed.data;
@@ -71,7 +72,7 @@ adminRouter.get("/resumen-temas", async (req, res) => {
     temas: temas.map((t) => ({ ...t, pendientes: conteoPorTema.get(t.id) ?? 0 })),
     sinTema: { pendientes: sinTema },
   });
-});
+}));
 
 const edicionSchema = z.object({
   enunciado: z.string().min(1).optional(),
@@ -82,7 +83,7 @@ const edicionSchema = z.object({
   estado: z.nativeEnum(EstadoPregunta).optional(),
 });
 
-adminRouter.patch("/preguntas/:id", async (req, res) => {
+adminRouter.patch("/preguntas/:id", asyncHandler(async (req, res) => {
   const parsed = edicionSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const cambios = parsed.data;
@@ -108,4 +109,4 @@ adminRouter.patch("/preguntas/:id", async (req, res) => {
   });
 
   res.json({ pregunta });
-});
+}));

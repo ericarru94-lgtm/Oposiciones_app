@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { firmarToken, authRequerido } from "../middleware/auth";
+import { asyncHandler } from "../lib/asyncHandler";
 import { reclamarIntentosAnonimos } from "../lib/reclamarIntentosAnonimos";
 import { esEmailAdmin } from "../lib/adminEmails";
 
@@ -24,7 +25,7 @@ const registroSchema = z.object({
   sesionAnonima: z.string().optional(),
 });
 
-authRouter.post("/registro", async (req, res) => {
+authRouter.post("/registro", asyncHandler(async (req, res) => {
   const parsed = registroSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
@@ -54,7 +55,7 @@ authRouter.post("/registro", async (req, res) => {
     token,
     usuario: { id: usuario.id, email: usuario.email, plan: usuario.plan, esAdmin: usuario.esAdmin },
   });
-});
+}));
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -62,7 +63,7 @@ const loginSchema = z.object({
   sesionAnonima: z.string().optional(),
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", asyncHandler(async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
@@ -88,22 +89,22 @@ authRouter.post("/login", async (req, res) => {
     token,
     usuario: { id: usuario.id, email: usuario.email, plan: usuario.plan, esAdmin: usuario.esAdmin },
   });
-});
+}));
 
-authRouter.get("/me", authRequerido, async (req, res) => {
+authRouter.get("/me", authRequerido, asyncHandler(async (req, res) => {
   const usuario = await prisma.usuario.findUnique({
     where: { id: req.auth!.usuarioId },
     select: { id: true, email: true, plan: true, nivelInicial: true, esAdmin: true, createdAt: true },
   });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
   res.json(usuario);
-});
+}));
 
 const onboardingSchema = z.object({
   nivelInicial: z.string(),
 });
 
-authRouter.patch("/me/onboarding", authRequerido, async (req, res) => {
+authRouter.patch("/me/onboarding", authRequerido, asyncHandler(async (req, res) => {
   const parsed = onboardingSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
@@ -113,4 +114,4 @@ authRouter.patch("/me/onboarding", authRequerido, async (req, res) => {
     data: { nivelInicial: parsed.data.nivelInicial },
   });
   res.json({ id: usuario.id, nivelInicial: usuario.nivelInicial });
-});
+}));

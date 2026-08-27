@@ -15,7 +15,9 @@
     "import:questions": "tsx src/scripts/import-questions.ts",
     "pretest": "dotenv -e .env.test -- prisma migrate deploy",
     "test": "dotenv -e .env.test -- vitest run",
-    "test:watch": "dotenv -e .env.test -- vitest"
+    "test:watch": "dotenv -e .env.test -- vitest",
+    "e2e:reset": "dotenv -e .env.e2e -- prisma migrate deploy && dotenv -e .env.e2e -- tsx src/scripts/seed-e2e.ts",
+    "e2e:serve": "dotenv -e .env.e2e -- tsx src/server.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

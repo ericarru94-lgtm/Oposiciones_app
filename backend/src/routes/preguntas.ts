@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authOpcional } from "../middleware/auth";
+import { asyncHandler } from "../lib/asyncHandler";
 import { haAlcanzadoLimiteDiario } from "../lib/dailyLimit";
 import { siguienteEstadoSM2, calidadDesdeAcierto } from "../lib/sm2";
 import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
@@ -54,7 +55,7 @@ const aleatoriasQuerySchema = z.object({
  * No requiere autenticación ni cuenta contra el límite diario (solo consultar
  * cuenta al "responder", ver /:id/responder).
  */
-preguntasRouter.get("/aleatorias", async (req, res) => {
+preguntasRouter.get("/aleatorias", asyncHandler(async (req, res) => {
   const parsed = aleatoriasQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
@@ -72,7 +73,7 @@ preguntasRouter.get("/aleatorias", async (req, res) => {
 
   const seleccion = barajar(preguntas).slice(0, limit);
   res.json({ preguntas: seleccion.map(ocultarRespuesta) });
-});
+}));
 
 const responderSchema = z.object({
   opcion: z.nativeEnum(Opcion),
@@ -85,7 +86,7 @@ const responderSchema = z.object({
  * Aplica el límite diario del plan gratuito y, si hay usuario autenticado,
  * actualiza su progreso SM-2 para esa pregunta.
  */
-preguntasRouter.post("/:id/responder", authOpcional, async (req, res) => {
+preguntasRouter.post("/:id/responder", authOpcional, asyncHandler(async (req, res) => {
   const parsed = responderSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
@@ -189,11 +190,11 @@ preguntasRouter.post("/:id/responder", authOpcional, async (req, res) => {
     fuente: pregunta.fuente,
     limiteDiario: { restantes: restantes.restantes, usadas: restantes.usadas },
   });
-});
+}));
 
-preguntasRouter.get("/temas", async (_req, res) => {
+preguntasRouter.get("/temas", asyncHandler(async (_req, res) => {
   const temas = await prisma.tema.findMany({
     orderBy: [{ bloque: "asc" }, { numero: "asc" }],
   });
   res.json({ temas });
-});
+}));

@@ -61,6 +61,7 @@ export function FormularioPreguntaAdmin({ pregunta, onCompletado, onSaltar }: Pr
 
       <label className="block text-xs font-medium text-slate-500">Enunciado</label>
       <textarea
+        aria-label="Enunciado"
         value={enunciado}
         onChange={(e) => setEnunciado(e.target.value)}
         rows={3}

@@ -13,6 +13,16 @@ export interface EstadoSM2 {
   intervaloDias: number;
 }
 
+/**
+ * Tope al intervalo en días (~10 años). Sin este límite, repasar la misma
+ * pregunta con "acierto" muchas veces seguidas hace crecer el intervalo
+ * exponencialmente (intervalo *= factorFacilidad en cada acierto) hasta
+ * desbordar el rango válido de `Date`, lo que revienta la query de Prisma
+ * al guardar `proximaRevision` (visto en producción: ~17 aciertos seguidos
+ * a la misma pregunta ya generan una fecha inválida).
+ */
+const INTERVALO_MAXIMO_DIAS = 3650;
+
 export function siguienteEstadoSM2(
   estado: EstadoSM2,
   calidad: number
@@ -36,6 +46,7 @@ export function siguienteEstadoSM2(
     }
     repeticiones += 1;
   }
+  intervaloDias = Math.min(intervaloDias, INTERVALO_MAXIMO_DIAS);
 
   factorFacilidad =
     factorFacilidad + (0.1 - (5 - calidad) * (0.08 + (5 - calidad) * 0.02));

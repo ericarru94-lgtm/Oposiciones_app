@@ -44,3 +44,24 @@ el frontend manda ese `sesionAnonima` al backend, que reasigna esos
 intentos al usuario y reconstruye su progreso SM-2 (ver
 `backend/src/lib/reclamarIntentosAnonimos.ts`) — así el Home ya refleja lo
 practicado en el onboarding en vez de mostrar todo en cero.
+
+## Tests
+
+Dos suites separadas:
+
+```bash
+npm test        # Vitest + Testing Library: componentes en aislado (mocks de la API)
+npm run test:e2e # Playwright: flujos completos contra un backend + frontend reales
+```
+
+- **Componentes** (`src/**/*.test.tsx`): `TestRunner` (responder, feedback,
+  resumen, límite diario) y `FormularioPreguntaAdmin` (editar, verificar,
+  anular, validación), con la capa de API mockeada — no tocan ninguna base
+  de datos.
+- **E2E** (`e2e/*.spec.ts`): arrancan su propio backend (puerto 3002) y
+  frontend (puerto 5174), **nunca los de `npm run dev`** (3001/5173), contra
+  una base de datos dedicada y desechable (`oposiciones_e2e`) que se
+  resetea y siembra con datos deterministas antes de cada tanda —
+  ver [`backend/docs/testing.md`](../backend/docs/testing.md) para el
+  detalle completo (por qué existe cada tema del seed, cómo se evita el
+  cruce entre specs, y los dos bugs reales que esta suite encontró).
