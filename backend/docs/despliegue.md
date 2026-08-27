@@ -168,6 +168,11 @@ omite este paso.
 ## Verificación rápida tras el despliegue
 
 1. `curl https://tu-servicio.onrender.com/api/health` → `{"ok":true}`.
+   Las migraciones dejan las tablas creadas pero vacías — sin importar el
+   dataset todavía no hay ningún tema ni pregunta, así que el mini-test y
+   el onboarding no tendrán nada que mostrar. Ver
+   [`backend/docs/banco-preguntas.md`](banco-preguntas.md) para cómo
+   importarlo de forma segura contra esta base de datos.
 2. Abrir `https://tu-proyecto.vercel.app`, completar el onboarding y
    registrarte con Clerk de verdad — confirma que `/home` ya refleja el
    primer test practicado (reclamo de la sesión anónima) y que `/perfil`

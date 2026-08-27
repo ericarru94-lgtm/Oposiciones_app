@@ -123,14 +123,21 @@ npm run dev                 # arranca el backend en http://localhost:3001
 
 ### Re-importar el dataset
 
-El script es idempotente (upsert por `id`), así que se puede volver a
-ejecutar tras corregir o ampliar el JSON:
+El script es idempotente (upsert por `id`) y nunca pisa una pregunta que
+ya haya revisado un admin (una vez que deja de estar en `borrador`), así
+que se puede volver a ejecutar tras corregir o ampliar el JSON sin perder
+trabajo de revisión editorial:
 
 ```bash
 npm run import:questions
 # o apuntando a otro archivo:
 npm run import:questions -- /ruta/a/otro_dataset.json
 ```
+
+Estado actual del dataset, cómo ejecutar esto de forma segura contra la
+base de datos de producción de Render (sin mezclarlo con test/E2E), y el
+proceso para ampliar/verificar el banco de preguntas, en
+[`backend/docs/banco-preguntas.md`](backend/docs/banco-preguntas.md).
 
 ## Frontend
 

@@ -62,11 +62,23 @@ async function main() {
   }
   console.log(`${temaIdPorClave.size} temas sincronizados`);
 
-  // 2) Upsert de las preguntas.
+  // 2) Upsert de las preguntas. Una vez que un admin ha revisado una
+  // pregunta (estado ya no es "borrador"), reimportar el dataset nunca la
+  // toca: si no, un re-import pisaría sin darse cuenta el trabajo
+  // editorial hecho en /admin/revision (volvería a "borrador" una
+  // pregunta ya verificada, o restauraría el enunciado original sobre uno
+  // corregido a mano). Ver backend/docs/banco-preguntas.md.
   let creadas = 0;
   let actualizadas = 0;
+  let omitidas = 0;
   for (const p of preguntas) {
     const temaId = p.tema ? temaIdPorClave.get(`${p.tema.bloque}-${p.tema.numero}`) : null;
+
+    const existente = await prisma.pregunta.findUnique({ where: { id: p.id } });
+    if (existente && existente.estado !== "borrador") {
+      omitidas++;
+      continue;
+    }
 
     const data = {
       temaId: temaId ?? null,
@@ -85,17 +97,18 @@ async function main() {
       numeroOriginalExamen: p.numero_original_examen,
     };
 
-    const existia = await prisma.pregunta.findUnique({ where: { id: p.id } });
     await prisma.pregunta.upsert({
       where: { id: p.id },
       create: { id: p.id, ...data },
       update: data,
     });
-    if (existia) actualizadas++;
+    if (existente) actualizadas++;
     else creadas++;
   }
 
-  console.log(`Importación completada: ${creadas} creadas, ${actualizadas} actualizadas`);
+  console.log(
+    `Importación completada: ${creadas} creadas, ${actualizadas} actualizadas, ${omitidas} omitidas (ya revisadas por un admin)`
+  );
 }
 
 main()
