@@ -49,7 +49,6 @@ test("mini-test -> nivel -> primer test -> registro -> home", async ({ page }) =
   await expect(page.getByText(/Crea tu cuenta gratis para guardar el progreso/)).toBeVisible();
   const email = `e2e-onboarding-${Date.now()}@example.com`;
   await page.getByPlaceholder("Email").fill(email);
-  await page.getByPlaceholder(/Contraseña/).fill("password123");
   await page.getByRole("button", { name: "Crear cuenta gratis" }).click();
 
   await expect(page).toHaveURL(/\/home$/);

@@ -31,7 +31,9 @@ const preguntaBase: PreguntaAdmin = {
 };
 
 beforeEach(() => {
-  vi.mocked(useSession).mockReturnValue({ token: "token-admin" } as ReturnType<typeof useSession>);
+  vi.mocked(useSession).mockReturnValue({
+    getToken: vi.fn().mockResolvedValue("token-admin"),
+  } as unknown as ReturnType<typeof useSession>);
   vi.mocked(actualizarPreguntaAdmin).mockReset();
 });
 

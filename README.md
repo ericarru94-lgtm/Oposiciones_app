@@ -32,6 +32,11 @@ responsive y suscripción premium mensual vía Stripe (modo test/sandbox).
   sincroniza el estado de la suscripción (`plan`/`premiumHasta`), lo que
   automáticamente exime del límite diario — ver
   [`backend/docs/stripe.md`](backend/docs/stripe.md).
+- ✅ Autenticación con Clerk (`@clerk/clerk-react` / `@clerk/express`):
+  registro/login reales via `<SignUp/>`/`<SignIn/>`, el backend verifica
+  la sesión y la relaciona con `Usuario` vía `clerkUserId`, y una pantalla
+  de perfil combina identidad (Clerk) con datos propios (plan, progreso,
+  racha) — ver [`backend/docs/clerk.md`](backend/docs/clerk.md).
 
 ## Estructura
 
@@ -61,8 +66,9 @@ frontend/
   (teórica/psicotécnica), origen, estado de verificación
   (borrador/verificada/anulada), convocatoria, fuente y explicación
   (de cara a añadir feedback enriquecido más adelante).
-- **Usuario**: email/password, `nivelInicial` (resultado del onboarding),
-  plan (free/premium), `esAdmin` (acceso a la revisión editorial — ver
+- **Usuario**: `clerkUserId` (enlace con Clerk, se rellena solo en el
+  primer login), `nivelInicial` (resultado del onboarding), plan
+  (free/premium), `esAdmin` (acceso a la revisión editorial — ver
   variables de entorno).
 - **Progreso**: una fila por (usuario, pregunta) con los parámetros del
   algoritmo SM-2 (repeticiones, factor de facilidad, intervalo en días,
@@ -106,7 +112,8 @@ npm run dev                 # arranca el backend en http://localhost:3001
 ### Variables de entorno (`backend/.env`)
 
 - `DATABASE_URL`: cadena de conexión PostgreSQL.
-- `JWT_SECRET`: secreto para firmar los tokens de sesión.
+- `CLERK_SECRET_KEY` / `CLERK_PUBLISHABLE_KEY`: claves de tu instancia de
+  Clerk (autenticación) — ver [`backend/docs/clerk.md`](backend/docs/clerk.md).
 - `PORT`: puerto del backend (por defecto 3001).
 - `FREE_PLAN_DAILY_LIMIT`: nº máximo de preguntas/día en el plan gratuito
   (por defecto 30).
@@ -129,7 +136,7 @@ npm run import:questions -- /ruta/a/otro_dataset.json
 
 ```bash
 cd frontend
-cp .env.example .env   # VITE_API_URL, por defecto http://localhost:3001/api
+cp .env.example .env   # VITE_API_URL y VITE_CLERK_PUBLISHABLE_KEY
 npm install
 npm run dev            # http://localhost:5173, requiere el backend corriendo
 ```
@@ -140,6 +147,15 @@ un `sesionAnonima` en localStorage; al registrarse o iniciar sesión justo
 después, esos intentos se reasignan al usuario y su progreso SM-2 se
 reconstruye — ver `backend/src/lib/reclamarIntentosAnonimos.ts` — para que
 el Home no muestre todo en cero nada más registrarse).
+
+## Clerk
+
+Registro/login reales con Clerk (`<SignUp/>`/`<SignIn/>` en el frontend,
+`@clerk/express` en el backend): el backend verifica la sesión y la
+relaciona con `Usuario` vía `clerkUserId` (creando la fila en el primer
+login). Detalle completo — incluido por qué existe un modo de bypass
+exclusivo para los tests E2E, ya que este entorno no tiene salida de red
+hacia Clerk — en [`backend/docs/clerk.md`](backend/docs/clerk.md).
 
 ## Stripe
 
@@ -219,10 +235,16 @@ para el detalle del flujo borrador/verificada/anulada.
 Todas las rutas cuelgan de `/api`.
 
 ### Auth
-- `POST /auth/registro` `{ email, password, nivelInicial?, sesionAnonima? }` → `{ token, usuario }`
-- `POST /auth/login` `{ email, password, sesionAnonima? }` → `{ token, usuario }`
-- `GET /auth/me` (Bearer token) → datos del usuario
+El registro/login los gestiona Clerk directamente (`<SignUp/>`/`<SignIn/>`
+en el frontend); el backend no tiene endpoints de alta con contraseña.
+- `GET /auth/me` (Bearer token de Clerk) → datos del usuario, creando su
+  fila la primera vez que se ve ese `clerkUserId`
 - `PATCH /auth/me/onboarding` `{ nivelInicial }` → guarda el resultado del onboarding
+- `POST /auth/reclamar-sesion-anonima` `{ sesionAnonima }` → adopta como
+  progreso del usuario los intentos respondidos como visitante anónimo
+- `POST /auth/registro-bypass` `{ email, secreto }` → solo existe si
+  `AUTH_TEST_BYPASS_SECRET` está definido (exclusivo del entorno E2E, ver
+  [`backend/docs/clerk.md`](backend/docs/clerk.md))
 
 ### Preguntas
 - `GET /preguntas/aleatorias?limit=10&tipo=teorica|psicotecnica&bloque=I|II&temaId=&estado=verificada|borrador`

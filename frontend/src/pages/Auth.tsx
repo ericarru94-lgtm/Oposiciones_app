@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { ApiError } from "../api/client";
-import { useSession } from "../context/SessionContext";
+import { SignIn, SignUp } from "@clerk/clerk-react";
+import { iniciarSesionBypass, usandoClerk } from "../context/SessionContext";
 
 interface AuthProps {
   /** Contenido opcional mostrado encima del formulario (p.ej. el resumen del onboarding). */
@@ -11,31 +10,50 @@ interface AuthProps {
   destino?: string;
 }
 
+/**
+ * Registro/login: los componentes de Clerk en un despliegue normal, o un
+ * formulario mínimo (solo email) en el modo bypass exclusivo de E2E — ver
+ * context/SessionContext.tsx para por qué existen los dos modos.
+ */
 export function Auth({ cabecera, modoInicial = "registro", destino = "/home" }: AuthProps) {
-  const [modo, setModo] = useState<"registro" | "login">(modoInicial);
+  if (!usandoClerk) {
+    return <AuthBypass cabecera={cabecera} modoInicial={modoInicial} destino={destino} />;
+  }
+  return (
+    <div className="mx-auto max-w-lg">
+      {cabecera}
+      <div className="rounded-2xl bg-white p-2 shadow-sm">
+        {modoInicial === "registro" ? (
+          <SignUp routing="hash" fallbackRedirectUrl={destino} signInUrl="/login" />
+        ) : (
+          <SignIn routing="hash" fallbackRedirectUrl={destino} signUpUrl="/registro" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AuthBypass({
+  cabecera,
+  modoInicial,
+  destino,
+}: {
+  cabecera?: ReactNode;
+  modoInicial: "registro" | "login";
+  destino: string;
+}) {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const { registrar, login, marcarOnboardingCompleto } = useSession();
-  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setEnviando(true);
     try {
-      if (modo === "registro") {
-        await registrar(email, password);
-      } else {
-        await login(email, password);
-      }
-      marcarOnboardingCompleto();
-      navigate(destino, { replace: true });
+      await iniciarSesionBypass(email, destino);
     } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-      else setError("No se pudo completar la operación");
-    } finally {
+      setError(err instanceof Error ? err.message : "No se pudo completar la operación");
       setEnviando(false);
     }
   }
@@ -43,23 +61,9 @@ export function Auth({ cabecera, modoInicial = "registro", destino = "/home" }: 
   return (
     <div className="mx-auto max-w-lg rounded-2xl bg-white p-8 shadow-sm">
       {cabecera}
-      <div className="mb-5 flex gap-2 rounded-lg bg-slate-100 p-1 text-sm">
-        <button
-          className={`flex-1 rounded-md py-2 font-medium ${modo === "registro" ? "bg-white shadow-sm" : "text-slate-500"}`}
-          onClick={() => setModo("registro")}
-          type="button"
-        >
-          Crear cuenta
-        </button>
-        <button
-          className={`flex-1 rounded-md py-2 font-medium ${modo === "login" ? "bg-white shadow-sm" : "text-slate-500"}`}
-          onClick={() => setModo("login")}
-          type="button"
-        >
-          Ya tengo cuenta
-        </button>
-      </div>
-
+      <p className="mb-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
+        Modo E2E sin Clerk configurado: inicia sesión solo con un email, sin contraseña.
+      </p>
       <form onSubmit={onSubmit} className="space-y-3">
         <input
           type="email"
@@ -69,22 +73,13 @@ export function Auth({ cabecera, modoInicial = "registro", destino = "/home" }: 
           onChange={(e) => setEmail(e.target.value)}
           className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
         />
-        <input
-          type="password"
-          required
-          minLength={8}
-          placeholder="Contraseña (mínimo 8 caracteres)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-        />
         {error && <p className="text-sm text-rose-600">{error}</p>}
         <button
           type="submit"
           disabled={enviando}
           className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
         >
-          {enviando ? "Un momento…" : modo === "registro" ? "Crear cuenta gratis" : "Iniciar sesión"}
+          {enviando ? "Un momento…" : modoInicial === "registro" ? "Crear cuenta gratis" : "Iniciar sesión"}
         </button>
       </form>
     </div>

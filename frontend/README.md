@@ -7,7 +7,7 @@ cómo levantar el backend.
 ## Puesta en marcha
 
 ```bash
-cp .env.example .env   # ajusta VITE_API_URL si el backend no está en localhost:3001
+cp .env.example .env   # ajusta VITE_API_URL y añade VITE_CLERK_PUBLISHABLE_KEY
 npm install
 npm run dev            # http://localhost:5173
 ```
@@ -19,13 +19,13 @@ Requiere el backend corriendo (ver `../backend/README` / raíz del repo).
 ```
 src/
   api/          cliente fetch tipado + wrappers por endpoint
-  context/      SessionContext: token, sesión anónima, nivel de onboarding pendiente
+  context/      SessionContext: sesión (Clerk o bypass de E2E), sesión anónima, nivel de onboarding pendiente
   components/   TestRunner (motor de test reutilizable), tarjetas, gráfico de evolución...
     admin/      FormularioPreguntaAdmin (edición + verificar/anular)
   pages/
     onboarding/ mini-test sin registro -> nivel -> primer test (Constitución) -> alta
     admin/      Revisión editorial (/admin/revision, solo Usuario.esAdmin)
-    Home, Progreso, RepasarHoy, PracticarTema, Upgrade, Login
+    Home, Progreso, RepasarHoy, PracticarTema, Upgrade, Login, Registro, Perfil
 ```
 
 ## Revisión editorial
@@ -36,12 +36,23 @@ enunciado/opciones/respuesta/explicación/fuente, y verificar o anular una
 a una. `esAdmin` se activa solo en el backend para los emails listados en
 `ADMIN_EMAILS` — ver README principal.
 
+## Autenticación (Clerk)
+
+El registro/login son los componentes de Clerk (`<SignUp/>`/`<SignIn/>`,
+ver `pages/Auth.tsx`); el backend verifica la sesión y la relaciona con
+`Usuario` vía `clerkUserId`. `SessionContext` expone `estaAutenticado`,
+`usuario` (datos propios), `perfilExterno` (nombre/email/foto de Clerk) y
+`getToken()` (async, como exige Clerk) al resto de la app. Detalle
+completo, incluido el modo de bypass exclusivo de los tests E2E (este
+entorno no tiene salida de red hacia Clerk), en
+[`backend/docs/clerk.md`](../backend/docs/clerk.md).
+
 ## Flujo de sesión anónima -> cuenta
 
 El onboarding se responde sin cuenta usando un `sesionAnonima` (UUID
 guardado en localStorage). Al registrarse o iniciar sesión justo después,
-el frontend manda ese `sesionAnonima` al backend, que reasigna esos
-intentos al usuario y reconstruye su progreso SM-2 (ver
+el frontend llama a `POST /auth/reclamar-sesion-anonima` con ese id, que
+reasigna esos intentos al usuario y reconstruye su progreso SM-2 (ver
 `backend/src/lib/reclamarIntentosAnonimos.ts`) — así el Home ya refleja lo
 practicado en el onboarding en vez de mostrar todo en cero.
 
@@ -64,4 +75,8 @@ npm run test:e2e # Playwright: flujos completos contra un backend + frontend rea
   resetea y siembra con datos deterministas antes de cada tanda —
   ver [`backend/docs/testing.md`](../backend/docs/testing.md) para el
   detalle completo (por qué existe cada tema del seed, cómo se evita el
-  cruce entre specs, y los dos bugs reales que esta suite encontró).
+  cruce entre specs, y los dos bugs reales que esta suite encontró). Corren
+  en el modo de bypass de autenticación (sin Clerk real, ver
+  [`backend/docs/clerk.md`](../backend/docs/clerk.md)), así que
+  `e2e/helpers.ts` inicia sesión creando el usuario directamente por API en
+  vez de rellenar un formulario de Clerk.

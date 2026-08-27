@@ -25,6 +25,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 Revisión
               </Link>
             )}
+            <Link to="/perfil" className="text-slate-600 hover:text-slate-900">
+              Perfil
+            </Link>
             <span className="text-slate-300">|</span>
             <span className="text-slate-500">{usuario?.email}</span>
             <button

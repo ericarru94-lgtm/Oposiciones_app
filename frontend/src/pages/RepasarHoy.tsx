@@ -6,10 +6,11 @@ import { CargadorTest } from "../components/CargadorTest";
 import type { PreguntaParaResponder } from "../api/types";
 
 export function RepasarHoy() {
-  const { token } = useSession();
+  const { getToken } = useSession();
   const navigate = useNavigate();
 
   async function cargar(): Promise<PreguntaParaResponder[]> {
+    const token = await getToken();
     const { repaso, nuevas } = await obtenerRepasoHoy(token as string);
     return [...repaso, ...nuevas].map((p) => ({
       id: p.preguntaId,

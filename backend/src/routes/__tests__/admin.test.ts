@@ -4,10 +4,14 @@
  * la edición + verificación de una pregunta, la validación que impide
  * verificar sin respuesta correcta, y el resumen de pendientes por tema.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+
+vi.mock("@clerk/express", () => import("../../test-utils/clerkMock"));
+
 import { crearApp } from "../../app";
 import { prisma } from "../../lib/prisma";
+import { mockUsuarioClerk } from "../../test-utils/clerkMock";
 
 const app = crearApp();
 
@@ -16,8 +20,8 @@ const TEMA_FIXTURE = { bloque: "I" as const, numero: 998, nombre: "Tema de test 
 let temaId: number;
 let idBorrador: string;
 let idSinRespuesta: string;
-let tokenAdmin: string;
-let tokenNoAdmin: string;
+const tokenAdmin = "clerk_test_admin";
+const tokenNoAdmin = "clerk_test_no_admin";
 
 async function limpiarFixtures() {
   await prisma.intento.deleteMany({ where: { preguntaId: { startsWith: "test-admin-" } } });
@@ -63,15 +67,8 @@ beforeAll(async () => {
   });
   idSinRespuesta = sinRespuesta.id;
 
-  const registroAdmin = await request(app)
-    .post("/api/auth/registro")
-    .send({ email: "admin-test@example.com", password: "password123" });
-  tokenAdmin = registroAdmin.body.token;
-
-  const registroNoAdmin = await request(app)
-    .post("/api/auth/registro")
-    .send({ email: "test-admin-normal@example.com", password: "password123" });
-  tokenNoAdmin = registroNoAdmin.body.token;
+  mockUsuarioClerk(tokenAdmin, "admin-test@example.com");
+  mockUsuarioClerk(tokenNoAdmin, "test-admin-normal@example.com");
 });
 
 afterAll(async () => {

@@ -76,11 +76,12 @@ sobre por qué el recuento final en Home puede ser "5/6" o "6/6" según qué
 tocó el mini-test, pero la precisión siempre es 100%).
 
 Para login sin pasar por la UI (usuarios ya registrados, o el admin fijo
-de `ADMIN_EMAILS=admin-e2e@example.com`), `e2e/helpers.ts` registra vía
-API y luego inyecta el token en `localStorage` con
-`page.addInitScript(...)` antes de la primera navegación — así
-`test-screen.spec` y `admin.spec` no dependen del flujo de onboarding
-para tener una cuenta.
+de `ADMIN_EMAILS=admin-e2e@example.com`), `e2e/helpers.ts` crea el usuario
+vía API (`POST /auth/registro-bypass`, el bypass de autenticación exclusivo
+de E2E — ver `backend/docs/clerk.md`) y luego inyecta el token resultante
+en `localStorage` con `page.addInitScript(...)` antes de la primera
+navegación — así `test-screen.spec` y `admin.spec` no dependen del flujo
+de onboarding para tener una cuenta.
 
 ### Bugs reales que encontró esta suite
 

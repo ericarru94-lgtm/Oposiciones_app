@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { clerkMiddleware } from "@clerk/express";
 import { authRouter } from "./routes/auth";
 import { preguntasRouter } from "./routes/preguntas";
 import { progresoRouter } from "./routes/progreso";
@@ -24,6 +25,14 @@ export function crearApp() {
   app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), stripeWebhookHandler);
 
   app.use(express.json());
+
+  // Sin CLERK_SECRET_KEY/CLERK_PUBLISHABLE_KEY (entornos de test/E2E, que no
+  // los configuran a propósito) clerkMiddleware() lanzaría en cada petición
+  // al intentar verificar la sesión; se sustituye por un paso-a-través para
+  // que esas peticiones lleguen igualmente (como anónimas) a authOpcional/
+  // authRequerido, que ya saben tratarlas — ver middleware/auth.ts.
+  const clerkConfigurado = Boolean(process.env.CLERK_SECRET_KEY && process.env.CLERK_PUBLISHABLE_KEY);
+  app.use(clerkConfigurado ? clerkMiddleware() : (_req, _res, next) => next());
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

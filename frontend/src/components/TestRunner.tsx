@@ -29,7 +29,7 @@ interface TestRunnerProps {
  * `sesionAnonima` a /responder, lo que ya resuelve el SessionContext.
  */
 export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }: TestRunnerProps) {
-  const { token, sesionAnonima } = useSession();
+  const { getToken, sesionAnonima } = useSession();
   const [indice, setIndice] = useState(0);
   const [feedback, setFeedback] = useState<RespuestaFeedback | null>(null);
   const [opcionElegida, setOpcionElegida] = useState<Opcion | null>(null);
@@ -110,6 +110,7 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
     setEnviando(true);
     setError(null);
     try {
+      const token = await getToken();
       const resultado = await responderPregunta(
         pregunta.id,
         {

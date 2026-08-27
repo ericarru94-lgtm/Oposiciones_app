@@ -5,10 +5,12 @@ import { RutaAdmin } from "./components/RutaAdmin";
 import { Inicio } from "./pages/Inicio";
 import { OnboardingFlow } from "./pages/onboarding/OnboardingFlow";
 import { Login } from "./pages/Login";
+import { Registro } from "./pages/Registro";
 import { Home } from "./pages/Home";
 import { RepasarHoy } from "./pages/RepasarHoy";
 import { PracticarTema } from "./pages/PracticarTema";
 import { Progreso } from "./pages/Progreso";
+import { Perfil } from "./pages/Perfil";
 import { Upgrade } from "./pages/Upgrade";
 import { Revision } from "./pages/admin/Revision";
 
@@ -20,7 +22,16 @@ export function App() {
           <Route path="/" element={<Inicio />} />
           <Route path="/onboarding" element={<OnboardingFlow />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/registro" element={<Registro />} />
           <Route path="/upgrade" element={<Upgrade />} />
+          <Route
+            path="/perfil"
+            element={
+              <RutaProtegida>
+                <Perfil />
+              </RutaProtegida>
+            }
+          />
           <Route
             path="/home"
             element={

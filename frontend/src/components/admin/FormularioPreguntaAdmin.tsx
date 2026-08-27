@@ -14,7 +14,7 @@ interface Props {
 
 /** Formulario de edición de una pregunta para el admin: se remonta (key=pregunta.id en el padre) al cambiar de pregunta. */
 export function FormularioPreguntaAdmin({ pregunta, onCompletado, onSaltar }: Props) {
-  const { token } = useSession();
+  const { getToken } = useSession();
   const [enunciado, setEnunciado] = useState(pregunta.enunciado);
   const [opciones, setOpciones] = useState<string[]>(pregunta.opciones);
   const [respuestaCorrecta, setRespuestaCorrecta] = useState<Opcion | null>(pregunta.respuestaCorrecta);
@@ -31,6 +31,7 @@ export function FormularioPreguntaAdmin({ pregunta, onCompletado, onSaltar }: Pr
     setError(null);
     setEnviando(true);
     try {
+      const token = await getToken();
       await actualizarPreguntaAdmin(token as string, pregunta.id, {
         enunciado,
         opciones,

@@ -8,7 +8,7 @@ import type { Bloque, EstadoPregunta, PreguntaAdmin, ResumenTemaAdmin } from "..
 const SIN_TEMA = "sin-tema";
 
 export function Revision() {
-  const { token } = useSession();
+  const { getToken } = useSession();
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoPregunta>("borrador");
   const [bloqueFiltro, setBloqueFiltro] = useState<Bloque | "">("");
   const [temaFiltro, setTemaFiltro] = useState<string>(""); // "" = todos, número como string, o SIN_TEMA
@@ -17,32 +17,33 @@ export function Revision() {
   const [sinTemaPendientes, setSinTemaPendientes] = useState(0);
   const [cola, setCola] = useState<PreguntaAdmin[] | null>(null);
 
-  useEffect(() => {
+  async function recargarResumen() {
+    const token = await getToken();
     if (!token) return;
-    obtenerResumenTemasAdmin(token, estadoFiltro).then((r) => {
-      setResumenTemas(r.temas);
-      setSinTemaPendientes(r.sinTema.pendientes);
-    });
-  }, [token, estadoFiltro]);
-
-  useEffect(() => {
-    if (!token) return;
-    setCola(null);
-    obtenerColaRevision(token, {
-      estado: estadoFiltro,
-      bloque: bloqueFiltro || undefined,
-      temaId: temaFiltro && temaFiltro !== SIN_TEMA ? Number(temaFiltro) : undefined,
-      sinTema: temaFiltro === SIN_TEMA,
-    }).then((r) => setCola(r.preguntas));
-  }, [token, estadoFiltro, bloqueFiltro, temaFiltro]);
-
-  function recargarResumen() {
-    if (!token) return;
-    obtenerResumenTemasAdmin(token, estadoFiltro).then((r) => {
-      setResumenTemas(r.temas);
-      setSinTemaPendientes(r.sinTema.pendientes);
-    });
+    const r = await obtenerResumenTemasAdmin(token, estadoFiltro);
+    setResumenTemas(r.temas);
+    setSinTemaPendientes(r.sinTema.pendientes);
   }
+
+  useEffect(() => {
+    void recargarResumen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getToken, estadoFiltro]);
+
+  useEffect(() => {
+    setCola(null);
+    (async () => {
+      const token = await getToken();
+      if (!token) return;
+      const r = await obtenerColaRevision(token, {
+        estado: estadoFiltro,
+        bloque: bloqueFiltro || undefined,
+        temaId: temaFiltro && temaFiltro !== SIN_TEMA ? Number(temaFiltro) : undefined,
+        sinTema: temaFiltro === SIN_TEMA,
+      });
+      setCola(r.preguntas);
+    })();
+  }, [getToken, estadoFiltro, bloqueFiltro, temaFiltro]);
 
   function avanzar() {
     setCola((prev) => (prev ? prev.slice(1) : prev));

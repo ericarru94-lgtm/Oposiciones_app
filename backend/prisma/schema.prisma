@@ -93,7 +93,13 @@ enum Plan {
 model Usuario {
   id            String   @id @default(cuid())
   email         String   @unique
-  passwordHash  String
+  /// Nullable: la autenticación ahora la gestiona Clerk (ver clerkUserId).
+  /// Solo quedaría poblado en filas creadas antes de la migración a Clerk.
+  passwordHash  String?
+  /// Id del usuario en Clerk (p.ej. "user_xxx"). Se rellena en el primer
+  /// login vía obtenerOCrearUsuarioDesdeClerk (lib/clerkSync.ts), que crea
+  /// la fila si es la primera vez que ese usuario de Clerk inicia sesión.
+  clerkUserId   String?  @unique
   nivelInicial  String? // resultado del onboarding (p.ej. "principiante", "intermedio", "avanzado")
 
   /// `plan` y `premiumHasta` son el gate que usa el resto de la app (p.ej.

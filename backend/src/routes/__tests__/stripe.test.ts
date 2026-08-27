@@ -20,9 +20,11 @@ const { stripeMock } = vi.hoisted(() => ({
 vi.mock("../../lib/stripe", () => ({
   obtenerStripe: () => stripeMock,
 }));
+vi.mock("@clerk/express", () => import("../../test-utils/clerkMock"));
 
 import { crearApp } from "../../app";
 import { prisma } from "../../lib/prisma";
+import { mockUsuarioClerk } from "../../test-utils/clerkMock";
 
 const app = crearApp();
 
@@ -30,16 +32,14 @@ async function limpiarFixtures() {
   await prisma.usuario.deleteMany({ where: { email: { startsWith: "test-stripe-" } } });
 }
 
-let tokenUsuario: string;
+const tokenUsuario = "clerk_test_stripe_usuario";
 let usuarioId: string;
 
 beforeAll(async () => {
   await limpiarFixtures();
-  const registro = await request(app)
-    .post("/api/auth/registro")
-    .send({ email: "test-stripe-usuario@example.com", password: "password123" });
-  tokenUsuario = registro.body.token;
-  usuarioId = registro.body.usuario.id;
+  mockUsuarioClerk(tokenUsuario, "test-stripe-usuario@example.com");
+  const me = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${tokenUsuario}`);
+  usuarioId = me.body.id;
 });
 
 afterAll(async () => {

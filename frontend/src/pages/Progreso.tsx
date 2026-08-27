@@ -7,21 +7,30 @@ import { EvolucionChart } from "../components/EvolucionChart";
 import type { EvolucionDia, ProgresoPorTema, ProgresoResumen } from "../api/types";
 
 export function Progreso() {
-  const { token } = useSession();
+  const { getToken } = useSession();
   const [resumen, setResumen] = useState<ProgresoResumen | null>(null);
   const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
   const [evolucion, setEvolucion] = useState<EvolucionDia[] | null>(null);
 
   useEffect(() => {
-    if (!token) return;
-    Promise.all([obtenerResumenProgreso(token), obtenerProgresoPorTema(token), obtenerEvolucion(token, 14)]).then(
-      ([r, t, e]) => {
-        setResumen(r);
-        setTemas(t.temas);
-        setEvolucion(e.serie);
-      }
-    );
-  }, [token]);
+    let cancelado = false;
+    (async () => {
+      const token = await getToken();
+      if (!token) return;
+      const [r, t, e] = await Promise.all([
+        obtenerResumenProgreso(token),
+        obtenerProgresoPorTema(token),
+        obtenerEvolucion(token, 14),
+      ]);
+      if (cancelado) return;
+      setResumen(r);
+      setTemas(t.temas);
+      setEvolucion(e.serie);
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [getToken]);
 
   const puntosDebiles = (temas ?? [])
     .filter((t) => t.totalIntentos > 0)

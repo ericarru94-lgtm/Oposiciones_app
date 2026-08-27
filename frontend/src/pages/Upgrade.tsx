@@ -6,7 +6,7 @@ import { useSession } from "../context/SessionContext";
 
 export function Upgrade() {
   const navigate = useNavigate();
-  const { token } = useSession();
+  const { estaAutenticado, getToken } = useSession();
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,6 +14,7 @@ export function Upgrade() {
     setError(null);
     setCargando(true);
     try {
+      const token = await getToken();
       const { url } = await crearCheckoutSession(token as string);
       window.location.href = url;
     } catch (err) {
@@ -38,7 +39,7 @@ export function Upgrade() {
 
         {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
 
-        {token ? (
+        {estaAutenticado ? (
           <button
             onClick={suscribirse}
             disabled={cargando}
@@ -50,7 +51,7 @@ export function Upgrade() {
           <>
             <p className="mt-6 text-sm text-slate-500">Necesitas una cuenta para suscribirte.</p>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/registro")}
               className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700"
             >
               Crear cuenta gratis
@@ -59,7 +60,7 @@ export function Upgrade() {
         )}
 
         <button
-          onClick={() => navigate(token ? "/home" : "/")}
+          onClick={() => navigate(estaAutenticado ? "/home" : "/")}
           className="mt-3 w-full rounded-lg border border-slate-200 px-4 py-3 font-medium text-slate-600 hover:bg-slate-50"
         >
           Volver mañana

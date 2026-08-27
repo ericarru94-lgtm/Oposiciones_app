@@ -1,96 +1,19 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { firmarToken, authRequerido } from "../middleware/auth";
+import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { reclamarIntentosAnonimos } from "../lib/reclamarIntentosAnonimos";
 import { esEmailAdmin } from "../lib/adminEmails";
 
-/** Si el email está en ADMIN_EMAILS y el usuario aún no tiene el flag, lo activa. */
-async function sincronizarEsAdmin(usuario: { id: string; email: string; esAdmin: boolean }) {
-  if (!usuario.esAdmin && esEmailAdmin(usuario.email)) {
-    await prisma.usuario.update({ where: { id: usuario.id }, data: { esAdmin: true } });
-    usuario.esAdmin = true;
-  }
-}
-
 export const authRouter = Router();
 
-const registroSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-  nivelInicial: z.string().optional(),
-  /** Sesión anónima del onboarding, para adoptar sus intentos (mini-test + primer test) como progreso del nuevo usuario. */
-  sesionAnonima: z.string().optional(),
-});
-
-authRouter.post("/registro", asyncHandler(async (req, res) => {
-  const parsed = registroSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.flatten() });
-  }
-  const { email, password, nivelInicial, sesionAnonima } = parsed.data;
-
-  const existente = await prisma.usuario.findUnique({ where: { email } });
-  if (existente) {
-    return res.status(409).json({ error: "Ya existe una cuenta con ese email" });
-  }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  const usuario = await prisma.$transaction(async (tx) => {
-    const nuevo = await tx.usuario.create({
-      data: { email, passwordHash, nivelInicial },
-    });
-    if (sesionAnonima) {
-      await reclamarIntentosAnonimos(tx, nuevo.id, sesionAnonima);
-    }
-    return nuevo;
-  });
-
-  await sincronizarEsAdmin(usuario);
-
-  const token = firmarToken({ usuarioId: usuario.id });
-  res.status(201).json({
-    token,
-    usuario: { id: usuario.id, email: usuario.email, plan: usuario.plan, esAdmin: usuario.esAdmin },
-  });
-}));
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-  sesionAnonima: z.string().optional(),
-});
-
-authRouter.post("/login", asyncHandler(async (req, res) => {
-  const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.flatten() });
-  }
-  const { email, password, sesionAnonima } = parsed.data;
-
-  const usuario = await prisma.usuario.findUnique({ where: { email } });
-  if (!usuario) {
-    return res.status(401).json({ error: "Credenciales inválidas" });
-  }
-  const ok = await bcrypt.compare(password, usuario.passwordHash);
-  if (!ok) {
-    return res.status(401).json({ error: "Credenciales inválidas" });
-  }
-
-  if (sesionAnonima) {
-    await prisma.$transaction((tx) => reclamarIntentosAnonimos(tx, usuario.id, sesionAnonima));
-  }
-  await sincronizarEsAdmin(usuario);
-
-  const token = firmarToken({ usuarioId: usuario.id });
-  res.json({
-    token,
-    usuario: { id: usuario.id, email: usuario.email, plan: usuario.plan, esAdmin: usuario.esAdmin },
-  });
-}));
-
+/**
+ * El registro/login lo gestiona Clerk directamente desde el frontend
+ * (`<SignIn/>`/`<SignUp/>`); esta fila de Usuario se crea sola en el primer
+ * login vía `obtenerOCrearUsuarioDesdeClerk` (ver middleware/auth.ts), no
+ * hay endpoint de alta aquí.
+ */
 authRouter.get("/me", authRequerido, asyncHandler(async (req, res) => {
   const usuario = await prisma.usuario.findUnique({
     where: { id: req.auth!.usuarioId },
@@ -114,4 +37,58 @@ authRouter.patch("/me/onboarding", authRequerido, asyncHandler(async (req, res) 
     data: { nivelInicial: parsed.data.nivelInicial },
   });
   res.json({ id: usuario.id, nivelInicial: usuario.nivelInicial });
+}));
+
+const registroBypassSchema = z.object({
+  email: z.string().email(),
+  secreto: z.string(),
+});
+
+/**
+ * Solo existe cuando AUTH_TEST_BYPASS_SECRET está definido (exclusivo de
+ * backend/.env.e2e): permite al frontend E2E "iniciar sesión" sin pasar por
+ * Clerk cuando no hay VITE_CLERK_PUBLISHABLE_KEY configurada (ver
+ * frontend/src/context/SessionContext.tsx y backend/docs/clerk.md). Idempotente
+ * (upsert por email), así sirve tanto para alta como para login.
+ */
+authRouter.post("/registro-bypass", asyncHandler(async (req, res) => {
+  const secretoEsperado = process.env.AUTH_TEST_BYPASS_SECRET;
+  if (!secretoEsperado) return res.status(404).end();
+
+  const parsed = registroBypassSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (parsed.data.secreto !== secretoEsperado) return res.status(403).json({ error: "Secreto inválido" });
+
+  const existente = await prisma.usuario.findUnique({ where: { email: parsed.data.email } });
+  const usuario =
+    existente ??
+    (await prisma.usuario.create({
+      data: { email: parsed.data.email, esAdmin: esEmailAdmin(parsed.data.email) },
+    }));
+  if (existente && !existente.esAdmin && esEmailAdmin(existente.email)) {
+    await prisma.usuario.update({ where: { id: existente.id }, data: { esAdmin: true } });
+  }
+  res.status(201).json({ usuarioId: usuario.id });
+}));
+
+const reclamarSchema = z.object({
+  sesionAnonima: z.string(),
+});
+
+/**
+ * El onboarding (mini-test + primer test) se responde como visitante
+ * anónimo, antes de que exista una cuenta. El frontend llama a esto justo
+ * después de que Clerk confirme el alta/login, con el id de sesión anónima
+ * guardado en localStorage, para adoptar esos intentos como progreso del
+ * usuario. Es idempotente (reclamarIntentosAnonimos no encuentra nada la
+ * segunda vez que se llama con la misma sesionAnonima), así que no pasa
+ * nada si el frontend la llama más de una vez.
+ */
+authRouter.post("/reclamar-sesion-anonima", authRequerido, asyncHandler(async (req, res) => {
+  const parsed = reclamarSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+  await prisma.$transaction((tx) => reclamarIntentosAnonimos(tx, req.auth!.usuarioId, parsed.data.sesionAnonima));
+  res.status(204).end();
 }));

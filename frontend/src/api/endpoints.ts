@@ -16,21 +16,36 @@ import type {
   Usuario,
 } from "./types";
 
-export function registrarUsuario(datos: {
-  email: string;
-  password: string;
-  nivelInicial?: string;
-  sesionAnonima?: string;
-}) {
-  return apiFetch<{ token: string; usuario: Usuario }>("/auth/registro", { method: "POST", body: datos });
-}
-
-export function iniciarSesion(datos: { email: string; password: string; sesionAnonima?: string }) {
-  return apiFetch<{ token: string; usuario: Usuario }>("/auth/login", { method: "POST", body: datos });
-}
-
+/**
+ * El alta/login los gestiona Clerk (`<SignUp/>`/`<SignIn/>` en las
+ * páginas); esta fila de Usuario se crea sola en el primer login vía
+ * `obtenerOCrearUsuarioDesdeClerk` (backend/src/lib/clerkSync.ts).
+ */
 export function obtenerUsuarioActual(token: string) {
   return apiFetch<Usuario>("/auth/me", { token });
+}
+
+export function actualizarOnboarding(token: string, nivelInicial: string) {
+  return apiFetch<{ id: string; nivelInicial: string | null }>("/auth/me/onboarding", {
+    method: "PATCH",
+    body: { nivelInicial },
+    token,
+  });
+}
+
+/** Adopta como progreso del usuario los intentos respondidos como visitante anónimo durante el onboarding. */
+export function reclamarSesionAnonima(token: string, sesionAnonima: string) {
+  return apiFetch<void>("/auth/reclamar-sesion-anonima", { method: "POST", body: { sesionAnonima }, token });
+}
+
+/**
+ * Solo existe en el backend cuando `AUTH_TEST_BYPASS_SECRET` está definido
+ * (exclusivo del entorno E2E — ver backend/docs/clerk.md): permite iniciar
+ * sesión sin pasar por Clerk cuando no hay `VITE_CLERK_PUBLISHABLE_KEY`
+ * configurada, algo que solo ocurre en el modo E2E de Playwright.
+ */
+export function registrarOIniciarSesionBypass(email: string, secreto: string) {
+  return apiFetch<{ usuarioId: string }>("/auth/registro-bypass", { method: "POST", body: { email, secreto } });
 }
 
 export function obtenerTemas() {

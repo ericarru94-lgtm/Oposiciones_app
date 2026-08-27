@@ -21,9 +21,9 @@ const preguntas: PreguntaParaResponder[] = [
 
 beforeEach(() => {
   vi.mocked(useSession).mockReturnValue({
-    token: null,
+    getToken: vi.fn().mockResolvedValue(null),
     sesionAnonima: "sesion-test",
-  } as ReturnType<typeof useSession>);
+  } as unknown as ReturnType<typeof useSession>);
   vi.mocked(responderPregunta).mockReset();
 });
 

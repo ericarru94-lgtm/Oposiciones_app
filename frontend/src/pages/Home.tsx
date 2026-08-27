@@ -8,7 +8,7 @@ import { TemaCard } from "../components/TemaCard";
 import type { ProgresoPorTema, ProgresoResumen } from "../api/types";
 
 export function Home() {
-  const { token } = useSession();
+  const { getToken } = useSession();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
@@ -16,12 +16,19 @@ export function Home() {
   const pagoCompletado = searchParams.get("checkout") === "success";
 
   useEffect(() => {
-    if (!token) return;
-    Promise.all([obtenerProgresoPorTema(token), obtenerResumenProgreso(token)]).then(([porTema, resumen]) => {
+    let cancelado = false;
+    (async () => {
+      const token = await getToken();
+      if (!token) return;
+      const [porTema, resumen] = await Promise.all([obtenerProgresoPorTema(token), obtenerResumenProgreso(token)]);
+      if (cancelado) return;
       setTemas(porTema.temas);
       setResumen(resumen);
-    });
-  }, [token]);
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [getToken]);
 
   const bloqueI = temas?.filter((t) => t.bloque === "I") ?? [];
   const bloqueII = temas?.filter((t) => t.bloque === "II") ?? [];

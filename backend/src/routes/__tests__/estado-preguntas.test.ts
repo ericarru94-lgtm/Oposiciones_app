@@ -6,10 +6,14 @@
  * Requieren una base de datos de test real (ver backend/.env.test.example)
  * ya migrada: `npm test` ejecuta `prisma migrate deploy` antes de la suite.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+
+vi.mock("@clerk/express", () => import("../../test-utils/clerkMock"));
+
 import { crearApp } from "../../app";
 import { prisma } from "../../lib/prisma";
+import { mockUsuarioClerk } from "../../test-utils/clerkMock";
 
 const app = crearApp();
 
@@ -147,12 +151,9 @@ describe("POST /api/preguntas/:id/responder — reglas por estado", () => {
 
 describe("GET /api/progreso/hoy — solo propone verificadas como nuevas", () => {
   it("nunca sugiere una pregunta en borrador o anulada dentro de 'nuevas'", async () => {
-    const email = `test-estado-${Date.now()}@example.com`;
-    const registro = await request(app)
-      .post("/api/auth/registro")
-      .send({ email, password: "password123" });
-    expect(registro.status).toBe(201);
-    const token = registro.body.token as string;
+    const clerkUserId = `clerk_test-estado-${Date.now()}`;
+    mockUsuarioClerk(clerkUserId, `test-estado-${Date.now()}@example.com`);
+    const token = clerkUserId;
 
     const res = await request(app)
       .get("/api/progreso/hoy?limit=50")
