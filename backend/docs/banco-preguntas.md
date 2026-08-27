@@ -112,60 +112,91 @@ Pero nunca vuelve a pisar una pregunta ya verificada o anulada. El log
 final del script ahora reporta las tres cosas por separado:
 `X creadas, Y actualizadas, Z omitidas (ya revisadas por un admin)`.
 
-## 4. Cómo ejecutar el import contra producción (Render), sin tocar test/E2E
+## 4. Cómo llega el dataset a producción (Render), sin tocar test/E2E
 
-`npm run import:questions` usa el `DATABASE_URL` que tenga activo el
-proceso en ese momento — igual que con las migraciones, la aislación
-entre entornos depende de qué `DATABASE_URL` ve el comando, no de nada
-más. Dos formas de apuntarlo a la base de datos de producción, de más a
-menos preferida:
+### Por defecto: automático en cada arranque, pensado para el plan free
 
-### Opción A (recomendada): Shell de Render
+El plan free de Render no da acceso a Shell, así que no hay terminal
+donde ejecutar nada a mano. Por eso `npm run start:prod`
+(`backend/docs/despliegue.md`) incluye el import como parte del propio
+arranque del servicio:
 
-Si tu plan de Render incluye la pestaña **Shell** en el servicio del
-backend, ábrela — ahí `DATABASE_URL` ya es la de producción (la inyecta
-Render, exactamente como en tiempo de ejecución normal), así que no hay
-ningún riesgo de apuntar por error a tu base de datos local ni de que la
-cadena de conexión de producción pase por tu máquina o por un `.env`:
+```
+prisma migrate deploy && (node dist/scripts/import-questions.js || true) && node dist/server.js
+```
+
+No hace falta que hagas nada — en el próximo deploy (o el próximo
+arranque tras un reinicio) ya se ejecuta solo. Por qué es seguro
+repetirlo en **cada** arranque, incluidos los varios reinicios al día
+típicos de un plan free:
+
+- **No duplica nada**: hace upsert por `id` de pregunta y por
+  (`bloque`, `numero`) de tema — el mismo id siempre actualiza la misma
+  fila, nunca crea una copia.
+- **No pisa el trabajo de revisión**: desde el arreglo de la sección 3,
+  cualquier pregunta que un admin ya haya verificado o anulado se omite
+  por completo, sin importar lo que diga el JSON.
+- **No bloquea el arranque si falla**: el `|| true` hace que un error
+  puntual del import (p.ej. la base de datos tarda en aceptar
+  conexiones justo al arrancar) quede registrado en los logs pero nunca
+  impida que el servidor arranque — solo `prisma migrate deploy` puede
+  detener el arranque si falla, el import nunca.
+- **Un único servicio**: el plan free no escala a varias instancias en
+  paralelo, así que no hay ninguna carrera entre dos imports
+  simultáneos que considerar.
+
+Verificado localmente antes de este cambio, ejecutando `start:prod` dos
+veces seguidas contra la misma base de datos (con preguntas ya
+verificadas de antes): mismo total de preguntas y temas en ambas
+pasadas, ninguna verificada revertida a borrador.
+
+El único coste real es de tiempo: son ~414 comprobaciones contra la base
+de datos en cada arranque (una por pregunta, para decidir si se omite o
+no), lo que añade cierta latencia extra a cada arranque/reinicio — no
+afecta a la salud de la app ni a las peticiones ya en curso, solo alarga
+un poco el tiempo hasta el primer `/api/health` que responde tras un
+reinicio en frío.
+
+**Qué hacer para que las preguntas verificadas de tu base local lleguen
+a producción**: nada especial — el propio dataset
+(`backend/data/preguntas_auxiliar_estado_combinado.json`) ya está en el
+repo con esos 55 estados a `"verificada"` guardados en el JSON tal cual
+salieron de las revisiones hechas hasta ahora. En cuanto Render
+redespliegue (o reinicie) con este cambio, el import los deja en la base
+de datos de producción. Si no quieres esperar al próximo push, entra al
+dashboard de Render y pulsa **Manual Deploy** (o el reinicio manual del
+servicio) para forzarlo ahora — no hace falta cambiar nada más.
+
+### Si en algún momento tienes Shell (plan de pago, u otro proveedor)
+
+Con acceso a Shell en el servicio, `DATABASE_URL` ya es la de producción
+ahí dentro (la inyecta la plataforma, igual que en tiempo de ejecución
+normal), así que puedes ejecutar el import a mano, puntualmente, sin
+esperar a un redeploy:
 
 ```bash
 npm run import:questions
 ```
 
-Como el repo ya está desplegado ahí, el dataset
-(`backend/data/preguntas_auxiliar_estado_combinado.json`) ya está en el
-mismo sitio que el código — no hace falta subir nada aparte.
-
-### Opción B: desde tu máquina, con `DATABASE_URL` sobreescrita solo para ese comando
-
-Si no tienes Shell disponible, cópiate la cadena de conexión **externa**
-de tu base de datos de Render (Dashboard → tu Postgres → "External
-Database URL" — la interna, `Internal Database URL`, solo resuelve
-dentro de la red privada de Render y no funciona desde fuera) y
-ejecútala así, **sin** guardarla en ningún `.env`:
+O desde tu propia máquina, con la cadena de conexión **externa** de tu
+Postgres (Dashboard → tu Postgres → "External Database URL" — la
+interna, `Internal Database URL`, solo resuelve dentro de la red privada
+de la plataforma) pasada inline, sin guardarla en ningún `.env`:
 
 ```bash
 cd backend
-DATABASE_URL="postgresql://...la-externa-de-render..." npm run import:questions
+DATABASE_URL="postgresql://...la-externa-de-tu-proveedor..." npm run import:questions
 ```
-
-Pasar `DATABASE_URL` inline (delante del comando, en la misma línea) hace
-que solo exista para ese proceso concreto — no se escribe en ningún
-archivo ni queda exportada en tu shell para el siguiente comando. Nunca
-la pegues en `backend/.env`: ese archivo es el que usa `npm run dev`, y
-un desarrollador (u otro script) podría acabar escribiendo en producción
-sin darse cuenta.
 
 ### Qué NO hacer
 
 - No lo ejecutes con `npm run pretest`, `e2e:reset` ni ningún script que
   lleve `dotenv -e .env.test`/`.env.e2e` delante — esos apuntan,
   siempre, a las bases de datos desechables de test/E2E.
-- No añadas `import:questions` al `Build Command` ni al `Start Command`
-  de Render (`backend/docs/despliegue.md`): es una acción manual y
-  deliberada de contenido, no un paso de despliegue — correrla en cada
-  arranque no tiene sentido (es idempotente, así que no *rompería* nada,
-  pero alargaría cada deploy sin necesidad).
-- Después de importar, confirma con un vistazo rápido a `/admin/preguntas?estado=verificada`
-  (o a la propia app) que el recuento cuadra con lo esperado, en vez de
-  asumir que fue bien solo porque el script no lanzó un error.
+- Nunca pegues una cadena de conexión de producción en `backend/.env`:
+  ese archivo es el que usa `npm run dev`, y un desarrollador (u otro
+  script) podría acabar escribiendo en producción sin darse cuenta.
+- Tras un deploy, confirma con un vistazo rápido a
+  `/admin/preguntas?estado=verificada` (o a la propia app) que el
+  recuento cuadra con lo esperado, en vez de asumir que fue bien solo
+  porque el log de arranque no mostró un error.

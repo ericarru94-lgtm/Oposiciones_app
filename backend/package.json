@@ -9,7 +9,7 @@
     "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "start:prod": "prisma migrate deploy && node dist/server.js",
+    "start:prod": "prisma migrate deploy && (node dist/scripts/import-questions.js || true) && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",

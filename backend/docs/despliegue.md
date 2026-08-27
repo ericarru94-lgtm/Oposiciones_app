@@ -50,25 +50,47 @@ el motor correctos y el arranque falla. `prisma` está en
 `dependencies` (no en `devDependencies`) precisamente porque hace falta
 en tiempo de ejecución para el siguiente punto.
 
-### Migraciones: `prisma migrate deploy` en el arranque
+### Migraciones y el banco de preguntas en el arranque
 
-`npm run start:prod` es `prisma migrate deploy && node dist/server.js`:
-antes de arrancar el servidor, aplica las migraciones pendientes contra
-`DATABASE_URL`. `migrate deploy` (a diferencia de `migrate dev`) nunca
-pide confirmación, nunca resetea datos y solo aplica las migraciones que
-falten — seguro para producción, e idempotente (si no hay ninguna
-pendiente, no hace nada, como ya se ve en local con
-`No pending migrations to apply.`).
+`npm run start:prod` es:
 
-Si tu plan de Render tiene el campo **Pre-Deploy Command** (aplica las
-migraciones antes de que la nueva versión reciba tráfico, en vez de en
-cada arranque), es la opción más limpia: pon ahí
-`npx prisma migrate deploy` y deja el Start Command como `npm start`
-(`node dist/server.js`, sin migrar). Si no lo tienes disponible,
-`npm run start:prod` como Start Command hace exactamente lo mismo, solo
-que en cada arranque/reinicio del servicio en vez de una sola vez antes
-del despliegue — con un único servicio (sin escalar a varias instancias
-a la vez) no hay ningún riesgo de que dos migraciones corran en paralelo.
+```
+prisma migrate deploy && (node dist/scripts/import-questions.js || true) && node dist/server.js
+```
+
+Tres pasos, en orden:
+
+1. **`prisma migrate deploy`** aplica las migraciones pendientes contra
+   `DATABASE_URL`. A diferencia de `migrate dev`, nunca pide confirmación,
+   nunca resetea datos y solo aplica las que falten — seguro para
+   producción, e idempotente (si no hay ninguna pendiente, no hace nada,
+   como ya se ve en local con `No pending migrations to apply.`). Si esto
+   falla, el `&&` corta la cadena: el servidor **no** arranca — correcto,
+   arrancar con un esquema desactualizado sería peor.
+2. **`node dist/scripts/import-questions.js`** (la versión compilada del
+   mismo script de `npm run import:questions`) sincroniza el banco de
+   preguntas real (`backend/data/preguntas_auxiliar_estado_combinado.json`)
+   contra la base de datos, en cada arranque — pensado para planes de
+   Render sin acceso a Shell, donde no hay forma de ejecutarlo a mano
+   (ver `backend/docs/banco-preguntas.md` para el detalle completo:
+   qué tiene el dataset, por qué es seguro repetirlo en cada arranque sin
+   duplicar ni pisar preguntas ya verificadas por un admin, y las
+   alternativas si en algún momento sí tienes Shell).
+3. El `|| true` hace que un fallo en el import (p.ej. un problema
+   transitorio de conexión) **no** impida que el servidor arranque — se
+   registra el error en los logs, pero no tumba el despliegue.
+   `prisma migrate deploy` no lleva ese mismo tratamiento a propósito:
+   si las migraciones fallan, el servidor sí debe quedarse sin arrancar.
+
+Si tu plan de Render sí tiene el campo **Pre-Deploy Command** (corre
+antes de que la nueva versión reciba tráfico, en vez de en cada
+arranque), puedes mover ahí `npx prisma migrate deploy` y dejar el Start
+Command como `npm start` — pero con el plan free (sin Pre-Deploy Command
+ni Shell) `npm run start:prod` tal cual es la única vía, y hace
+exactamente lo mismo salvo que corre en cada arranque/reinicio en vez de
+una sola vez. Con un único servicio (el plan free no escala a varias
+instancias a la vez) no hay ningún riesgo de que dos migraciones o dos
+imports corran en paralelo.
 
 ### Variables de entorno (Render → Environment)
 
@@ -168,11 +190,11 @@ omite este paso.
 ## Verificación rápida tras el despliegue
 
 1. `curl https://tu-servicio.onrender.com/api/health` → `{"ok":true}`.
-   Las migraciones dejan las tablas creadas pero vacías — sin importar el
-   dataset todavía no hay ningún tema ni pregunta, así que el mini-test y
-   el onboarding no tendrán nada que mostrar. Ver
-   [`backend/docs/banco-preguntas.md`](banco-preguntas.md) para cómo
-   importarlo de forma segura contra esta base de datos.
+   `start:prod` ya importa el dataset de preguntas en cada arranque (ver
+   arriba), así que no hace falta ningún paso manual aparte — solo
+   confirma que el log de arranque en Render muestra la línea
+   `Importación completada: ...` con los números que esperas. Detalle
+   completo en [`backend/docs/banco-preguntas.md`](banco-preguntas.md).
 2. Abrir `https://tu-proyecto.vercel.app`, completar el onboarding y
    registrarte con Clerk de verdad — confirma que `/home` ya refleja el
    primer test practicado (reclamo de la sesión anónima) y que `/perfil`
