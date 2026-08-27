@@ -14,6 +14,8 @@ monetización llegan en fases posteriores.
 - ✅ API REST básica: auth, mini-test sin registro, respuesta a preguntas,
   "repasar hoy" con SM-2, resumen de progreso, límite diario del plan
   gratuito.
+- ✅ Tests de integración del flujo borrador/verificada/anulada (ver
+  [`backend/docs/estados-preguntas.md`](backend/docs/estados-preguntas.md)).
 - ⬜ Frontend (onboarding, home, test, panel de progreso).
 - ⬜ Monetización freemium (suscripción mensual).
 
@@ -50,7 +52,9 @@ backend/
 Solo las preguntas con `estado = verificada` se sirven en el mini-test y
 en el repaso por defecto; el resto (`borrador`) queda disponible en la
 base de datos a la espera de revisión editorial, y `anulada` nunca se
-sirve para responder.
+sirve para responder. El detalle completo de este flujo (qué endpoint
+mira qué, comportamiento intencional vs. pendiente) está en
+[`backend/docs/estados-preguntas.md`](backend/docs/estados-preguntas.md).
 
 ## Puesta en marcha (desarrollo local)
 
@@ -95,6 +99,20 @@ npm run import:questions
 # o apuntando a otro archivo:
 npm run import:questions -- /ruta/a/otro_dataset.json
 ```
+
+## Tests
+
+```bash
+cd backend
+cp .env.test.example .env.test   # ajusta DATABASE_URL si hace falta
+npm test
+```
+
+Usa una base de datos de test real y separada (no toca los datos de
+desarrollo). `npm test` aplica las migraciones automáticamente antes de
+correr la suite. Ver
+[`backend/docs/estados-preguntas.md`](backend/docs/estados-preguntas.md#tests)
+para el detalle de qué cubre cada test del flujo borrador/verificada/anulada.
 
 ## API
 

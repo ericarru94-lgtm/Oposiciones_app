@@ -34,11 +34,17 @@ function ocultarRespuesta(p: {
   };
 }
 
+/**
+ * "anulada" queda deliberadamente fuera de los valores aceptables: una
+ * pregunta anulada es inválida y no debe poder solicitarse ni siquiera
+ * como override interno de QA (a diferencia de "borrador", que sí es
+ * consultable explícitamente para revisar contenido pendiente de validar).
+ */
 const aleatoriasQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
   tipo: z.nativeEnum(TipoPregunta).optional(),
   bloque: z.nativeEnum(Bloque).optional(),
-  estado: z.nativeEnum(EstadoPregunta).default(EstadoPregunta.verificada),
+  estado: z.enum(["borrador", "verificada"]).default(EstadoPregunta.verificada),
 });
 
 /**
