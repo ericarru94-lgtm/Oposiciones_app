@@ -13,6 +13,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "import:questions": "tsx src/scripts/import-questions.ts",
+    "stripe:setup-producto": "tsx src/scripts/setup-stripe-product.ts",
     "pretest": "dotenv -e .env.test -- prisma migrate deploy",
     "test": "dotenv -e .env.test -- vitest run",
     "test:watch": "dotenv -e .env.test -- vitest",
@@ -26,6 +27,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "stripe": "^22.6.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

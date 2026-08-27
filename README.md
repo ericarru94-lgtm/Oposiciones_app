@@ -28,7 +28,10 @@ posterior; el paywall/UI ya existe.
 - ✅ Tests de frontend: componentes (Vitest + Testing Library, API
   mockeada) y E2E (Playwright, contra un backend+frontend+BD dedicados —
   ver [`backend/docs/testing.md`](backend/docs/testing.md)).
-- ⬜ Cobro real (Stripe u otro proveedor) para el plan premium.
+- 🔶 Stripe (en progreso): `Usuario` ya tiene los campos de suscripción
+  (`stripeCustomerId`, `stripeSubscriptionId`, `stripeSubscriptionStatus`)
+  y el script para crear el producto/precio recurrente. Falta el Checkout
+  Session desde `/upgrade` y el webhook — ver [Stripe](#stripe) más abajo.
 
 ## Estructura
 
@@ -138,6 +141,47 @@ después, esos intentos se reasignan al usuario y su progreso SM-2 se
 reconstruye — ver `backend/src/lib/reclamarIntentosAnonimos.ts` — para que
 el Home no muestre todo en cero nada más registrarse).
 
+## Stripe
+
+Estado: modelo de datos y producto/precio listos; falta el Checkout
+Session y el webhook (siguiente iteración).
+
+### Variables de entorno (`backend/.env`, nunca en el repo)
+
+- `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY`: claves de tu cuenta de
+  Stripe **en modo test** (`sk_test_...` / `pk_test_...`). Solo la secreta
+  se usa en el backend; la publicable no hace falta en el frontend
+  mientras el checkout sea el hosted de Stripe (redirect por `session.url`,
+  sin Stripe.js).
+- `STRIPE_PRICE_ID`: id del precio recurrente mensual (`price_...`), lo
+  rellena `npm run stripe:setup-producto`.
+
+### Crear el producto/precio (`npm run stripe:setup-producto`)
+
+`backend/src/scripts/setup-stripe-product.ts` crea (una sola vez, es
+idempotente vía `lookup_key: "premium-mensual"`) el producto "Premium
+mensual" y su precio de 4,99 €/mes recurrente. Este entorno de desarrollo
+tiene bloqueada la salida directa a `api.stripe.com` por política de red
+del sandbox, así que este script se ejecutó **localmente, fuera de este
+contenedor**, contra la cuenta de test del usuario:
+
+```bash
+cd backend
+npm install          # trae el paquete `stripe`
+npm run stripe:setup-producto
+# imprime: STRIPE_PRICE_ID=price_...
+# → añádelo a backend/.env
+```
+
+### Modelo de datos
+
+`Usuario.plan`/`premiumHasta` siguen siendo el gate que usa el resto de
+la app (p.ej. `lib/dailyLimit.ts`); a partir de ahora los mantiene al día
+el webhook de Stripe, nunca se escriben a mano. Campos nuevos:
+`stripeCustomerId`, `stripeSubscriptionId` (únicos, uno de cada por
+usuario) y `stripeSubscriptionStatus` (el string crudo que manda
+Stripe — solo `active`/`trialing` habilitan `plan = premium`).
+
 ## Tests
 
 ```bash
@@ -210,9 +254,12 @@ Todas las rutas cuelgan de `/api`.
 
 ## Próximos pasos
 
-1. **Cobro real**: integrar un proveedor de pago (p.ej. Stripe) en la
-   pantalla de upgrade, webhook de alta/renovación/cancelación que
-   actualice `Usuario.plan` y `premiumHasta`.
+1. **Stripe: Checkout + webhook** (siguiente iteración): endpoint que cree
+   un Checkout Session con `STRIPE_PRICE_ID` y redirija desde `/upgrade`;
+   endpoint de webhook (`checkout.session.completed`,
+   `customer.subscription.updated/deleted`, fallo de pago) que actualice
+   `plan`/`premiumHasta`/`stripeSubscriptionStatus` verificando la firma
+   con `STRIPE_WEBHOOK_SECRET`.
 2. **Reportar preguntas dudosas**: hoy `reportes_usuario` existe en el
    modelo pero no hay forma de incrementarlo desde la UI; añadir un botón
    "reportar" en el test y, cuando supere un umbral, degradar la pregunta

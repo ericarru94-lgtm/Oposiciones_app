@@ -95,8 +95,26 @@ model Usuario {
   email         String   @unique
   passwordHash  String
   nivelInicial  String? // resultado del onboarding (p.ej. "principiante", "intermedio", "avanzado")
-  plan          Plan     @default(free)
-  premiumHasta  DateTime? // fin de suscripción activa, null si nunca ha pagado
+
+  /// `plan` y `premiumHasta` son el gate que usa el resto de la app (p.ej.
+  /// lib/dailyLimit.ts) — nunca se escriben a mano, los mantiene al día el
+  /// webhook de Stripe (routes/stripe.ts) a partir de los eventos de la
+  /// suscripción. `premiumHasta` refleja el `current_period_end` de Stripe.
+  plan          Plan      @default(free)
+  premiumHasta  DateTime? // fin del periodo de suscripción activa, null si nunca ha pagado
+
+  /// Identidad de facturación en Stripe — se crea el Customer en el primer
+  /// intento de checkout, de ahí en adelante siempre se reutiliza el mismo.
+  stripeCustomerId       String? @unique
+  /// Id de la Subscription de Stripe más reciente del usuario (como mucho
+  /// una activa a la vez: un único plan premium mensual).
+  stripeSubscriptionId   String? @unique
+  /// Estado tal cual lo manda Stripe (active, trialing, past_due, canceled,
+  /// unpaid, incomplete, incomplete_expired...) — se guarda el string crudo
+  /// en vez de un enum propio para no necesitar una migración cada vez que
+  /// Stripe lo amplíe; solo "active"/"trialing" habilitan `plan = premium`.
+  stripeSubscriptionStatus String?
+
   /// Acceso a la herramienta de revisión editorial. Se activa sola (no hay
   /// alta manual en BD) para cualquier email listado en ADMIN_EMAILS al
   /// iniciar sesión o registrarse — ver lib/adminEmails.ts.
