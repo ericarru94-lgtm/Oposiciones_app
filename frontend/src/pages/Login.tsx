@@ -1,10 +1,14 @@
+import { useSearchParams } from "react-router-dom";
 import { Auth } from "./Auth";
 
 export function Login() {
+  const [searchParams] = useSearchParams();
+  const destino = searchParams.get("destino") || "/home";
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-lg">
-        <Auth modoInicial="login" destino="/home" />
+        <Auth modoInicial="login" destino={destino} />
       </div>
     </div>
   );

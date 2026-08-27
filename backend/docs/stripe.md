@@ -41,9 +41,26 @@ el arranque del servidor.
    `${FRONTEND_URL}/upgrade?checkout=cancelado`.
 
 Solo un usuario autenticado puede suscribirse (el Customer de Stripe
-cuelga de `Usuario.stripeCustomerId`). Si `/upgrade` se alcanza sin
-sesión (límite agotado durante el onboarding, antes de registrarse),
-la pantalla pide crear una cuenta en vez de mostrar el botón de pago.
+cuelga de `Usuario.stripeCustomerId`, y `POST /crear-checkout-session`
+exige `authRequerido` — ver `backend/docs/clerk.md` para cómo se resuelve
+esa sesión con Clerk). Si `/upgrade` se alcanza sin sesión (límite
+agotado durante el onboarding, antes de registrarse), el botón
+"Suscribirme" (`frontend/src/pages/Upgrade.tsx`) no llama al backend:
+navega a `/registro?destino=%2Fupgrade%3Fcontinuar%3D1` (el registro/login
+real de Clerk, con un enlace "¿Ya tienes cuenta?" hacia `/login` con el
+mismo destino). Al completar el alta, Clerk redirige de vuelta a
+`/upgrade?continuar=1`, y `Upgrade` detecta ese parámetro para lanzar el
+checkout automáticamente en cuanto `estaAutenticado` es true — sin que el
+usuario tenga que pulsar "Suscribirme" una segunda vez.
+
+Como el `Usuario` para un login de Clerk completamente nuevo se crea al
+vuelo en la primera petición autenticada (`obtenerOCrearUsuarioDesdeClerk`,
+ver `backend/docs/clerk.md`), esa primera llamada a
+`/crear-checkout-session` tras registrarse ES la primera petición
+autenticada de esa persona: la fila de `Usuario` se crea justo antes de
+que la ruta la lea, así que el Customer de Stripe se crea con normalidad
+para ella igual que para cualquier usuario existente (cubierto por un test
+dedicado en `stripe.test.ts`, sin depender de un `GET /auth/me` previo).
 
 ## El webhook
 
@@ -100,12 +117,16 @@ CVC), y confirma en los logs del backend que el webhook actualizó
 
 ## Tests
 
-`backend/src/routes/__tests__/stripe.test.ts` (11 tests) mockea
-`lib/stripe.ts` por completo (`vi.mock` + `vi.hoisted`), así que corre
-contra la BD de test real pero sin tocar la API de Stripe:
+`backend/src/routes/__tests__/stripe.test.ts` (12 tests) mockea
+`lib/stripe.ts` y `@clerk/express` por completo (mismo patrón
+`vi.mock`/`vi.hoisted`, ver `backend/docs/clerk.md`), así que corre contra
+la BD de test real pero sin tocar ninguna API externa:
 
 - Checkout: 401 sin token, crea/guarda un Customer nuevo, reutiliza uno
-  existente, 500 si falta `STRIPE_PRICE_ID`.
+  existente, **un usuario de Clerk que hace su primera petición
+  autenticada directamente contra este endpoint (fila `Usuario` creada al
+  vuelo) también consigue su Customer sin problema**, 500 si falta
+  `STRIPE_PRICE_ID`.
 - Webhook: 400 sin cabecera `stripe-signature`, 400 con firma inválida,
   `checkout.session.completed` activa premium con la fecha correcta,
   `customer.subscription.updated` con `past_due` degrada a free,
@@ -113,7 +134,14 @@ contra la BD de test real pero sin tocar la API de Stripe:
   evento de un customer desconocido no rompe nada, `invoice.payment_failed`
   no lanza.
 
-No hay test E2E (Playwright) del click-through de Checkout: requeriría
-red real hacia Stripe (bloqueada aquí) y depender de la página hospedada
-de Stripe la haría lenta y frágil. El botón "Suscribirme" solo se
-comprueba visible/habilitado en `e2e/daily-limit.spec.ts`, sin pulsarlo.
+No hay test E2E (Playwright) del click-through de Checkout real:
+requeriría red real hacia Stripe (bloqueada aquí) y depender de la página
+hospedada de Stripe la haría lenta y frágil. Lo que sí cubre
+`e2e/upgrade-auth.spec.ts` es el tramo que sí depende de este proyecto: sin
+sesión, "Suscribirme" lleva al registro/login real (Clerk o su bypass de
+E2E) en vez de al backend, y al volver autenticado el checkout se dispara
+solo (sin un segundo clic) — en este entorno acaba en un 500 porque
+`STRIPE_SECRET_KEY` no está configurado en `.env.e2e` a propósito, lo cual
+de todas formas confirma que la llamada se intentó. El botón "Suscribirme"
+ya autenticado se comprueba visible/habilitado en `e2e/daily-limit.spec.ts`,
+sin pulsarlo (evita depender de la página hospedada de Stripe).

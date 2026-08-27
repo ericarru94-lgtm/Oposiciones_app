@@ -97,6 +97,32 @@ describe("POST /api/stripe/crear-checkout-session", () => {
     );
   });
 
+  it("un usuario que inicia sesión con Clerk por primera vez (fila creada al vuelo) también puede suscribirse", async () => {
+    // Sin ningún GET /auth/me previo: el primer request autenticado de este
+    // clerkUserId es directamente el checkout, para confirmar que
+    // obtenerOCrearUsuarioDesdeClerk crea la fila a tiempo para que el
+    // Customer de Stripe se cree sin problema (mismo camino que un usuario
+    // nuevo que llega a /upgrade y se registra con Clerk desde ahí).
+    const clerkUserIdNuevo = "clerk_test_stripe_usuario_nuevo";
+    mockUsuarioClerk(clerkUserIdNuevo, "test-stripe-usuario-nuevo@example.com");
+    stripeMock.customers.create.mockResolvedValueOnce({ id: "cus_recien_creado" });
+    stripeMock.checkout.sessions.create.mockResolvedValueOnce({ url: "https://checkout.stripe.com/pay/cs_test_nuevo" });
+
+    const res = await request(app)
+      .post("/api/stripe/crear-checkout-session")
+      .set("Authorization", `Bearer ${clerkUserIdNuevo}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.url).toBe("https://checkout.stripe.com/pay/cs_test_nuevo");
+    expect(stripeMock.customers.create).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "test-stripe-usuario-nuevo@example.com" })
+    );
+
+    const usuario = await prisma.usuario.findUnique({ where: { email: "test-stripe-usuario-nuevo@example.com" } });
+    expect(usuario?.clerkUserId).toBe(clerkUserIdNuevo);
+    expect(usuario?.stripeCustomerId).toBe("cus_recien_creado");
+  });
+
   it("responde 500 si STRIPE_PRICE_ID no está configurado", async () => {
     const original = process.env.STRIPE_PRICE_ID;
     delete process.env.STRIPE_PRICE_ID;

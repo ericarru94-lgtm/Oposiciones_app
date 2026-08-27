@@ -1,26 +1,52 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { crearCheckoutSession } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 
+/** A dónde volver tras el login/registro de Clerk disparado desde "Suscribirme". */
+const DESTINO_TRAS_AUTH = "/upgrade?continuar=1";
+
 export function Upgrade() {
   const navigate = useNavigate();
-  const { estaAutenticado, getToken } = useSession();
-  const [cargando, setCargando] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { estaAutenticado, cargando, getToken } = useSession();
+  const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const yaContinuado = useRef(false);
 
   async function suscribirse() {
     setError(null);
-    setCargando(true);
+    setProcesando(true);
     try {
       const token = await getToken();
       const { url } = await crearCheckoutSession(token as string);
       window.location.href = url;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo iniciar el pago. Inténtalo de nuevo.");
-      setCargando(false);
+      setProcesando(false);
     }
+  }
+
+  // Al volver del login/registro de Clerk (disparado por "Suscribirme" sin
+  // sesión, ver alPulsarSuscribirme), continúa el pago automáticamente en
+  // vez de obligar a pulsar el botón otra vez.
+  useEffect(() => {
+    if (cargando || yaContinuado.current) return;
+    if (estaAutenticado && searchParams.get("continuar") === "1") {
+      yaContinuado.current = true;
+      setSearchParams({}, { replace: true });
+      void suscribirse();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargando, estaAutenticado, searchParams]);
+
+  function alPulsarSuscribirme() {
+    if (!estaAutenticado) {
+      navigate(`/registro?destino=${encodeURIComponent(DESTINO_TRAS_AUTH)}`);
+      return;
+    }
+    void suscribirse();
   }
 
   return (
@@ -39,24 +65,24 @@ export function Upgrade() {
 
         {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
 
-        {estaAutenticado ? (
-          <button
-            onClick={suscribirse}
-            disabled={cargando}
-            className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {cargando ? "Redirigiendo a Stripe…" : "Suscribirme"}
-          </button>
-        ) : (
-          <>
-            <p className="mt-6 text-sm text-slate-500">Necesitas una cuenta para suscribirte.</p>
+        <button
+          onClick={alPulsarSuscribirme}
+          disabled={procesando || cargando}
+          className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+        >
+          {procesando ? "Redirigiendo a Stripe…" : "Suscribirme"}
+        </button>
+
+        {!cargando && !estaAutenticado && (
+          <p className="mt-3 text-sm text-slate-500">
+            ¿Ya tienes cuenta?{" "}
             <button
-              onClick={() => navigate("/registro")}
-              className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700"
+              onClick={() => navigate(`/login?destino=${encodeURIComponent(DESTINO_TRAS_AUTH)}`)}
+              className="font-medium text-indigo-600 hover:underline"
             >
-              Crear cuenta gratis
+              Inicia sesión
             </button>
-          </>
+          </p>
         )}
 
         <button

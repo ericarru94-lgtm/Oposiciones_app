@@ -19,14 +19,19 @@ export function Auth({ cabecera, modoInicial = "registro", destino = "/home" }: 
   if (!usandoClerk) {
     return <AuthBypass cabecera={cabecera} modoInicial={modoInicial} destino={destino} />;
   }
+  // Se propaga `destino` a la URL del otro formulario (el enlace "¿Ya
+  // tienes cuenta?"/"Crear cuenta" dentro del propio componente de Clerk)
+  // para que cambiar de login a registro (o viceversa) no pierda a dónde
+  // había que volver — p.ej. /upgrade?continuar=1 al suscribirse sin sesión.
+  const destinoQS = encodeURIComponent(destino);
   return (
     <div className="mx-auto max-w-lg">
       {cabecera}
       <div className="rounded-2xl bg-white p-2 shadow-sm">
         {modoInicial === "registro" ? (
-          <SignUp routing="hash" fallbackRedirectUrl={destino} signInUrl="/login" />
+          <SignUp routing="hash" fallbackRedirectUrl={destino} signInUrl={`/login?destino=${destinoQS}`} />
         ) : (
-          <SignIn routing="hash" fallbackRedirectUrl={destino} signUpUrl="/registro" />
+          <SignIn routing="hash" fallbackRedirectUrl={destino} signUpUrl={`/registro?destino=${destinoQS}`} />
         )}
       </div>
     </div>

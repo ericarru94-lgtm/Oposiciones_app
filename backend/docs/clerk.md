@@ -151,6 +151,23 @@ queda en manos de un efecto tras el redirect de `<SignUp/>`, con una
 pequeña ventana de inconsistencia eventual (el progreso puede tardar un
 instante en aparecer) que no afecta a ningún test de este repo.
 
+## Volver a una pantalla concreta tras autenticarse (`destino`)
+
+`Login`/`Registro` leen un parámetro `?destino=` de la URL y se lo pasan a
+`Auth` como `fallbackRedirectUrl` de `<SignIn/>`/`<SignUp/>` (o, en modo
+bypass, como la URL a la que navega `iniciarSesionBypass` al terminar).
+También se propaga al enlace "¿Ya tienes cuenta?"/"Crear cuenta" que el
+propio componente de Clerk ofrece para cambiar de login a registro (o
+viceversa), así que ese cambio no pierde a dónde había que volver.
+
+El caso de uso real es `/upgrade`: al pulsar "Suscribirme" sin sesión,
+`Upgrade.tsx` navega a `/registro?destino=%2Fupgrade%3Fcontinuar%3D1` en
+vez de a un placeholder. Al completar el alta, Clerk redirige de vuelta a
+`/upgrade?continuar=1`; `Upgrade` detecta ese parámetro y dispara el
+checkout automáticamente en cuanto `estaAutenticado` es true, sin que el
+usuario tenga que pulsar el botón una segunda vez. Detalle completo del
+lado de Stripe en `backend/docs/stripe.md`.
+
 ## Perfil
 
 `frontend/src/pages/Perfil.tsx` combina `perfilExterno` (nombre, email,
@@ -174,11 +191,15 @@ también su ausencia de "magia" cuando `AUTH_TEST_BYPASS_SECRET` no está
 definido).
 
 Los tests de componentes de frontend (`TestRunner.test.tsx`,
-`FormularioPreguntaAdmin.test.tsx`) mockean `useSession()` directamente
-(como ya hacían), así que no les afecta si por debajo hay Clerk real o el
-modo bypass. La suite E2E completa corre en modo bypass (ver arriba) y
-cubre el alta al final del onboarding, además de un spec dedicado
-(`e2e/perfil.spec.ts`) para la pantalla de perfil.
+`FormularioPreguntaAdmin.test.tsx`, `Upgrade.test.tsx`) mockean
+`useSession()` directamente (como ya hacían), así que no les afecta si por
+debajo hay Clerk real o el modo bypass. `Upgrade.test.tsx` cubre además el
+redirect a `/registro`/`/login` cuando no hay sesión y el auto-continuar
+el checkout al volver con `?continuar=1`. La suite E2E completa corre en
+modo bypass (ver arriba) y cubre el alta al final del onboarding, un spec
+dedicado (`e2e/perfil.spec.ts`) para la pantalla de perfil, y otro
+(`e2e/upgrade-auth.spec.ts`) para "Suscribirme sin sesión -> registro ->
+vuelta a /upgrade -> checkout automático".
 
 No hay (ni puede haber, en este entorno) un test E2E que ejercite Clerk de
 verdad — la misma limitación de red que impide probar el Checkout real de
