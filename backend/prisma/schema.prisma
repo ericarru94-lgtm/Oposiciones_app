@@ -97,6 +97,10 @@ model Usuario {
   nivelInicial  String? // resultado del onboarding (p.ej. "principiante", "intermedio", "avanzado")
   plan          Plan     @default(free)
   premiumHasta  DateTime? // fin de suscripción activa, null si nunca ha pagado
+  /// Acceso a la herramienta de revisión editorial. Se activa sola (no hay
+  /// alta manual en BD) para cualquier email listado en ADMIN_EMAILS al
+  /// iniciar sesión o registrarse — ver lib/adminEmails.ts.
+  esAdmin       Boolean  @default(false)
   createdAt     DateTime @default(now())
 
   progresos Progreso[]

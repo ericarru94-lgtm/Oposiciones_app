@@ -20,6 +20,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Link to="/progreso" className="text-slate-600 hover:text-slate-900">
               Progreso
             </Link>
+            {usuario?.esAdmin && (
+              <Link to="/admin/revision" className="text-slate-600 hover:text-slate-900">
+                Revisión
+              </Link>
+            )}
             <span className="text-slate-300">|</span>
             <span className="text-slate-500">{usuario?.email}</span>
             <button

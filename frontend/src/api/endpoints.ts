@@ -1,11 +1,15 @@
 import { apiFetch } from "./client";
 import type {
+  Bloque,
+  EstadoPregunta,
   EvolucionDia,
   Opcion,
+  PreguntaAdmin,
   PreguntaParaResponder,
   ProgresoHoy,
   ProgresoPorTema,
   ProgresoResumen,
+  ResumenTemaAdmin,
   RespuestaFeedback,
   Tema,
   TipoPregunta,
@@ -73,4 +77,42 @@ export function obtenerProgresoPorTema(token: string) {
 
 export function obtenerEvolucion(token: string, dias = 14) {
   return apiFetch<{ serie: EvolucionDia[] }>(`/progreso/evolucion?dias=${dias}`, { token });
+}
+
+// --- Herramienta de revisión editorial (admin) ---
+
+export function obtenerColaRevision(
+  token: string,
+  params: { estado: EstadoPregunta; bloque?: Bloque; temaId?: number; sinTema?: boolean; limit?: number }
+) {
+  const query = new URLSearchParams({ estado: params.estado });
+  if (params.bloque) query.set("bloque", params.bloque);
+  if (params.temaId) query.set("temaId", String(params.temaId));
+  if (params.sinTema) query.set("sinTema", "true");
+  query.set("limit", String(params.limit ?? 100));
+  return apiFetch<{ preguntas: PreguntaAdmin[] }>(`/admin/preguntas?${query.toString()}`, { token });
+}
+
+export function obtenerResumenTemasAdmin(token: string, estado: EstadoPregunta) {
+  return apiFetch<{ temas: ResumenTemaAdmin[]; sinTema: { pendientes: number } }>(
+    `/admin/resumen-temas?estado=${estado}`,
+    { token }
+  );
+}
+
+export interface CambiosPregunta {
+  enunciado?: string;
+  opciones?: string[];
+  respuestaCorrecta?: Opcion | null;
+  explicacion?: string | null;
+  fuente?: string | null;
+  estado?: EstadoPregunta;
+}
+
+export function actualizarPreguntaAdmin(token: string, id: string, cambios: CambiosPregunta) {
+  return apiFetch<{ pregunta: PreguntaAdmin }>(`/admin/preguntas/${id}`, {
+    method: "PATCH",
+    body: cambios,
+    token,
+  });
 }

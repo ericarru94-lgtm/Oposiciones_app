@@ -2,6 +2,7 @@ export type Opcion = "a" | "b" | "c" | "d";
 export type TipoPregunta = "teorica" | "psicotecnica";
 export type Bloque = "I" | "II";
 export type Plan = "free" | "premium";
+export type EstadoPregunta = "borrador" | "verificada" | "anulada";
 
 export interface Tema {
   id: number;
@@ -32,6 +33,28 @@ export interface Usuario {
   email: string;
   plan: Plan;
   nivelInicial?: string | null;
+  esAdmin?: boolean;
+}
+
+/** Pregunta completa (con respuesta, explicación, fuente y estado) para la herramienta de revisión editorial. */
+export interface PreguntaAdmin {
+  id: string;
+  temaId: number | null;
+  tema: Tema | null;
+  enunciado: string;
+  opciones: string[];
+  respuestaCorrecta: Opcion | null;
+  explicacion: string | null;
+  fuente: string | null;
+  origen: "examen_oficial" | "generada_ia";
+  convocatoria: string | null;
+  estado: EstadoPregunta;
+  tipo: TipoPregunta;
+  numeroOriginalExamen: number | null;
+}
+
+export interface ResumenTemaAdmin extends Tema {
+  pendientes: number;
 }
 
 export interface ProgresoHoy {

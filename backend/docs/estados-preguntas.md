@@ -10,7 +10,7 @@ de estas reglas, actualiza también ese test (y esta tabla).
 | Estado       | Significado                                                                 | ¿Quién los crea hoy? |
 |--------------|------------------------------------------------------------------------------|------------------------|
 | `borrador`   | Pregunta importada pero **sin revisión editorial**. Puede tener errores de redacción, respuesta dudosa, etc. Es el estado por defecto al importar (356 de las 414 preguntas del dataset inicial). | `import-questions.ts` |
-| `verificada` | Un revisor humano ha confirmado el enunciado, las opciones y la respuesta correcta. Es la única que se muestra a usuarios finales por defecto. | Hoy, actualización manual (ver "Cómo se promociona" más abajo) |
+| `verificada` | Un revisor humano ha confirmado el enunciado, las opciones y la respuesta correcta. Es la única que se muestra a usuarios finales por defecto. | Herramienta de revisión editorial: `PATCH /api/admin/preguntas/:id` (ver "Cómo se promociona" más abajo) |
 | `anulada`    | La pregunta es inválida (error irrecuperable, ambigua, o el examen oficial la anuló). `respuestaCorrecta` puede ser `null`. No debe mostrarse ni responderse nunca. | Revisión editorial, o importación de una pregunta ya marcada como anulada en el origen |
 
 El campo `reportesUsuario` (contador) existe para que, en el futuro, un
@@ -69,8 +69,8 @@ confundirlos:
 ```mermaid
 stateDiagram-v2
     [*] --> borrador: import-questions.ts\n(valor por defecto)
-    borrador --> verificada: revisión editorial\n(hoy: UPDATE manual)
-    borrador --> anulada: revisión editorial\ndetecta error irrecuperable
+    borrador --> verificada: PATCH /admin/preguntas/:id\n(herramienta de revisión)
+    borrador --> anulada: PATCH /admin/preguntas/:id\ndetecta error irrecuperable
     verificada --> anulada: reportesUsuario alto\n+ revisión (no automatizado aún)
     anulada --> [*]
     verificada --> [*]
@@ -84,33 +84,35 @@ stateDiagram-v2
 | `verificada` | ✅ visible | ✅ visible | ✅ permitido | ✅ se sugiere |
 | `anulada`    | ❌ oculta | ❌ 400 (valor no aceptado) | ❌ 410 Gone | ❌ nunca se sugiere |
 
-## Cómo se promociona una pregunta hoy (y qué falta)
+## Cómo se promociona una pregunta hoy
 
-**Hoy no existe un endpoint de moderación/admin.** La promoción
-`borrador → verificada` (o la anulación de una pregunta) se hace
-directamente sobre la fila, por ejemplo con Prisma Studio
-(`npm run prisma:studio`) o una consulta SQL:
+Existe una herramienta de revisión editorial completa (frontend
+`/admin/revision`, backend `backend/src/routes/admin.ts`), protegida por
+`Usuario.esAdmin` (ver `backend/src/lib/adminEmails.ts`: se activa solo
+para los emails listados en `ADMIN_EMAILS`, sin necesidad de tocar la
+base de datos a mano). Desde ahí se puede:
 
-```sql
-UPDATE "Pregunta"
-SET estado = 'verificada', "fechaVerificacion" = now()
-WHERE id = 'q0001';
-```
+- Filtrar preguntas en `borrador` (o `verificada`/`anulada`) por bloque y
+  tema, para revisar de forma ordenada.
+- Editar enunciado, opciones, respuesta correcta, explicación y fuente.
+- `PATCH /api/admin/preguntas/:id` con `estado: "verificada"` — el
+  backend **rechaza** este cambio (400) si la pregunta (ya sea con su
+  valor actual o con el que llega en la misma petición) no tiene
+  `respuestaCorrecta`.
+- `PATCH .../:id` con `estado: "anulada"` — limpia `fechaVerificacion`.
 
-El test `Transición borrador → verificada` en
-`estado-preguntas.test.ts` reproduce exactamente este `UPDATE` directo y
-comprueba que el cambio se refleja de inmediato en `/aleatorias` — eso
-es lo que garantiza que, cuando se construya una herramienta de admin,
-baste con hacer ese mismo `UPDATE` (vía un endpoint en lugar de SQL a
-mano) para que todo lo demás funcione sin cambios.
+El test `Transición borrador → verificada` en `estado-preguntas.test.ts`
+sigue reproduciendo el `UPDATE` directo sobre la fila (documenta el
+contrato mínimo), y `admin.test.ts` cubre el endpoint real end-to-end.
 
-Pendiente para una fase posterior (fuera del alcance de este esqueleto):
+Pendiente para una fase posterior:
 
-- Endpoint `PATCH /api/admin/preguntas/:id/estado` protegido por rol de
-  editor.
 - Flujo automático: `reportesUsuario >= N` → volver a `borrador` para
   re-revisión (o `anulada` directamente si el reporte es contundente).
-- Exponer `estado` y `reportesUsuario` en un panel de administración.
+  Hoy `reportesUsuario` existe en el modelo pero nada lo incrementa
+  todavía (no hay endpoint de "reportar pregunta" desde la UI de
+  usuario).
+- Roles de editor más granulares (hoy es todo o nada: `esAdmin`).
 
 ## Tests
 
@@ -143,3 +145,10 @@ Cobertura actual:
 7. `/progreso/hoy` nunca sugiere como "nueva" una pregunta en borrador o anulada.
 8. Promocionar una pregunta (`UPDATE` directo) la hace aparecer de inmediato
    en `/aleatorias`.
+
+La herramienta de admin tiene su propia suite,
+`backend/src/routes/__tests__/admin.test.ts` (9 tests): autorización
+(401 sin token, 403 sin `esAdmin`, se activa solo vía `ADMIN_EMAILS`),
+filtrado de la cola por tema, edición + verificación, el 400 al intentar
+verificar sin respuesta correcta, anulación, y el recuento de pendientes
+por tema.

@@ -21,8 +21,11 @@ posterior; el paywall/UI ya existe.
   home con progreso por tema y racha, test una pregunta a la vez con
   feedback y fuente, panel de progreso, pantalla de upgrade al alcanzar
   el límite diario.
+- ✅ Herramienta de revisión editorial (`/admin/revision`, solo para
+  cuentas listadas en `ADMIN_EMAILS`): cola de preguntas en borrador
+  filtrable por bloque/tema, edición de enunciado/opciones/respuesta/
+  explicación/fuente, verificar o anular.
 - ⬜ Cobro real (Stripe u otro proveedor) para el plan premium.
-- ⬜ Herramienta de verificación editorial (borrador → verificada).
 
 ## Estructura
 
@@ -53,7 +56,8 @@ frontend/
   (borrador/verificada/anulada), convocatoria, fuente y explicación
   (de cara a añadir feedback enriquecido más adelante).
 - **Usuario**: email/password, `nivelInicial` (resultado del onboarding),
-  plan (free/premium).
+  plan (free/premium), `esAdmin` (acceso a la revisión editorial — ver
+  variables de entorno).
 - **Progreso**: una fila por (usuario, pregunta) con los parámetros del
   algoritmo SM-2 (repeticiones, factor de facilidad, intervalo en días,
   próxima revisión).
@@ -100,6 +104,9 @@ npm run dev                 # arranca el backend en http://localhost:3001
 - `PORT`: puerto del backend (por defecto 3001).
 - `FREE_PLAN_DAILY_LIMIT`: nº máximo de preguntas/día en el plan gratuito
   (por defecto 30).
+- `ADMIN_EMAILS`: emails (separados por comas) con acceso a la revisión
+  editorial. Se activa solo (`Usuario.esAdmin = true`) la próxima vez que
+  ese email se registre o inicie sesión — no hace falta tocar la BD.
 
 ### Re-importar el dataset
 
@@ -177,15 +184,26 @@ Todas las rutas cuelgan de `/api`.
 - `GET /progreso/evolucion?dias=14` → serie diaria de intentos/aciertos
   para el gráfico de evolución del % de acierto.
 
+### Admin (requieren `Authorization: Bearer <token>` de un usuario con `esAdmin`)
+- `GET /admin/preguntas?estado=borrador|verificada|anulada&bloque=&temaId=&sinTema=&limit=`
+  → cola de revisión con la pregunta completa (incluida la respuesta),
+  ordenada por tema.
+- `GET /admin/resumen-temas?estado=` → nº de preguntas en ese estado por
+  tema (y sin tema, para psicotécnicas), para pintar el filtro.
+- `PATCH /admin/preguntas/:id` `{ enunciado?, opciones?, respuestaCorrecta?, explicacion?, fuente?, estado? }`
+  → edita y/o cambia el estado. Rechaza (400) marcar `estado: "verificada"`
+  si la pregunta no queda con una `respuestaCorrecta`.
+
 ## Próximos pasos
 
 1. **Cobro real**: integrar un proveedor de pago (p.ej. Stripe) en la
    pantalla de upgrade, webhook de alta/renovación/cancelación que
    actualice `Usuario.plan` y `premiumHasta`.
-2. **Verificación editorial**: herramienta/admin para pasar preguntas de
-   `borrador` a `verificada` (añadir `explicacion`/`fuente`), y flujo de
-   `reportes_usuario` para que los usuarios señalen preguntas dudosas.
-3. **Tests de frontend**: la suite de tests hoy solo cubre el backend; el
-   flujo de onboarding se validó manualmente con Playwright (ver capturas
-   generadas durante el desarrollo) pero no hay tests automatizados de UI
-   todavía.
+2. **Reportar preguntas dudosas**: hoy `reportes_usuario` existe en el
+   modelo pero no hay forma de incrementarlo desde la UI; añadir un botón
+   "reportar" en el test y, cuando supere un umbral, degradar la pregunta
+   a `borrador` para que vuelva a la cola de revisión.
+3. **Tests de frontend**: la suite de tests hoy solo cubre el backend; los
+   flujos de onboarding y de revisión editorial se validaron manualmente
+   con Playwright (ver capturas generadas durante el desarrollo) pero no
+   hay tests automatizados de UI todavía.

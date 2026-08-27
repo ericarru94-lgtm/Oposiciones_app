@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { SessionProvider } from "./context/SessionContext";
 import { RutaProtegida } from "./components/RutaProtegida";
+import { RutaAdmin } from "./components/RutaAdmin";
 import { Inicio } from "./pages/Inicio";
 import { OnboardingFlow } from "./pages/onboarding/OnboardingFlow";
 import { Login } from "./pages/Login";
@@ -9,6 +10,7 @@ import { RepasarHoy } from "./pages/RepasarHoy";
 import { PracticarTema } from "./pages/PracticarTema";
 import { Progreso } from "./pages/Progreso";
 import { Upgrade } from "./pages/Upgrade";
+import { Revision } from "./pages/admin/Revision";
 
 export function App() {
   return (
@@ -49,6 +51,14 @@ export function App() {
               <RutaProtegida>
                 <Progreso />
               </RutaProtegida>
+            }
+          />
+          <Route
+            path="/admin/revision"
+            element={
+              <RutaAdmin>
+                <Revision />
+              </RutaAdmin>
             }
           />
         </Routes>

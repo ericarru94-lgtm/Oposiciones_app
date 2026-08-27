@@ -3,6 +3,7 @@ import cors from "cors";
 import { authRouter } from "./routes/auth";
 import { preguntasRouter } from "./routes/preguntas";
 import { progresoRouter } from "./routes/progreso";
+import { adminRouter } from "./routes/admin";
 
 /**
  * App de Express sin `listen()`, para poder importarla tanto desde
@@ -20,6 +21,7 @@ export function crearApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/preguntas", preguntasRouter);
   app.use("/api/progreso", progresoRouter);
+  app.use("/api/admin", adminRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

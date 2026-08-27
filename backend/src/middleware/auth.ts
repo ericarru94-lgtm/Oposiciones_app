@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { prisma } from "../lib/prisma";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 
@@ -52,4 +53,19 @@ export function authRequerido(req: Request, res: Response, next: NextFunction) {
 
 export function firmarToken(payload: AuthPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
+}
+
+/**
+ * Exige que el usuario autenticado (usar siempre después de authRequerido)
+ * tenga `esAdmin = true`. Consulta la BD en cada petición en lugar de
+ * confiar en un claim del JWT: es una herramienta de un único admin y de
+ * bajo volumen, así que se prioriza poder revocar el acceso al instante
+ * (UPDATE en BD) sobre ahorrarse esta consulta.
+ */
+export async function requiereAdmin(req: Request, res: Response, next: NextFunction) {
+  const usuario = await prisma.usuario.findUnique({ where: { id: req.auth!.usuarioId } });
+  if (!usuario?.esAdmin) {
+    return res.status(403).json({ error: "Requiere permisos de administrador" });
+  }
+  next();
 }
