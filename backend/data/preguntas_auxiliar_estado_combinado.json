@@ -10366,5 +10366,1045 @@
     "tipo": "teorica",
     "es_pregunta_reserva": false,
     "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0001",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "Según el art. 134.1 de la Constitución Española, la elaboración de los Presupuestos Generales del Estado corresponde:",
+    "opciones": [
+      "A las Cortes Generales.",
+      "Al Gobierno.",
+      "Al Tribunal de Cuentas.",
+      "Al Banco de España."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 134.1 de la Constitución Española",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0002",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "Según el art. 134.2 CE, los Presupuestos Generales del Estado incluirán:",
+    "opciones": [
+      "Solo los gastos del Estado.",
+      "La totalidad de los gastos e ingresos del sector público estatal.",
+      "Únicamente los ingresos tributarios.",
+      "Los presupuestos de las Comunidades Autónomas."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 134.2 de la Constitución Española",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0003",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "Según el art. 134.3 CE, el Gobierno deberá presentar los Presupuestos Generales del Estado ante el Congreso de los Diputados, al menos, con:",
+    "opciones": [
+      "Un mes de antelación a la expiración de los del año anterior.",
+      "Dos meses de antelación a la expiración de los del año anterior.",
+      "Tres meses de antelación a la expiración de los del año anterior.",
+      "Seis meses de antelación a la expiración de los del año anterior."
+    ],
+    "respuesta_correcta": "c",
+    "explicacion": null,
+    "fuente": "Art. 134.3 de la Constitución Española",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0004",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "Según el art. 134.4 CE, si la Ley de Presupuestos no se aprobara antes del primer día del ejercicio económico correspondiente:",
+    "opciones": [
+      "El Estado queda sin presupuesto hasta su aprobación.",
+      "Se prorrogan automáticamente los Presupuestos del ejercicio anterior hasta la aprobación de los nuevos.",
+      "El Gobierno aprueba un presupuesto provisional por decreto-ley.",
+      "Las Cortes Generales quedan disueltas."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 134.4 de la Constitución Española",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0005",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "Según el art. 134.6 CE, toda proposición o enmienda que suponga aumento de los créditos o disminución de los ingresos presupuestarios requerirá:",
+    "opciones": [
+      "Mayoría absoluta del Congreso.",
+      "La conformidad del Gobierno para su tramitación.",
+      "Informe previo del Tribunal de Cuentas.",
+      "Aprobación por Ley Orgánica."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 134.6 de la Constitución Española",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0006",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "Según el art. 2 de la Ley 47/2003, General Presupuestaria, el sector público estatal a los efectos de esta ley está integrado, entre otros, por:",
+    "opciones": [
+      "Solo la Administración General del Estado.",
+      "La Administración General del Estado, los organismos autónomos, las entidades públicas empresariales y otros organismos públicos estatales.",
+      "Únicamente las sociedades mercantiles estatales.",
+      "Solo las Comunidades Autónomas y Entidades Locales."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 2 Ley 47/2003, de 26 de noviembre, General Presupuestaria",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0007",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "El principio presupuestario por el cual el ejercicio presupuestario coincide con el año natural se conoce como principio de:",
+    "opciones": [
+      "Unidad de caja.",
+      "Anualidad.",
+      "Universalidad.",
+      "Especialidad."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Ley 47/2003, de 26 de noviembre, General Presupuestaria (principio de anualidad presupuestaria)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0008",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "En el ámbito de las modificaciones presupuestarias, la que incrementa un crédito ya existente pero insuficiente se denomina:",
+    "opciones": [
+      "Crédito extraordinario.",
+      "Suplemento de crédito.",
+      "Transferencia de crédito.",
+      "Generación de crédito."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Ley 47/2003, de 26 de noviembre, General Presupuestaria (modificaciones presupuestarias)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0009",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "¿Cuál de las siguientes NO es una clasificación presupuestaria habitual de los créditos en los Presupuestos Generales del Estado?",
+    "opciones": [
+      "Clasificación orgánica.",
+      "Clasificación económica.",
+      "Clasificación funcional o por programas.",
+      "Clasificación alfabética."
+    ],
+    "respuesta_correcta": "d",
+    "explicacion": null,
+    "fuente": "Ley 47/2003, de 26 de noviembre, General Presupuestaria (estructura de los presupuestos)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0010",
+    "tema": {
+      "bloque": "I",
+      "numero": 15,
+      "nombre": "El presupuesto del Estado en España"
+    },
+    "enunciado": "Según el art. 135.1 de la Constitución Española (introducido por la reforma de 2011), todas las Administraciones Públicas:",
+    "opciones": [
+      "Podrán incurrir en déficit estructural sin límite.",
+      "Adecuarán sus actuaciones al principio de estabilidad presupuestaria.",
+      "Quedan exentas del control del Tribunal de Cuentas.",
+      "Solo deben cumplir el equilibrio presupuestario en años de crisis."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 135.1 de la Constitución Española",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0011",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 9 del EBEP, la relación de los funcionarios de carrera con la Administración se caracteriza por ser:",
+    "opciones": [
+      "Una relación laboral común, regulada por el Estatuto de los Trabajadores.",
+      "Una relación estatutaria regulada por el Derecho Administrativo.",
+      "Una relación contractual de naturaleza civil.",
+      "Una relación mercantil de prestación de servicios."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 9.1 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0012",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 8 EBEP, ¿cuál de las siguientes NO es una clase de empleado público reconocida por el Estatuto Básico?",
+    "opciones": [
+      "Funcionarios de carrera.",
+      "Funcionarios interinos.",
+      "Personal laboral.",
+      "Personal mercantil."
+    ],
+    "respuesta_correcta": "d",
+    "explicacion": null,
+    "fuente": "Art. 8 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0013",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 55 EBEP, ¿cuál de los siguientes es uno de los principios rectores del acceso al empleo público?",
+    "opciones": [
+      "Discrecionalidad del órgano convocante.",
+      "Mérito y capacidad.",
+      "Antigüedad exclusivamente.",
+      "Libre designación en todo caso."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 55.2 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0014",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 61 EBEP, los procesos selectivos para el acceso al empleo público podrán llevarse a cabo, entre otros, mediante:",
+    "opciones": [
+      "Oposición, concurso-oposición o concurso.",
+      "Sorteo público exclusivamente.",
+      "Libre designación directa.",
+      "Adscripción provisional."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 61.6 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0015",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 62 EBEP, la adquisición de la condición de funcionario de carrera requiere, entre otros requisitos:",
+    "opciones": [
+      "Superación del proceso selectivo, nombramiento por el órgano competente, acatamiento de la Constitución y toma de posesión en el plazo establecido.",
+      "Solo superar el proceso selectivo.",
+      "Solo el nombramiento, sin necesidad de toma de posesión.",
+      "Ratificación anual del cargo."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 62 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0016",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 76 EBEP, la clasificación de los cuerpos y escalas en Subgrupos (A1, A2, C1, C2...) se basa fundamentalmente en:",
+    "opciones": [
+      "La antigüedad del cuerpo.",
+      "La titulación exigida para el acceso.",
+      "El número de plazas convocadas.",
+      "La comunidad autónoma de destino."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 76 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0017",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el EBEP, para poder solicitar la excedencia voluntaria por interés particular, con carácter general, es necesario haber prestado servicios efectivos en cualquiera de las Administraciones Públicas durante al menos:",
+    "opciones": [
+      "Un año inmediatamente anterior.",
+      "Tres años inmediatamente anteriores.",
+      "Cinco años inmediatamente anteriores.",
+      "Diez años inmediatamente anteriores."
+    ],
+    "respuesta_correcta": "c",
+    "explicacion": null,
+    "fuente": "Art. 89.2 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0018",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 95 EBEP, las infracciones disciplinarias de los funcionarios públicos se clasifican en:",
+    "opciones": [
+      "Leves y graves.",
+      "Muy graves, graves y leves.",
+      "Graves y muy graves.",
+      "Únicamente muy graves."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 95.1 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0019",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 96 EBEP, ¿cuál de las siguientes es una sanción disciplinaria expresamente prevista?",
+    "opciones": [
+      "Suspensión de funciones.",
+      "Descenso de subgrupo.",
+      "Multa económica.",
+      "Traslado forzoso a otra Comunidad Autónoma."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 96.1 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0020",
+    "tema": {
+      "bloque": "I",
+      "numero": 13,
+      "nombre": "El personal funcionario"
+    },
+    "enunciado": "Según el art. 10.4 EBEP, el cese de los funcionarios interinos se producirá, entre otras causas, cuando:",
+    "opciones": [
+      "Finalice la causa que dio lugar a su nombramiento.",
+      "Cumplan un año de servicio, en todo caso.",
+      "Lo decida el propio interesado sin plazo de preaviso.",
+      "Se apruebe la Ley de Presupuestos del ejercicio siguiente."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 10.4 del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0021",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según el art. 14 de la Constitución Española, los españoles son iguales ante la ley, sin que pueda prevalecer discriminación alguna por razón de, entre otras causas:",
+    "opciones": [
+      "Nacimiento, raza, sexo, religión, opinión o cualquier otra condición o circunstancia personal o social.",
+      "Solo por razón de sexo.",
+      "Únicamente por razón de religión.",
+      "Solo por razón de nacimiento."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 14 de la Constitución Española",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0022",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según el art. 1 de la Ley Orgánica 3/2007, esta ley tiene por objeto hacer efectivo el derecho de igualdad de trato y de oportunidades entre mujeres y hombres, en particular mediante la eliminación de la discriminación de la mujer, sea cual fuere:",
+    "opciones": [
+      "Su circunstancia o condición.",
+      "Su nivel de estudios exclusivamente.",
+      "Su situación laboral exclusivamente.",
+      "Su nacionalidad exclusivamente."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 1 Ley Orgánica 3/2007, de 22 de marzo, para la igualdad efectiva de mujeres y hombres",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0023",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según la Ley Orgánica 3/2007, se entiende por 'acción positiva':",
+    "opciones": [
+      "Cualquier sanción impuesta por discriminación.",
+      "Las medidas específicas a favor de las mujeres para corregir situaciones patentes de desigualdad de hecho respecto de los hombres.",
+      "La igualdad formal ante la ley.",
+      "La obligación de contratar exclusivamente a mujeres."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 11 Ley Orgánica 3/2007, de 22 de marzo, para la igualdad efectiva de mujeres y hombres",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0024",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según la Ley Orgánica 3/2007 (tras la reforma del Real Decreto-ley 6/2019), las empresas obligadas a elaborar y aplicar un Plan de Igualdad son, con carácter general, las de más de:",
+    "opciones": [
+      "25 personas trabajadoras.",
+      "50 personas trabajadoras.",
+      "100 personas trabajadoras.",
+      "250 personas trabajadoras."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 45 Ley Orgánica 3/2007, de 22 de marzo, para la igualdad efectiva de mujeres y hombres (redacción dada por el Real Decreto-ley 6/2019)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0025",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según el art. 1 de la Ley Orgánica 1/2004, de Medidas de Protección Integral contra la Violencia de Género, esta ley actúa contra la violencia que se ejerce sobre las mujeres por parte de:",
+    "opciones": [
+      "Cualquier persona de su entorno familiar.",
+      "Quienes sean o hayan sido sus cónyuges o de quienes estén o hayan estado ligados a ellas por relaciones similares de afectividad, aun sin convivencia.",
+      "Exclusivamente sus cónyuges actuales.",
+      "Cualquier persona, sin que se requiera relación de pareja."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 1 Ley Orgánica 1/2004, de 28 de diciembre, de Medidas de Protección Integral contra la Violencia de Género",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0026",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según la Ley Orgánica 1/2004, la trabajadora víctima de violencia de género tiene derecho, para hacer efectiva su protección, entre otros, a:",
+    "opciones": [
+      "La reducción o la reordenación de su tiempo de trabajo.",
+      "El despido automático de su agresor si trabaja en la misma empresa.",
+      "Duplicar su salario durante un año.",
+      "Un permiso retribuido de un año completo obligatorio."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 21 Ley Orgánica 1/2004, de 28 de diciembre, de Medidas de Protección Integral contra la Violencia de Género",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0027",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según la Ley Orgánica 1/2004, la instrucción y el fallo de las causas penales por violencia de género corresponde, en primera instancia, a:",
+    "opciones": [
+      "Los Juzgados de Violencia sobre la Mujer.",
+      "Los Juzgados de lo Social.",
+      "Los Juzgados de Familia exclusivamente.",
+      "El Tribunal Supremo."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Ley Orgánica 1/2004, de 28 de diciembre, de Medidas de Protección Integral contra la Violencia de Género (creación de los Juzgados de Violencia sobre la Mujer)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0028",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según el art. 51 de la Ley Orgánica 3/2007, las Administraciones Públicas, en el ámbito de sus competencias, deberán promover la igualdad entre mujeres y hombres en el acceso al empleo público, entre otras medidas, mediante:",
+    "opciones": [
+      "La reserva exclusiva de plazas para mujeres en todos los cuerpos.",
+      "La eliminación de obstáculos que puedan incidir negativamente en la igualdad de oportunidades.",
+      "Un examen adicional únicamente para hombres.",
+      "La supresión de los procesos selectivos."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 51 Ley Orgánica 3/2007, de 22 de marzo, para la igualdad efectiva de mujeres y hombres",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0029",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según el art. 49.a) del EBEP, el permiso por parto tendrá una duración de:",
+    "opciones": [
+      "10 semanas ininterrumpidas.",
+      "16 semanas ininterrumpidas, ampliables en determinados supuestos.",
+      "6 semanas ininterrumpidas.",
+      "52 semanas ininterrumpidas."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 49.a) del Texto Refundido de la Ley del Estatuto Básico del Empleado Público (RDLeg 5/2015)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0030",
+    "tema": {
+      "bloque": "I",
+      "numero": 16,
+      "nombre": "Políticas de igualdad y contra la violencia de género"
+    },
+    "enunciado": "Según la Ley Orgánica 3/2007, en los nombramientos de altos cargos de la Administración General del Estado se atenderá al principio de:",
+    "opciones": [
+      "Antigüedad exclusiva.",
+      "Presencia equilibrada de mujeres y hombres.",
+      "Libre elección, sin criterio alguno.",
+      "Mayoría de un solo sexo obligatoria."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Ley Orgánica 3/2007, de 22 de marzo, para la igualdad efectiva de mujeres y hombres (composición equilibrada en los nombramientos)",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0031",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según el art. 13 de la Ley 39/2015, quienes se relacionen con las Administraciones Públicas tienen derecho, entre otros, a:",
+    "opciones": [
+      "Comunicarse con las Administraciones Públicas a través de un Punto de Acceso General electrónico.",
+      "Elegir libremente al funcionario que les atienda.",
+      "Recibir gratuitamente cualquier servicio administrativo, sin excepción.",
+      "Obtener respuesta en menos de 24 horas siempre."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 13 Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0032",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según los arts. 4 y 5 de la Ley 39/2015, tienen la consideración de interesados en el procedimiento administrativo quienes lo promuevan como titulares de derechos o intereses legítimos, y también:",
+    "opciones": [
+      "Quienes, sin haber iniciado el procedimiento, tengan derechos que puedan resultar afectados por la decisión que en el mismo se adopte.",
+      "Únicamente los funcionarios que lo tramiten.",
+      "Solo las personas jurídicas, nunca las físicas.",
+      "Exclusivamente quienes hayan sido citados expresamente por la Administración."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 4 y 5 Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0033",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según el art. 21.3 de la Ley 39/2015, cuando las normas reguladoras de los procedimientos no fijen plazo máximo, éste será de:",
+    "opciones": [
+      "Un mes.",
+      "Tres meses.",
+      "Seis meses.",
+      "Un año."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 21.3 Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0034",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según el art. 15 de la Ley 39/2015, en las comunidades autónomas con lengua cooficial, los interesados que se dirijan a los órganos de la Administración General del Estado con sede en su territorio:",
+    "opciones": [
+      "Deben usar obligatoriamente el castellano.",
+      "Podrán utilizar también la lengua que sea cooficial en ella.",
+      "Solo pueden usar la lengua cooficial si es Administración autonómica.",
+      "Necesitan traducción jurada previa."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 15.1 Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0035",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según el art. 12 de la Ley 39/2015, las Administraciones Públicas deberán garantizar que los interesados puedan relacionarse con ellas a través de medios electrónicos, poniendo a su disposición los canales de acceso necesarios así como:",
+    "opciones": [
+      "Los sistemas y aplicaciones que en cada caso se determinen.",
+      "Solo un número de teléfono de contacto.",
+      "Solo la sede electrónica, sin más apoyo.",
+      "Formularios en papel exclusivamente."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 12 Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0036",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según el art. 12.2 de la Ley 39/2015, las Administraciones Públicas deberán asistir en el uso de medios electrónicos a los interesados que lo soliciten, especialmente en lo referente a:",
+    "opciones": [
+      "La identificación y firma electrónica, presentación de solicitudes y obtención de copias auténticas.",
+      "La redacción del contenido del escrito.",
+      "La representación legal ante los tribunales.",
+      "El pago de tasas exclusivamente."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 12.2 Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0037",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según el RD 208/1996, la información administrativa se clasifica, según su contenido, en información general e información:",
+    "opciones": [
+      "Confidencial.",
+      "Particular.",
+      "Reservada.",
+      "Institucional."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Art. 3 Real Decreto 208/1996, de 9 de febrero, de Oficinas de Información Administrativa",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0038",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según el RD 208/1996, para obtener información administrativa de carácter general no es necesario:",
+    "opciones": [
+      "Dirigirse a una oficina de información.",
+      "Acreditar legitimación o interés alguno.",
+      "Formular la petición.",
+      "Que la Administración disponga de esa información."
+    ],
+    "respuesta_correcta": "b",
+    "explicacion": null,
+    "fuente": "Real Decreto 208/1996, de 9 de febrero, de Oficinas de Información Administrativa",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0039",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "Según el art. 53.1.a) de la Ley 39/2015, los interesados en un procedimiento administrativo tienen derecho, entre otros, a:",
+    "opciones": [
+      "Conocer, en cualquier momento, el estado de la tramitación de los procedimientos en los que tengan la condición de interesados.",
+      "Elegir el funcionario que resuelva su expediente.",
+      "Recurrir directamente ante el Tribunal Constitucional cualquier acto administrativo.",
+      "Obtener indemnización automática por cualquier retraso."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": "Art. 53.1.a) Ley 39/2015, de 1 de octubre, del Procedimiento Administrativo Común de las Administraciones Públicas",
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
+  },
+  {
+    "id": "qia3-0040",
+    "tema": {
+      "bloque": "II",
+      "numero": 1,
+      "nombre": "Atención al público"
+    },
+    "enunciado": "En la atención telefónica al ciudadano por parte de una Administración Pública, se considera buena práctica que el empleado público:",
+    "opciones": [
+      "Se identifique con su nombre y la unidad a la que pertenece al inicio de la llamada.",
+      "Nunca facilite su nombre por motivos de seguridad.",
+      "Derive toda llamada a un contestador automático.",
+      "Limite la llamada a un máximo de 30 segundos."
+    ],
+    "respuesta_correcta": "a",
+    "explicacion": null,
+    "fuente": null,
+    "origen": "generada_ia",
+    "convocatoria": null,
+    "estado": "borrador",
+    "fecha_verificacion": null,
+    "reportes_usuario": 0,
+    "tipo": "teorica",
+    "es_pregunta_reserva": false,
+    "numero_original_examen": null
   }
 ]
