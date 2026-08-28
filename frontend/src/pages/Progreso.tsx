@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { obtenerEvolucion, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
@@ -43,7 +44,20 @@ export function Progreso() {
 
   return (
     <AppLayout>
-      <h1 className="mb-6 text-2xl font-bold text-ink">Panel de progreso</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Tests y progreso</h1>
+
+      <Link
+        to="/simulacro"
+        className="mb-8 flex items-center justify-between rounded-2xl bg-primary p-6 text-white transition-colors hover:bg-primary-hover"
+      >
+        <div>
+          <p className="text-lg font-bold">Simulacro de examen</p>
+          <p className="mt-1 text-sm text-white/80">
+            Elige nº de preguntas y tiempo límite: todo el temario, como en el examen real.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold">Empezar →</span>
+      </Link>
 
       {resumen && (
         <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">

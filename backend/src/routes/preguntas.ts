@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma";
 import { authOpcional } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { haAlcanzadoLimiteDiario } from "../lib/dailyLimit";
+import { seleccionarProporcionalAlTemario } from "../lib/seleccionProporcional";
 import { siguienteEstadoSM2, calidadDesdeAcierto } from "../lib/sm2";
 import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
 
@@ -72,6 +73,32 @@ preguntasRouter.get("/aleatorias", asyncHandler(async (req, res) => {
   });
 
   const seleccion = barajar(preguntas).slice(0, limit);
+  res.json({ preguntas: seleccion.map(ocultarRespuesta) });
+}));
+
+const simulacroQuerySchema = z.object({
+  numPreguntas: z.coerce.number().int().min(5).max(100).default(25),
+});
+
+/**
+ * Simulacro de examen: selecciona preguntas de todo el temario a la vez,
+ * repartidas proporcionalmente al peso de cada tema (ver
+ * lib/seleccionProporcional.ts), en vez de limitarse a un bloque o tema
+ * concreto como /aleatorias.
+ */
+preguntasRouter.get("/simulacro", asyncHandler(async (req, res) => {
+  const parsed = simulacroQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+  const { numPreguntas } = parsed.data;
+
+  const disponibles = await prisma.pregunta.findMany({
+    where: { estado: EstadoPregunta.verificada },
+    select: { id: true, enunciado: true, opciones: true, tipo: true, temaId: true },
+  });
+
+  const seleccion = seleccionarProporcionalAlTemario(disponibles, numPreguntas);
   res.json({ preguntas: seleccion.map(ocultarRespuesta) });
 }));
 

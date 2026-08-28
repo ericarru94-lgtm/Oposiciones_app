@@ -10,6 +10,7 @@ import { Home } from "./pages/Home";
 import { RepasarHoy } from "./pages/RepasarHoy";
 import { PracticarTema } from "./pages/PracticarTema";
 import { Progreso } from "./pages/Progreso";
+import { Simulacro } from "./pages/Simulacro";
 import { Perfil } from "./pages/Perfil";
 import { Upgrade } from "./pages/Upgrade";
 import { Revision } from "./pages/admin/Revision";
@@ -61,6 +62,14 @@ export function App() {
             element={
               <RutaProtegida>
                 <Progreso />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/simulacro"
+            element={
+              <RutaProtegida>
+                <Simulacro />
               </RutaProtegida>
             }
           />

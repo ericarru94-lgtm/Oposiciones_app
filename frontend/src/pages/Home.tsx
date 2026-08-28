@@ -4,7 +4,7 @@ import { obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { RachaBadge } from "../components/RachaBadge";
-import { TemaCard } from "../components/TemaCard";
+import { BloqueDesplegable } from "../components/BloqueDesplegable";
 import type { ProgresoPorTema, ProgresoResumen } from "../api/types";
 
 export function Home() {
@@ -78,27 +78,9 @@ export function Home() {
       {!temas && <p className="text-sm text-muted">Cargando temas…</p>}
 
       {temas && (
-        <div className="space-y-10">
-          <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
-              Bloque I · Materias comunes
-            </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {bloqueI.map((tema) => (
-                <TemaCard key={tema.temaId} tema={tema} />
-              ))}
-            </div>
-          </section>
-          <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
-              Bloque II · Materias específicas
-            </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {bloqueII.map((tema) => (
-                <TemaCard key={tema.temaId} tema={tema} />
-              ))}
-            </div>
-          </section>
+        <div className="space-y-4">
+          <BloqueDesplegable titulo="Bloque I · Materias comunes" temas={bloqueI} />
+          <BloqueDesplegable titulo="Bloque II · Materias específicas" temas={bloqueII} />
         </div>
       )}
     </AppLayout>

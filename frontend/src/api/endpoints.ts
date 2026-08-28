@@ -52,6 +52,11 @@ export function obtenerTemas() {
   return apiFetch<{ temas: Tema[] }>("/preguntas/temas");
 }
 
+/** Simulacro de examen: preguntas de todo el temario, repartidas proporcionalmente al peso de cada tema. */
+export function obtenerPreguntasSimulacro(numPreguntas: number) {
+  return apiFetch<{ preguntas: PreguntaParaResponder[] }>(`/preguntas/simulacro?numPreguntas=${numPreguntas}`);
+}
+
 export function obtenerPreguntasAleatorias(params: {
   limit?: number;
   tipo?: TipoPregunta;

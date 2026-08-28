@@ -61,6 +61,9 @@ test("mini-test -> nivel -> primer test -> registro -> home", async ({ page }) =
   // Constitución al azar, así que el total puede ser 5/6 o 6/6 — nunca menos
   // de 5. La precisión, en cambio, sí es 100% siempre: toda respuesta a una
   // pregunta de Constitución en este test es "a", que es la correcta.
+  // Los bloques de temas aparecen como acordeones cerrados por defecto: hay que
+  // desplegar el Bloque I para ver la tarjeta de Constitución.
+  await page.getByText("Bloque I · Materias comunes").click();
   const tarjetaConstitucion = page.getByRole("button", { name: /La Constitución Española de 1978/ });
   await expect(tarjetaConstitucion.getByText(/^[56]\/6 preguntas practicadas$/)).toBeVisible();
   await expect(tarjetaConstitucion.getByText("100%")).toBeVisible();
