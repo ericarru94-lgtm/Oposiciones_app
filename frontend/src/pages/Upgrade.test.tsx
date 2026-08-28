@@ -106,3 +106,26 @@ describe("Upgrade — con sesión", () => {
     expect(crearCheckoutSession).not.toHaveBeenCalled();
   });
 });
+
+describe("Upgrade — usuario ya premium", () => {
+  it("redirige a Home en vez de ofrecer una segunda suscripción", async () => {
+    vi.mocked(useSession).mockReturnValue({
+      estaAutenticado: true,
+      cargando: false,
+      getToken: vi.fn(),
+      usuario: { plan: "premium" },
+    } as unknown as ReturnType<typeof useSession>);
+
+    render(
+      <MemoryRouter initialEntries={["/upgrade"]}>
+        <Routes>
+          <Route path="/upgrade" element={<Upgrade />} />
+          <Route path="/home" element={<p>Pantalla de Home</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText("Pantalla de Home")).toBeInTheDocument());
+    expect(crearCheckoutSession).not.toHaveBeenCalled();
+  });
+});

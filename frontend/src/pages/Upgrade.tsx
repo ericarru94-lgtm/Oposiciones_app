@@ -10,7 +10,7 @@ const DESTINO_TRAS_AUTH = "/upgrade?continuar=1";
 export function Upgrade() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { estaAutenticado, cargando, getToken } = useSession();
+  const { estaAutenticado, cargando, getToken, usuario } = useSession();
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const yaContinuado = useRef(false);
@@ -40,6 +40,14 @@ export function Upgrade() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cargando, estaAutenticado, searchParams]);
+
+  // Quien ya es premium no debe ver la oferta de pago (evita una segunda
+  // suscripción/cargo): si llega aquí por un enlace viejo o directamente
+  // por URL, lo mandamos a Home.
+  useEffect(() => {
+    if (cargando || usuario?.plan !== "premium") return;
+    navigate("/home", { replace: true });
+  }, [cargando, usuario, navigate]);
 
   function alPulsarSuscribirme() {
     if (!estaAutenticado) {
