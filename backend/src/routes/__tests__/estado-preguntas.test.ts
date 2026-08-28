@@ -164,6 +164,33 @@ describe("GET /api/progreso/hoy — solo propone verificadas como nuevas", () =>
     expect(idsNuevas).not.toContain(idBorrador);
     expect(idsNuevas).not.toContain(idAnulada);
   });
+
+  it("responde 429 (no 200 con repaso/nuevas vacíos) si el límite diario ya está agotado", async () => {
+    const clerkUserId = `clerk_test-estado-limite-${Date.now()}`;
+    mockUsuarioClerk(clerkUserId, `test-estado-limite-${Date.now()}@example.com`);
+    const token = clerkUserId;
+
+    const me = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
+    const usuarioId = me.body.id as string;
+
+    // FREE_PLAN_DAILY_LIMIT=30 en backend/.env.test: agotamos el límite
+    // directamente con Intentos (sin pasar por /responder, para no depender
+    // de su propia lógica de límite en este test de /progreso/hoy).
+    await prisma.intento.createMany({
+      data: Array.from({ length: 30 }, () => ({
+        usuarioId,
+        preguntaId: idVerificada,
+        esCorrecta: true,
+      })),
+    });
+
+    const res = await request(app)
+      .get("/api/progreso/hoy?limit=50")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(429);
+    expect(res.body.restantes).toBe(0);
+  });
 });
 
 describe("Transición borrador → verificada", () => {

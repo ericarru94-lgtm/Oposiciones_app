@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ApiError } from "../api/client";
 import { TestRunner, type ResumenTest } from "./TestRunner";
 import type { PreguntaParaResponder } from "../api/types";
 
@@ -21,7 +22,15 @@ export function CargadorTest({ titulo, cargar, onFinalizar, onLimiteAlcanzado }:
         if (!cancelado) setPreguntas(p);
       })
       .catch((err) => {
-        if (!cancelado) setError(err instanceof Error ? err.message : "No se pudieron cargar las preguntas");
+        if (cancelado) return;
+        // Mismo criterio que TestRunner.elegirOpcion: un 429 al cargar (p.ej.
+        // "Repasar hoy" con el límite diario ya agotado) es una situación de
+        // "hazte premium", no un error genérico ni "no hay preguntas".
+        if (err instanceof ApiError && err.status === 429) {
+          onLimiteAlcanzado();
+          return;
+        }
+        setError(err instanceof Error ? err.message : "No se pudieron cargar las preguntas");
       });
     return () => {
       cancelado = true;

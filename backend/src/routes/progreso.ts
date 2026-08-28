@@ -27,10 +27,21 @@ progresoRouter.get("/hoy", asyncHandler(async (req, res) => {
   const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
-  const { restantes } = await haAlcanzadoLimiteDiario({
+  const { alcanzado, restantes } = await haAlcanzadoLimiteDiario({
     usuarioId,
     esPremium: usuario.plan === "premium",
   });
+  // Antes, con el límite ya agotado, esto devolvía 200 con repaso/nuevas
+  // vacíos: indistinguible en el frontend de "no hay contenido todavía"
+  // (mismo componente, mismo mensaje genérico). Devolver 429 aquí, igual
+  // que /responder, deja que CargadorTest lo trate como límite alcanzado
+  // y lleve a /upgrade en vez de ese mensaje confuso.
+  if (alcanzado) {
+    return res.status(429).json({
+      error: "Has alcanzado el límite diario de preguntas del plan gratuito",
+      restantes: 0,
+    });
+  }
   const tope = Math.min(limit, restantes);
 
   const pendientesRevision = await prisma.progreso.findMany({
