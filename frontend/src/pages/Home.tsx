@@ -36,22 +36,20 @@ export function Home() {
   return (
     <AppLayout>
       {pagoCompletado && (
-        <div className="mb-6 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="mb-6 flex items-center justify-between rounded-xl bg-success/10 px-4 py-3 text-sm text-success">
           <span>¡Pago completado! Tu cuenta pasará a premium en unos segundos.</span>
-          <button
-            onClick={() => setSearchParams({}, { replace: true })}
-            className="ml-4 text-emerald-600 hover:text-emerald-800"
-          >
+          <button onClick={() => setSearchParams({}, { replace: true })} className="ml-4 hover:opacity-70">
             Cerrar
           </button>
         </div>
       )}
-      <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+
+      <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tu progreso</h1>
+          <p className="text-sm font-medium text-muted">Tu progreso</p>
           {resumen && (
-            <p className="mt-1 text-sm text-slate-500">
-              {resumen.totalIntentos} preguntas respondidas ·{" "}
+            <p className="text-sm text-muted">
+              {resumen.totalIntentos} preguntas ·{" "}
               {resumen.precision !== null ? `${Math.round(resumen.precision * 100)}% de acierto` : "sin datos aún"}
             </p>
           )}
@@ -59,37 +57,43 @@ export function Home() {
         {resumen && <RachaBadge dias={resumen.racha.dias} />}
       </div>
 
+      {/* Foco principal de la pantalla: siempre lo primero y lo más grande. */}
       <button
         onClick={() => navigate("/repasar-hoy")}
-        className="mb-8 w-full rounded-2xl bg-indigo-600 p-6 text-left text-white shadow-sm hover:bg-indigo-700 sm:w-auto"
+        className="mb-12 w-full rounded-3xl bg-primary p-8 text-left text-white transition-colors hover:bg-primary-hover"
       >
-        <p className="text-lg font-semibold">Repasar hoy</p>
-        <p className="mt-1 text-sm text-indigo-100">
+        <p className="text-2xl font-bold">Repasar hoy</p>
+        <p className="mt-2 text-base text-white/80">
           {resumen && resumen.pendientesHoy > 0
             ? `${resumen.pendientesHoy} preguntas listas para repasar por repetición espaciada`
             : "Practica preguntas nuevas priorizadas para ti"}
         </p>
+        {resumen && resumen.pendientesHoy > 0 && (
+          <span className="mt-5 inline-block rounded-full bg-accent px-3 py-1 text-sm font-semibold text-white">
+            {resumen.pendientesHoy} pendientes
+          </span>
+        )}
       </button>
 
-      {!temas && <p className="text-slate-400">Cargando temas…</p>}
+      {!temas && <p className="text-sm text-muted">Cargando temas…</p>}
 
       {temas && (
-        <div className="space-y-8">
+        <div className="space-y-10">
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Bloque I · Materias comunes
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {bloqueI.map((tema) => (
                 <TemaCard key={tema.temaId} tema={tema} />
               ))}
             </div>
           </section>
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Bloque II · Materias específicas
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {bloqueII.map((tema) => (
                 <TemaCard key={tema.temaId} tema={tema} />
               ))}

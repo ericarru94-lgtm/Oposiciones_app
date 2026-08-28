@@ -7,42 +7,42 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-          <Link to="/home" className="font-semibold text-slate-900">
+    <div className="min-h-screen bg-canvas">
+      <header className="border-b border-line bg-card">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
+          <Link to="/home" className="font-semibold text-ink">
             Oposiciones App
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link to="/home" className="text-slate-600 hover:text-slate-900">
+          <nav className="flex items-center gap-5 text-sm text-muted">
+            <Link to="/home" className="hover:text-ink">
               Inicio
             </Link>
-            <Link to="/progreso" className="text-slate-600 hover:text-slate-900">
+            <Link to="/progreso" className="hover:text-ink">
               Progreso
             </Link>
             {usuario?.esAdmin && (
-              <Link to="/admin/revision" className="text-slate-600 hover:text-slate-900">
+              <Link to="/admin/revision" className="hover:text-ink">
                 Revisión
               </Link>
             )}
-            <Link to="/perfil" className="text-slate-600 hover:text-slate-900">
+            <Link to="/perfil" className="hover:text-ink">
               Perfil
             </Link>
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-500">{usuario?.email}</span>
+            <span className="text-line">|</span>
+            <span>{usuario?.email}</span>
             <button
               onClick={() => {
                 logout();
                 navigate("/login");
               }}
-              className="text-slate-400 hover:text-rose-600"
+              className="text-muted hover:text-error"
             >
               Salir
             </button>
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-4xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-4xl px-6 py-10">{children}</main>
     </div>
   );
 }

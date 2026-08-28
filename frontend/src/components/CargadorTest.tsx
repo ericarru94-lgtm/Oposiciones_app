@@ -41,11 +41,11 @@ export function CargadorTest({ titulo, cargar, onFinalizar, onLimiteAlcanzado }:
   }, []);
 
   if (error) {
-    return <p className="mx-auto max-w-lg rounded-2xl bg-white p-8 text-center text-rose-600 shadow-sm">{error}</p>;
+    return <p className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center text-base text-error">{error}</p>;
   }
 
   if (!preguntas) {
-    return <p className="mx-auto max-w-lg rounded-2xl bg-white p-8 text-center text-slate-500 shadow-sm">Cargando…</p>;
+    return <p className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center text-base text-muted">Cargando…</p>;
   }
 
   return (

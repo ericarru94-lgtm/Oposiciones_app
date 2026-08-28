@@ -54,14 +54,14 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
 
   if (preguntas.length === 0) {
     return (
-      <div className="mx-auto max-w-lg rounded-2xl bg-white p-8 text-center shadow-sm">
-        <p className="text-slate-600">
+      <div className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center">
+        <p className="text-base text-muted">
           No hay preguntas disponibles para este test todavía. Vuelve a intentarlo más tarde.
         </p>
         <button
           data-testid="volver-vacio"
           onClick={() => onFinalizar({ totalPreguntas: 0, aciertos: 0, fallos: 0, duracionMs: 0 })}
-          className="mt-4 rounded-lg bg-slate-800 px-4 py-2 text-white"
+          className="mt-6 rounded-xl bg-primary px-4 py-2.5 text-base font-medium text-white hover:bg-primary-hover"
         >
           Volver
         </button>
@@ -72,32 +72,32 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
   if (terminado) {
     const porcentaje = resumen.totalPreguntas > 0 ? Math.round((resumen.aciertos / resumen.totalPreguntas) * 100) : 0;
     return (
-      <div data-testid="resumen" className="mx-auto max-w-lg rounded-2xl bg-white p-8 text-center shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-900">¡Test completado!</h2>
-        <p className="mt-1 text-sm text-slate-500">{titulo}</p>
-        <div className="mt-6 grid grid-cols-3 gap-4">
+      <div data-testid="resumen" className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center">
+        <h2 className="text-xl font-semibold text-ink">¡Test completado!</h2>
+        <p className="mt-1 text-sm text-muted">{titulo}</p>
+        <div className="mt-8 grid grid-cols-3 gap-4">
           <div>
-            <p data-testid="resumen-aciertos" className="text-2xl font-bold text-emerald-600">
+            <p data-testid="resumen-aciertos" className="text-xl font-bold text-success">
               {resumen.aciertos}
             </p>
-            <p className="text-xs text-slate-500">Aciertos</p>
+            <p className="text-sm text-muted">Aciertos</p>
           </div>
           <div>
-            <p data-testid="resumen-fallos" className="text-2xl font-bold text-rose-600">
+            <p data-testid="resumen-fallos" className="text-xl font-bold text-error">
               {resumen.fallos}
             </p>
-            <p className="text-xs text-slate-500">Fallos</p>
+            <p className="text-sm text-muted">Fallos</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-slate-800">{Math.round(resumen.duracionMs / 1000)}s</p>
-            <p className="text-xs text-slate-500">Tiempo</p>
+            <p className="text-xl font-bold text-ink">{Math.round(resumen.duracionMs / 1000)}s</p>
+            <p className="text-sm text-muted">Tiempo</p>
           </div>
         </div>
-        <p className="mt-4 text-sm text-slate-600">{porcentaje}% de aciertos</p>
+        <p className="mt-6 text-sm text-muted">{porcentaje}% de aciertos</p>
         <button
           data-testid="continuar"
           onClick={() => onFinalizar(resumen)}
-          className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700"
+          className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white hover:bg-primary-hover"
         >
           Continuar
         </button>
@@ -142,32 +142,34 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
 
   return (
     <div className="mx-auto max-w-lg">
-      <div className="mb-4 flex items-center justify-between text-sm text-slate-500">
+      {/* Progreso: discreto a propósito, para que no compita con la pregunta. */}
+      <div className="mb-8 flex items-center justify-between text-xs text-muted">
         <span>{titulo}</span>
         <span>
           Pregunta {indice + 1} de {preguntas.length}
         </span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+      <div className="mb-8 h-1 w-full overflow-hidden rounded-full bg-line">
         <div
-          className="h-full rounded-full bg-indigo-600 transition-all"
+          className="h-full rounded-full bg-primary transition-all"
           style={{ width: `${(indice / preguntas.length) * 100}%` }}
         />
       </div>
 
-      <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
-        <p className="text-lg font-medium text-slate-900">{pregunta.enunciado}</p>
+      {/* Foco absoluto de la pantalla: la pregunta y sus opciones. */}
+      <div className="rounded-3xl bg-card p-8">
+        <p className="text-xl font-semibold leading-relaxed text-ink">{pregunta.enunciado}</p>
 
-        <div className="mt-5 space-y-2">
+        <div className="mt-8 space-y-3">
           {pregunta.opciones.map((texto, i) => {
             const opcion = ETIQUETA_OPCION[i];
             const esElegida = opcionElegida === opcion;
             const esCorrectaReal = feedback && feedback.respuestaCorrecta === opcion;
-            let estilo = "border-slate-200 hover:border-indigo-300";
+            let estilo = "border-line hover:border-primary/40";
             if (feedback) {
-              if (esCorrectaReal) estilo = "border-emerald-500 bg-emerald-50";
-              else if (esElegida) estilo = "border-rose-500 bg-rose-50";
-              else estilo = "border-slate-200 opacity-60";
+              if (esCorrectaReal) estilo = "border-success bg-success/10";
+              else if (esElegida) estilo = "border-error bg-error/10";
+              else estilo = "border-line opacity-50";
             }
             return (
               <button
@@ -175,33 +177,33 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
                 data-testid={`opcion-${opcion}`}
                 disabled={!!feedback || enviando}
                 onClick={() => elegirOpcion(opcion)}
-                className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors disabled:cursor-default ${estilo}`}
+                className={`w-full rounded-xl border px-5 py-4 text-left text-base transition-colors disabled:cursor-default ${estilo}`}
               >
-                <span className="mr-2 font-semibold uppercase text-slate-400">{opcion}</span>
+                <span className="mr-3 font-semibold uppercase text-muted">{opcion}</span>
                 {texto}
               </button>
             );
           })}
         </div>
 
-        {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+        {error && <p className="mt-4 text-sm text-error">{error}</p>}
 
         {feedback && (
-          <div data-testid="feedback" className="mt-5 rounded-lg bg-slate-50 p-4 text-sm">
-            <p className={feedback.esCorrecta ? "font-semibold text-emerald-700" : "font-semibold text-rose-700"}>
+          <div data-testid="feedback" className="mt-6 rounded-xl bg-canvas p-5 text-base">
+            <p className={feedback.esCorrecta ? "font-semibold text-success" : "font-semibold text-error"}>
               {feedback.esCorrecta ? "¡Correcto!" : `Incorrecto. La respuesta correcta es la ${feedback.respuestaCorrecta}.`}
             </p>
-            {feedback.explicacion && <p className="mt-2 text-slate-600">{feedback.explicacion}</p>}
-            {feedback.fuente && <p className="mt-1 text-xs text-slate-400">Fuente: {feedback.fuente}</p>}
+            {feedback.explicacion && <p className="mt-2 text-sm text-muted">{feedback.explicacion}</p>}
+            {feedback.fuente && <p className="mt-1 text-xs text-muted">Fuente: {feedback.fuente}</p>}
             {!feedback.explicacion && !feedback.fuente && (
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-muted">
                 Esta pregunta todavía no tiene explicación ni fuente legal añadidas.
               </p>
             )}
             <button
               data-testid="siguiente"
               onClick={siguiente}
-              className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
+              className="mt-5 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white hover:bg-primary-hover"
             >
               {indice + 1 < preguntas.length ? "Siguiente" : "Ver resumen"}
             </button>

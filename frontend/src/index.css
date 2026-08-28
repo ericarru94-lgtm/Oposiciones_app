@@ -1,6 +1,34 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
+
+/**
+ * Tokens de diseño de la app. Cambiar el valor aquí (nunca un hex suelto
+ * en un componente) actualiza toda la app: Tailwind v4 genera las
+ * utilidades (bg-primary, text-ink, border-line, etc.) directamente a
+ * partir de estas variables.
+ */
+@theme {
+  --color-primary: #4338ca;
+  --color-primary-hover: #3730a3;
+
+  --color-canvas: #fafafa;
+  --color-card: #ffffff;
+
+  --color-ink: #1e1b2e;
+  --color-muted: #6b7280;
+
+  --color-accent: #f59e0b;
+  --color-success: #16a34a;
+  --color-error: #f87171;
+
+  --color-line: #e5e7eb;
+
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
 }
