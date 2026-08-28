@@ -1,4 +1,4 @@
-# Oposiciones App — Auxiliar Administrativo del Estado
+# Aprobox — Auxiliar Administrativo del Estado
 
 App de preparación de oposiciones con banco de preguntas, mini-test sin
 registro, repetición espaciada (SM-2), panel de progreso, frontend web

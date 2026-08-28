@@ -11,7 +11,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <header className="border-b border-line bg-card">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <Link to="/home" className="font-semibold text-ink">
-            Oposiciones App
+            Aprobox
           </Link>
           <nav className="flex items-center gap-5 text-sm text-muted">
             <Link to="/home" className="hover:text-ink">

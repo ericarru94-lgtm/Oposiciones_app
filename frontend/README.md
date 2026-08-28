@@ -1,4 +1,4 @@
-# Frontend — Oposiciones App
+# Frontend — Aprobox
 
 React + TypeScript + Vite + Tailwind v4 + React Router. Ver el
 [README principal](../README.md) para la visión general del proyecto y

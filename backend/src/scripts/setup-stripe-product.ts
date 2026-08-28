@@ -13,7 +13,7 @@ import { obtenerStripe } from "../lib/stripe";
 const stripe = obtenerStripe();
 
 const LOOKUP_KEY = "premium-mensual";
-const NOMBRE_PRODUCTO = "Oposiciones App — Premium mensual";
+const NOMBRE_PRODUCTO = "Aprobox — Premium mensual";
 const DESCRIPCION_PRODUCTO =
   "Preguntas ilimitadas y repaso por repetición espaciada sin restricciones del límite diario.";
 const PRECIO_CENTIMOS = 499; // 4,99 €
