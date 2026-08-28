@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { obtenerResumenProgreso } from "../api/endpoints";
+import { useNavigate } from "react-router-dom";
+import { ApiError } from "../api/client";
+import { crearPortalSession, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { RachaBadge } from "../components/RachaBadge";
@@ -8,7 +10,10 @@ import type { ProgresoResumen } from "../api/types";
 /** Combina datos de identidad (Clerk: nombre, email, foto) con datos propios (plan, progreso, racha). */
 export function Perfil() {
   const { usuario, perfilExterno, getToken } = useSession();
+  const navigate = useNavigate();
   const [resumen, setResumen] = useState<ProgresoResumen | null>(null);
+  const [procesandoPortal, setProcesandoPortal] = useState(false);
+  const [errorPortal, setErrorPortal] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -22,6 +27,19 @@ export function Perfil() {
       cancelado = true;
     };
   }, [getToken]);
+
+  async function gestionarSuscripcion() {
+    setErrorPortal(null);
+    setProcesandoPortal(true);
+    try {
+      const token = await getToken();
+      const { url } = await crearPortalSession(token as string);
+      window.location.href = url;
+    } catch (err) {
+      setErrorPortal(err instanceof ApiError ? err.message : "No se pudo abrir la gestión de la suscripción.");
+      setProcesandoPortal(false);
+    }
+  }
 
   const email = perfilExterno?.email ?? usuario?.email ?? "";
   const iniciales = (perfilExterno?.nombreCompleto ?? email).slice(0, 2).toUpperCase();
@@ -48,6 +66,28 @@ export function Perfil() {
           >
             Plan {usuario?.plan === "premium" ? "premium" : "gratuito"}
           </span>
+
+          {usuario?.plan === "premium" ? (
+            <div className="mt-2">
+              <button
+                onClick={gestionarSuscripcion}
+                disabled={procesandoPortal}
+                className="text-sm font-medium text-indigo-600 hover:underline disabled:opacity-60"
+              >
+                {procesandoPortal ? "Abriendo…" : "Gestionar suscripción"}
+              </button>
+              {errorPortal && <p className="mt-1 text-xs text-rose-600">{errorPortal}</p>}
+            </div>
+          ) : (
+            <div className="mt-2">
+              <button
+                onClick={() => navigate("/upgrade")}
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Hazte premium
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

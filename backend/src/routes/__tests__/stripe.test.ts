@@ -12,6 +12,7 @@ const { stripeMock } = vi.hoisted(() => ({
   stripeMock: {
     customers: { create: vi.fn() },
     checkout: { sessions: { create: vi.fn() } },
+    billingPortal: { sessions: { create: vi.fn() } },
     subscriptions: { retrieve: vi.fn() },
     webhooks: { constructEvent: vi.fn() },
   },
@@ -134,6 +135,39 @@ describe("POST /api/stripe/crear-checkout-session", () => {
     } finally {
       process.env.STRIPE_PRICE_ID = original;
     }
+  });
+});
+
+describe("POST /api/stripe/crear-portal-session", () => {
+  it("responde 401 sin token", async () => {
+    const res = await request(app).post("/api/stripe/crear-portal-session");
+    expect(res.status).toBe(401);
+  });
+
+  it("responde 400 si el usuario todavía no tiene stripeCustomerId (nunca se suscribió)", async () => {
+    await prisma.usuario.update({ where: { id: usuarioId }, data: { stripeCustomerId: null } });
+
+    const res = await request(app)
+      .post("/api/stripe/crear-portal-session")
+      .set("Authorization", `Bearer ${tokenUsuario}`);
+
+    expect(res.status).toBe(400);
+    expect(stripeMock.billingPortal.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("crea una sesión del Billing Portal para el Customer del usuario y devuelve su url", async () => {
+    await prisma.usuario.update({ where: { id: usuarioId }, data: { stripeCustomerId: "cus_existente" } });
+    stripeMock.billingPortal.sessions.create.mockResolvedValueOnce({ url: "https://billing.stripe.com/session/test" });
+
+    const res = await request(app)
+      .post("/api/stripe/crear-portal-session")
+      .set("Authorization", `Bearer ${tokenUsuario}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.url).toBe("https://billing.stripe.com/session/test");
+    expect(stripeMock.billingPortal.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({ customer: "cus_existente" })
+    );
   });
 });
 

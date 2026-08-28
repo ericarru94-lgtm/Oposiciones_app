@@ -55,3 +55,29 @@ stripeRouter.post(
     res.json({ url: session.url });
   })
 );
+
+/**
+ * Crea una sesión del Billing Portal de Stripe para el usuario autenticado
+ * (gestionar método de pago, ver facturas, cancelar la suscripción) y
+ * devuelve su URL. Requiere que el usuario ya tenga un Customer de Stripe
+ * (siempre lo tiene si llegó a premium: se crea en /crear-checkout-session).
+ */
+stripeRouter.post(
+  "/crear-portal-session",
+  authRequerido,
+  asyncHandler(async (req, res) => {
+    const usuario = await prisma.usuario.findUnique({ where: { id: req.auth!.usuarioId } });
+    if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!usuario.stripeCustomerId) {
+      return res.status(400).json({ error: "Este usuario todavía no tiene una suscripción de Stripe" });
+    }
+
+    const stripe = obtenerStripe();
+    const session = await stripe.billingPortal.sessions.create({
+      customer: usuario.stripeCustomerId,
+      return_url: `${FRONTEND_URL}/perfil`,
+    });
+
+    res.json({ url: session.url });
+  })
+);

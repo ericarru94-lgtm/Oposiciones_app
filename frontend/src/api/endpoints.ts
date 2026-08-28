@@ -138,3 +138,8 @@ export function actualizarPreguntaAdmin(token: string, id: string, cambios: Camb
 export function crearCheckoutSession(token: string) {
   return apiFetch<{ url: string }>("/stripe/crear-checkout-session", { method: "POST", token });
 }
+
+/** Crea una sesión del Billing Portal de Stripe (gestionar/cancelar la suscripción); redirigir a `url`. */
+export function crearPortalSession(token: string) {
+  return apiFetch<{ url: string }>("/stripe/crear-portal-session", { method: "POST", token });
+}
