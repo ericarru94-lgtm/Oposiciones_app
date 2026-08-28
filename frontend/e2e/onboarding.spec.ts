@@ -14,6 +14,7 @@ import { test, expect } from "@playwright/test";
  */
 test("mini-test -> nivel -> primer test -> registro -> home", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("link", { name: "Empezar test gratis" }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
 
   await page.getByRole("button", { name: "Empezar mini-test" }).click();

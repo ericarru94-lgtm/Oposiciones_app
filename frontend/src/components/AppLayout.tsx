@@ -18,7 +18,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               Inicio
             </Link>
             <Link to="/progreso" className="hover:text-ink">
-              Progreso
+              Tests
             </Link>
             {usuario?.esAdmin && (
               <Link to="/admin/revision" className="hover:text-ink">
@@ -28,8 +28,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Link to="/perfil" className="hover:text-ink">
               Perfil
             </Link>
-            <span className="text-line">|</span>
-            <span>{usuario?.email}</span>
             <button
               onClick={() => {
                 logout();
