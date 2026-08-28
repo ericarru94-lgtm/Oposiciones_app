@@ -79,8 +79,8 @@ export function Home() {
 
       {temas && (
         <div className="space-y-4">
-          <BloqueDesplegable titulo="Bloque I · Materias comunes" temas={bloqueI} />
-          <BloqueDesplegable titulo="Bloque II · Materias específicas" temas={bloqueII} />
+          <BloqueDesplegable titulo="Bloque I · Materias comunes" icono="📘" temas={bloqueI} />
+          <BloqueDesplegable titulo="Bloque II · Materias específicas" icono="💻" temas={bloqueII} />
         </div>
       )}
     </AppLayout>

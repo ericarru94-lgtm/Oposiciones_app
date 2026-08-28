@@ -17,8 +17,7 @@ test("mini-test -> nivel -> primer test -> registro -> home", async ({ page }) =
   await page.getByRole("link", { name: "Empezar test gratis" }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
 
-  await page.getByRole("button", { name: "Empezar mini-test" }).click();
-
+  // El CTA de la landing lleva directo al mini-test, sin pantalla intermedia.
   // Mini-test: 5 preguntas de un pool mixto (Constitución + tema de
   // práctica), así que no forzamos el resultado, solo completamos el flujo.
   for (let i = 0; i < 5; i++) {

@@ -17,3 +17,17 @@ test("muestra el email, el plan y el resumen de progreso del usuario", async ({ 
   await expect(page.getByText("Plan gratuito")).toBeVisible();
   await expect(page.getByText("Preguntas respondidas")).toBeVisible();
 });
+
+test("'Salir' cierra sesión y lleva a la landing pública, no a la pantalla de login", async ({ page, request }) => {
+  const { token } = await registrarUsuarioApi(request, "e2e-logout");
+
+  await iniciarSesionEnNavegador(page, token);
+  await page.goto("/perfil");
+  await expect(page.getByRole("heading", { name: "Tu perfil" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Salir" }).click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: "Aprobox" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Empezar test gratis" })).toBeVisible();
+});

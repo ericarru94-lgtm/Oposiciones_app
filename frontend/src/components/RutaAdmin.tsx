@@ -9,7 +9,7 @@ export function RutaAdmin({ children }: { children: ReactNode }) {
     return <p className="mt-20 text-center text-slate-400">Cargando…</p>;
   }
   if (!estaAutenticado) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
   if (!usuario?.esAdmin) {
     return <Navigate to="/home" replace />;

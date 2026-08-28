@@ -6,6 +6,7 @@ import { AppLayout } from "../components/AppLayout";
 import { RachaBadge } from "../components/RachaBadge";
 import { EvolucionChart } from "../components/EvolucionChart";
 import { BloqueDesplegable } from "../components/BloqueDesplegable";
+import { StatTile } from "../components/StatTile";
 import type { EvolucionDia, ProgresoPorTema, ProgresoResumen } from "../api/types";
 
 export function Progreso() {
@@ -51,7 +52,7 @@ export function Progreso() {
         className="mb-8 flex items-center justify-between rounded-2xl bg-primary p-6 text-white transition-colors hover:bg-primary-hover"
       >
         <div>
-          <p className="text-lg font-bold">Simulacro de examen</p>
+          <p className="text-lg font-bold">🎯 Simulacro de examen</p>
           <p className="mt-1 text-sm text-white/80">
             Elige nº de preguntas y tiempo límite: todo el temario, como en el examen real.
           </p>
@@ -61,14 +62,16 @@ export function Progreso() {
 
       {resumen && (
         <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatTile label="Preguntas respondidas" valor={String(resumen.totalIntentos)} />
+          <StatTile icono="📝" label="Preguntas respondidas" valor={resumen.totalIntentos} />
           <StatTile
+            icono="🎯"
             label="% de acierto global"
             valor={resumen.precision !== null ? `${Math.round(resumen.precision * 100)}%` : "—"}
           />
-          <StatTile label="Pendientes hoy" valor={String(resumen.pendientesHoy)} />
+          <StatTile icono="⏳" label="Pendientes hoy" valor={resumen.pendientesHoy} />
           <div className="rounded-xl border border-line bg-card p-4">
-            <p className="text-xs text-muted">Racha</p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 text-base">🔥</div>
+            <p className="mt-3 text-xs text-muted">Racha</p>
             <div className="mt-1">
               <RachaBadge dias={resumen.racha.dias} />
             </div>
@@ -77,19 +80,23 @@ export function Progreso() {
       )}
 
       <section className="mb-8 rounded-2xl border border-line bg-card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-ink">Evolución del % de acierto (últimos 14 días)</h2>
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">
+          <span aria-hidden>📈</span> Evolución del % de acierto (últimos 14 días)
+        </h2>
         {evolucion ? <EvolucionChart serie={evolucion} /> : <p className="text-muted">Cargando…</p>}
       </section>
 
-      <section className="mb-8 rounded-2xl border border-line bg-card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-ink">Puntos débiles</h2>
+      <section className="mb-8 rounded-2xl border border-accent/20 bg-accent/5 p-5">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">
+          <span aria-hidden>⚠️</span> Puntos débiles
+        </h2>
         {temas === null && <p className="text-muted">Cargando…</p>}
         {temas !== null && puntosDebiles.length === 0 && (
           <p className="text-sm text-muted">Todavía no tienes suficientes respuestas para ver puntos débiles.</p>
         )}
         <ul className="space-y-3">
           {puntosDebiles.map((tema) => (
-            <li key={tema.temaId} className="flex items-center justify-between">
+            <li key={tema.temaId} className="flex items-center justify-between rounded-xl bg-card px-4 py-3">
               <span className="text-sm text-ink">
                 Tema {tema.numero}. {tema.nombre}
               </span>
@@ -102,24 +109,18 @@ export function Progreso() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-sm font-semibold text-ink">Progreso por bloque</h2>
+        <h2 className="text-sm font-semibold text-ink">Progreso por bloque</h2>
+        <p className="mb-4 mt-1 text-xs text-muted">
+          Temario oficial: 2 bloques (Materias comunes y Materias específicas).
+        </p>
         {temas === null && <p className="text-muted">Cargando…</p>}
         {temas !== null && (
           <div className="space-y-4">
-            <BloqueDesplegable titulo="Bloque I · Materias comunes" temas={bloqueI} />
-            <BloqueDesplegable titulo="Bloque II · Materias específicas" temas={bloqueII} />
+            <BloqueDesplegable titulo="Bloque I · Materias comunes" icono="📘" temas={bloqueI} />
+            <BloqueDesplegable titulo="Bloque II · Materias específicas" icono="💻" temas={bloqueII} />
           </div>
         )}
       </section>
     </AppLayout>
-  );
-}
-
-function StatTile({ label, valor }: { label: string; valor: string }) {
-  return (
-    <div className="rounded-xl border border-line bg-card p-4">
-      <p className="text-xs text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-ink">{valor}</p>
-    </div>
   );
 }

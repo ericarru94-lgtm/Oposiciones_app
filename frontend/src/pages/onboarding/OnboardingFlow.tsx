@@ -3,21 +3,22 @@ import { useNavigate } from "react-router-dom";
 import { useSession } from "../../context/SessionContext";
 import { Auth } from "../Auth";
 import type { ResumenTest } from "../../components/TestRunner";
-import { PasoBienvenida } from "./PasoBienvenida";
 import { PasoMiniTest } from "./PasoMiniTest";
 import { PasoNivel } from "./PasoNivel";
 import { PasoPrimerTest } from "./PasoPrimerTest";
 
-type Paso = "bienvenida" | "mini-test" | "nivel" | "primer-test" | "registro";
+type Paso = "mini-test" | "nivel" | "primer-test" | "registro";
 
 /**
  * Onboarding sin registro: mini-test de 5 preguntas -> nivel de partida ->
  * primer test corto ya armado sobre Constitución -> alta de cuenta para
  * guardar el progreso (Home y "repasar hoy" necesitan un usuario, ya que
- * Progreso.usuarioId no es opcional en el modelo de datos).
+ * Progreso.usuarioId no es opcional en el modelo de datos). Empieza
+ * directamente en el mini-test: la propuesta de valor ya se muestra en la
+ * landing pública, así que aquí repetirla sería un paso de más.
  */
 export function OnboardingFlow() {
-  const [paso, setPaso] = useState<Paso>("bienvenida");
+  const [paso, setPaso] = useState<Paso>("mini-test");
   const [resumenMiniTest, setResumenMiniTest] = useState<ResumenTest | null>(null);
   const [resumenPrimerTest, setResumenPrimerTest] = useState<ResumenTest | null>(null);
   const { setNivelInicialPendiente } = useSession();
@@ -27,10 +28,6 @@ export function OnboardingFlow() {
 
   let contenido: ReactNode;
   switch (paso) {
-    case "bienvenida":
-      contenido = <PasoBienvenida onEmpezar={() => setPaso("mini-test")} />;
-      break;
-
     case "mini-test":
       contenido = (
         <PasoMiniTest

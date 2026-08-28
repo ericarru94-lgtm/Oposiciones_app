@@ -3,7 +3,15 @@ import { TemaCard } from "./TemaCard";
 import type { ProgresoPorTema } from "../api/types";
 
 /** Bloque de temas colapsable: cerrado por defecto, con el % global del bloque en la cabecera. */
-export function BloqueDesplegable({ titulo, temas }: { titulo: string; temas: ProgresoPorTema[] }) {
+export function BloqueDesplegable({
+  titulo,
+  icono,
+  temas,
+}: {
+  titulo: string;
+  icono: string;
+  temas: ProgresoPorTema[];
+}) {
   const [abierto, setAbierto] = useState(false);
 
   const totalPreguntas = temas.reduce((suma, t) => suma + t.totalPreguntas, 0);
@@ -17,7 +25,12 @@ export function BloqueDesplegable({ titulo, temas }: { titulo: string; temas: Pr
         aria-expanded={abierto}
         className="flex w-full items-center justify-between gap-3 p-5 text-left"
       >
-        <span className="text-sm font-semibold uppercase tracking-wide text-muted">{titulo}</span>
+        <span className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg">
+            {icono}
+          </span>
+          <span className="text-sm font-semibold uppercase tracking-wide text-ink">{titulo}</span>
+        </span>
         <span className="flex shrink-0 items-center gap-3">
           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
             {cobertura}%

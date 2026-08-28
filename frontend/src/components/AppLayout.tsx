@@ -31,7 +31,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <button
               onClick={() => {
                 logout();
-                navigate("/login");
+                navigate("/");
               }}
               className="text-muted hover:text-error"
             >
