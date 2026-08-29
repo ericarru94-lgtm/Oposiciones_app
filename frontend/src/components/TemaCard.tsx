@@ -5,14 +5,18 @@ import type { ProgresoPorTema } from "../api/types";
 export function TemaCard({ tema }: { tema: ProgresoPorTema }) {
   const navigate = useNavigate();
   const cobertura = tema.totalPreguntas > 0 ? tema.preguntasContestadas / tema.totalPreguntas : 0;
+  const dominado = cobertura >= 1 && (tema.precision ?? 0) >= 0.9;
 
   return (
     <button
       onClick={() => navigate(`/practicar/${tema.temaId}`)}
-      className="w-full rounded-2xl border border-line bg-card p-5 text-left transition-colors hover:border-primary/40"
+      className={`w-full rounded-2xl border bg-card p-5 text-left transition-colors hover:border-primary/40 ${
+        dominado ? "border-success/30" : "border-line"
+      }`}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-medium text-ink">
+          {dominado && <span aria-label="Tema dominado">🏆 </span>}
           Tema {tema.numero}. {tema.nombre}
         </p>
         {tema.precision !== null && (

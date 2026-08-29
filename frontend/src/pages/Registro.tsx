@@ -6,7 +6,7 @@ export function Registro() {
   const destino = searchParams.get("destino") || "/home";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <div className="w-full max-w-lg">
         <Auth modoInicial="registro" destino={destino} />
       </div>

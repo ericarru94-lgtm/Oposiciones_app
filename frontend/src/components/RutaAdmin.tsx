@@ -6,7 +6,7 @@ export function RutaAdmin({ children }: { children: ReactNode }) {
   const { estaAutenticado, usuario, cargando } = useSession();
 
   if (cargando) {
-    return <p className="mt-20 text-center text-slate-400">Cargando…</p>;
+    return <p className="mt-20 text-center text-muted">Cargando…</p>;
   }
   if (!estaAutenticado) {
     return <Navigate to="/" replace />;

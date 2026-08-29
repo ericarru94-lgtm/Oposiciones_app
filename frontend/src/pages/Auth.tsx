@@ -27,7 +27,7 @@ export function Auth({ cabecera, modoInicial = "registro", destino = "/home" }: 
   return (
     <div className="mx-auto max-w-lg">
       {cabecera}
-      <div className="rounded-2xl bg-white p-2 shadow-sm">
+      <div className="rounded-2xl bg-card p-2 shadow-sm">
         {modoInicial === "registro" ? (
           <SignUp routing="hash" fallbackRedirectUrl={destino} signInUrl={`/login?destino=${destinoQS}`} />
         ) : (
@@ -64,9 +64,9 @@ function AuthBypass({
   }
 
   return (
-    <div className="mx-auto max-w-lg rounded-2xl bg-white p-8 shadow-sm">
+    <div className="mx-auto max-w-lg rounded-3xl bg-card p-8 shadow-sm">
       {cabecera}
-      <p className="mb-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
+      <p className="mb-4 rounded-lg bg-accent/10 p-3 text-xs text-accent">
         Modo E2E sin Clerk configurado: inicia sesión solo con un email, sin contraseña.
       </p>
       <form onSubmit={onSubmit} className="space-y-3">
@@ -76,13 +76,13 @@ function AuthBypass({
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+          className="w-full rounded-lg border border-line px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
         />
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-error">{error}</p>}
         <button
           type="submit"
           disabled={enviando}
-          className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-white hover:bg-primary-hover disabled:opacity-60"
         >
           {enviando ? "Un momento…" : modoInicial === "registro" ? "Crear cuenta gratis" : "Iniciar sesión"}
         </button>

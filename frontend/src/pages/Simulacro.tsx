@@ -71,8 +71,8 @@ export function Simulacro() {
           un examen real.
         </p>
 
-        <div className="mt-8 rounded-3xl bg-card p-8">
-          <label className="block text-sm font-semibold text-ink">Número de preguntas</label>
+        <div className="mt-8 rounded-3xl bg-card p-8 shadow-sm">
+          <label className="block text-sm font-semibold text-ink">📝 Número de preguntas</label>
           <div className="mt-3 grid grid-cols-4 gap-2">
             {OPCIONES_PREGUNTAS.map((n) => (
               <button
@@ -87,7 +87,7 @@ export function Simulacro() {
             ))}
           </div>
 
-          <label className="mt-7 block text-sm font-semibold text-ink">Tiempo límite</label>
+          <label className="mt-7 block text-sm font-semibold text-ink">⏱ Tiempo límite</label>
           <div className="mt-3 grid grid-cols-4 gap-2">
             {OPCIONES_TIEMPO.map((min) => (
               <button
@@ -150,52 +150,59 @@ function ResultadosSimulacro({
     porBloque.set(bloque, actual);
   }
 
+  const icono = porcentaje >= 90 ? "🏆" : porcentaje >= 70 ? "🎉" : porcentaje >= 40 ? "💪" : "📚";
+
   return (
-    <div data-testid="resultados-simulacro" className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center">
-      <h2 className="text-xl font-semibold text-ink">Simulacro completado</h2>
-      {resultado.agotoTiempo && (
-        <p className="mt-1 text-sm text-accent">Se acabó el tiempo: se han contado las preguntas respondidas.</p>
-      )}
-      <p className="mt-1 text-sm text-muted">
-        {respondidas} de {resultado.totalPreguntas} preguntas respondidas
-      </p>
-
-      <div className="mt-8 grid grid-cols-3 gap-4">
-        <div>
-          <p className="text-xl font-bold text-success">{aciertos}</p>
-          <p className="text-sm text-muted">Aciertos</p>
-        </div>
-        <div>
-          <p className="text-xl font-bold text-error">{fallos}</p>
-          <p className="text-sm text-muted">Fallos</p>
-        </div>
-        <div>
-          <p className="text-xl font-bold text-ink">{formatoDuracion(resultado.duracionMs)}</p>
-          <p className="text-sm text-muted">Tiempo</p>
-        </div>
+    <div data-testid="resultados-simulacro" className="mx-auto max-w-lg overflow-hidden rounded-3xl bg-card text-center">
+      <div className="bg-primary px-8 pb-8 pt-10 text-white">
+        <p className="text-5xl">{icono}</p>
+        <h2 className="mt-3 text-xl font-bold">Simulacro completado</h2>
+        {resultado.agotoTiempo && (
+          <p className="mt-1 text-sm text-white/80">Se acabó el tiempo: se han contado las preguntas respondidas.</p>
+        )}
+        <p className="mt-1 text-sm text-white/80">
+          {respondidas} de {resultado.totalPreguntas} preguntas respondidas
+        </p>
       </div>
-      <p className="mt-6 text-sm text-muted">{porcentaje}% de aciertos</p>
 
-      {porBloque.size > 0 && (
-        <div className="mt-8 space-y-3 text-left">
-          <p className="text-sm font-semibold text-ink">Resultado por bloque</p>
-          {[...porBloque.entries()].map(([bloque, datos]) => (
-            <div key={bloque} className="flex items-center justify-between rounded-xl border border-line px-4 py-3">
-              <span className="text-sm text-ink">Bloque {bloque}</span>
-              <span className="text-sm font-semibold text-muted">
-                {datos.aciertos}/{datos.total} ({Math.round((datos.aciertos / datos.total) * 100)}%)
-              </span>
-            </div>
-          ))}
+      <div className="p-8">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-xl bg-success/10 p-3">
+            <p className="text-xl font-bold text-success">{aciertos}</p>
+            <p className="text-xs text-muted">Aciertos</p>
+          </div>
+          <div className="rounded-xl bg-error/10 p-3">
+            <p className="text-xl font-bold text-error">{fallos}</p>
+            <p className="text-xs text-muted">Fallos</p>
+          </div>
+          <div className="rounded-xl bg-primary/10 p-3">
+            <p className="text-xl font-bold text-ink">{formatoDuracion(resultado.duracionMs)}</p>
+            <p className="text-xs text-muted">Tiempo</p>
+          </div>
         </div>
-      )}
+        <p className="mt-6 text-sm font-semibold text-primary">{porcentaje}% de aciertos</p>
 
-      <button
-        onClick={onVolver}
-        className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white hover:bg-primary-hover"
-      >
-        Volver a Tests
-      </button>
+        {porBloque.size > 0 && (
+          <div className="mt-8 space-y-3 text-left">
+            <p className="text-sm font-semibold text-ink">Resultado por bloque</p>
+            {[...porBloque.entries()].map(([bloque, datos]) => (
+              <div key={bloque} className="flex items-center justify-between rounded-xl border border-line px-4 py-3">
+                <span className="text-sm text-ink">{bloque === "I" ? "📘" : "💻"} Bloque {bloque}</span>
+                <span className="text-sm font-semibold text-muted">
+                  {datos.aciertos}/{datos.total} ({Math.round((datos.aciertos / datos.total) * 100)}%)
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={onVolver}
+          className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white hover:bg-primary-hover"
+        >
+          Volver a Tests
+        </button>
+      </div>
     </div>
   );
 }

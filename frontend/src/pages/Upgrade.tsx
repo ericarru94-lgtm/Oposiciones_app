@@ -58,47 +58,52 @@ export function Upgrade() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="max-w-md rounded-2xl bg-white p-8 text-center shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">Has llegado a tu límite diario gratuito</h1>
-        <p className="mt-3 text-sm text-slate-600">
-          El plan gratuito incluye un número limitado de preguntas al día. Hazte premium para practicar sin límites,
-          con estadísticas avanzadas y repaso ilimitado.
-        </p>
-
-        <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-left">
-          <p className="font-semibold text-indigo-900">Premium mensual</p>
-          <p className="text-sm text-indigo-700">Preguntas ilimitadas · Repaso espaciado sin restricciones</p>
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
+      <div className="max-w-md overflow-hidden rounded-3xl bg-card text-center shadow-sm">
+        <div className="bg-primary px-8 pb-7 pt-9 text-white">
+          <p className="text-4xl">⏳</p>
+          <h1 className="mt-3 text-xl font-bold">Has llegado a tu límite diario gratuito</h1>
         </div>
-
-        {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
-
-        <button
-          onClick={alPulsarSuscribirme}
-          disabled={procesando || cargando}
-          className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-        >
-          {procesando ? "Redirigiendo a Stripe…" : "Suscribirme"}
-        </button>
-
-        {!cargando && !estaAutenticado && (
-          <p className="mt-3 text-sm text-slate-500">
-            ¿Ya tienes cuenta?{" "}
-            <button
-              onClick={() => navigate(`/login?destino=${encodeURIComponent(DESTINO_TRAS_AUTH)}`)}
-              className="font-medium text-indigo-600 hover:underline"
-            >
-              Inicia sesión
-            </button>
+        <div className="p-8">
+          <p className="text-sm text-muted">
+            El plan gratuito incluye un número limitado de preguntas al día. Hazte premium para practicar sin
+            límites, con estadísticas avanzadas y repaso ilimitado.
           </p>
-        )}
 
-        <button
-          onClick={() => navigate(estaAutenticado ? "/home" : "/")}
-          className="mt-3 w-full rounded-lg border border-slate-200 px-4 py-3 font-medium text-slate-600 hover:bg-slate-50"
-        >
-          Volver mañana
-        </button>
+          <div className="mt-6 rounded-xl border border-accent/30 bg-accent/10 p-4 text-left">
+            <p className="font-semibold text-ink">⭐ Premium mensual</p>
+            <p className="text-sm text-muted">Preguntas ilimitadas · Repaso espaciado sin restricciones</p>
+          </div>
+
+          {error && <p className="mt-4 text-sm text-error">{error}</p>}
+
+          <button
+            onClick={alPulsarSuscribirme}
+            disabled={procesando || cargando}
+            className="mt-6 w-full rounded-xl bg-primary px-4 py-3 font-medium text-white hover:bg-primary-hover disabled:opacity-60"
+          >
+            {procesando ? "Redirigiendo a Stripe…" : "Suscribirme"}
+          </button>
+
+          {!cargando && !estaAutenticado && (
+            <p className="mt-3 text-sm text-muted">
+              ¿Ya tienes cuenta?{" "}
+              <button
+                onClick={() => navigate(`/login?destino=${encodeURIComponent(DESTINO_TRAS_AUTH)}`)}
+                className="font-medium text-primary hover:underline"
+              >
+                Inicia sesión
+              </button>
+            </p>
+          )}
+
+          <button
+            onClick={() => navigate(estaAutenticado ? "/home" : "/")}
+            className="mt-3 w-full rounded-xl border border-line px-4 py-3 font-medium text-muted hover:bg-canvas"
+          >
+            Volver mañana
+          </button>
+        </div>
       </div>
     </div>
   );

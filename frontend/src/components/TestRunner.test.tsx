@@ -51,7 +51,7 @@ describe("TestRunner", () => {
     await user.click(screen.getByTestId("opcion-a"));
 
     await waitFor(() => expect(screen.getByTestId("feedback")).toBeInTheDocument());
-    expect(screen.getByText("¡Correcto!")).toBeInTheDocument();
+    expect(screen.getByText(/¡Correcto!/)).toBeInTheDocument();
     expect(screen.getByText("Porque el artículo 1 lo dice.")).toBeInTheDocument();
     expect(screen.getByText("Fuente: Art. 1 CE")).toBeInTheDocument();
     expect(responderPregunta).toHaveBeenCalledWith(

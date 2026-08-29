@@ -5,22 +5,21 @@ import { Auth } from "../Auth";
 import type { ResumenTest } from "../../components/TestRunner";
 import { PasoMiniTest } from "./PasoMiniTest";
 import { PasoNivel } from "./PasoNivel";
-import { PasoPrimerTest } from "./PasoPrimerTest";
 
-type Paso = "mini-test" | "nivel" | "primer-test" | "registro";
+type Paso = "mini-test" | "nivel" | "registro";
 
 /**
  * Onboarding sin registro: mini-test de 5 preguntas -> nivel de partida ->
- * primer test corto ya armado sobre Constitución -> alta de cuenta para
- * guardar el progreso (Home y "repasar hoy" necesitan un usuario, ya que
- * Progreso.usuarioId no es opcional en el modelo de datos). Empieza
- * directamente en el mini-test: la propuesta de valor ya se muestra en la
- * landing pública, así que aquí repetirla sería un paso de más.
+ * alta de cuenta para guardar el progreso (Home y "repasar hoy" necesitan
+ * un usuario, ya que Progreso.usuarioId no es opcional en el modelo de
+ * datos). Empieza directamente en el mini-test: la propuesta de valor ya se
+ * muestra en la landing pública, así que repetirla aquí sería un paso de
+ * más. Un único test (el mini-test) es suficiente para el registro: no se
+ * repite otro tras elegir el nivel ni después de crear la cuenta.
  */
 export function OnboardingFlow() {
   const [paso, setPaso] = useState<Paso>("mini-test");
   const [resumenMiniTest, setResumenMiniTest] = useState<ResumenTest | null>(null);
-  const [resumenPrimerTest, setResumenPrimerTest] = useState<ResumenTest | null>(null);
   const { setNivelInicialPendiente } = useSession();
   const navigate = useNavigate();
 
@@ -45,36 +44,24 @@ export function OnboardingFlow() {
         <PasoNivel
           onElegir={(nivel) => {
             setNivelInicialPendiente(nivel);
-            setPaso("primer-test");
-          }}
-        />
-      );
-      break;
-
-    case "primer-test":
-      contenido = (
-        <PasoPrimerTest
-          onFinalizar={(resumen) => {
-            setResumenPrimerTest(resumen);
             setPaso("registro");
           }}
-          onLimiteAlcanzado={irAUpgrade}
         />
       );
       break;
 
     case "registro": {
-      const totalAciertos = (resumenMiniTest?.aciertos ?? 0) + (resumenPrimerTest?.aciertos ?? 0);
-      const totalPreguntas = (resumenMiniTest?.totalPreguntas ?? 0) + (resumenPrimerTest?.totalPreguntas ?? 0);
+      const totalAciertos = resumenMiniTest?.aciertos ?? 0;
+      const totalPreguntas = resumenMiniTest?.totalPreguntas ?? 0;
       contenido = (
         <Auth
           destino="/home"
           cabecera={
-            <div className="mb-5 rounded-lg bg-indigo-50 p-4 text-center">
-              <p className="text-sm text-indigo-900">
+            <div className="mb-5 rounded-lg bg-primary/10 p-4 text-center">
+              <p className="text-sm text-ink">
                 Has acertado <span className="font-semibold">{totalAciertos} de {totalPreguntas}</span> preguntas.
               </p>
-              <p className="mt-1 text-sm text-indigo-700">Crea tu cuenta gratis para guardar el progreso y seguir.</p>
+              <p className="mt-1 text-sm text-primary">Crea tu cuenta gratis para guardar el progreso y seguir.</p>
             </div>
           }
         />
@@ -83,5 +70,5 @@ export function OnboardingFlow() {
     }
   }
 
-  return <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">{contenido}</div>;
+  return <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-10">{contenido}</div>;
 }

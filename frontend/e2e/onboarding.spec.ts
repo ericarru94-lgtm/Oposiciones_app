@@ -2,17 +2,11 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Flujo de onboarding completo, tal como lo recorre un visitante real:
- * mini-test sin registro -> nivel de partida -> primer test corto
- * automático sobre Constitución (Tema I.1, fijado en
- * pages/onboarding/PasoPrimerTest.tsx) -> alta de cuenta -> Home refleja
- * lo practicado.
- *
- * Usa el tema "Constitución" del seed de E2E (backend/src/scripts/seed-e2e.ts),
- * donde las 6 preguntas verificadas tienen todas respuesta correcta "a" —
- * así el resultado del primer test es determinista aunque el mini-test
- * (que mezcla temas) no lo sea.
+ * mini-test sin registro -> nivel de partida -> alta de cuenta -> Home.
+ * Un único test (el mini-test de 5 preguntas) es suficiente: no se repite
+ * ningún otro tras elegir el nivel ni después de crear la cuenta.
  */
-test("mini-test -> nivel -> primer test -> registro -> home", async ({ page }) => {
+test("mini-test -> nivel -> registro -> home", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Empezar test gratis" }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
@@ -30,41 +24,22 @@ test("mini-test -> nivel -> primer test -> registro -> home", async ({ page }) =
   expect(aciertosMiniTest + fallosMiniTest).toBe(5);
   await page.getByTestId("continuar").click();
 
-  // Nivel de partida.
+  // Nivel de partida: tras elegir, debe ir directo a registro (sin repetir ningún test).
   await expect(page.getByRole("heading", { name: "¿Cómo empiezas?" })).toBeVisible();
   await page.getByRole("button", { name: /Ya llevo tiempo/ }).click();
 
-  // Primer test: siempre sobre Constitución, siempre respuesta "a" -> 100% determinista.
-  await expect(page.getByText(/Tu primer test: La Constitución/)).toBeVisible();
-  for (let i = 0; i < 5; i++) {
-    await page.getByTestId("opcion-a").click();
-    await page.getByTestId("siguiente").click();
-  }
-  await expect(page.getByTestId("resumen")).toBeVisible();
-  await expect(page.getByTestId("resumen-aciertos")).toHaveText("5");
-  await expect(page.getByTestId("resumen-fallos")).toHaveText("0");
-  await page.getByTestId("continuar").click();
-
-  // Registro.
+  // Registro: el resumen mostrado es el del mini-test (el único que hubo).
   await expect(page.getByText(/Crea tu cuenta gratis para guardar el progreso/)).toBeVisible();
+  await expect(page.getByText(`Has acertado ${aciertosMiniTest} de 5 preguntas.`)).toBeVisible();
   const email = `e2e-onboarding-${Date.now()}@example.com`;
   await page.getByPlaceholder("Email").fill(email);
   await page.getByRole("button", { name: "Crear cuenta gratis" }).click();
 
   await expect(page).toHaveURL(/\/home$/);
 
-  // Home ya refleja lo practicado en el primer test sobre Constitución
-  // (gracias a reclamarIntentosAnonimos: ver backend/src/lib/reclamarIntentosAnonimos.ts).
-  // El primer test siempre contesta 5 de las 6 preguntas de Constitución,
-  // pero el mini-test previo (pool mixto) a veces también toca alguna de
-  // Constitución al azar, así que el total puede ser 5/6 o 6/6 — nunca menos
-  // de 5. La precisión, en cambio, sí es 100% siempre: toda respuesta a una
-  // pregunta de Constitución en este test es "a", que es la correcta.
-  // Los bloques de temas aparecen como acordeones cerrados por defecto: hay que
-  // desplegar el Bloque I para ver la tarjeta de Constitución.
-  await page.getByText("Bloque I · Materias comunes").click();
-  const tarjetaConstitucion = page.getByRole("button", { name: /La Constitución Española de 1978/ });
-  await expect(tarjetaConstitucion.getByText(/^[56]\/6 preguntas practicadas$/)).toBeVisible();
-  await expect(tarjetaConstitucion.getByText("100%")).toBeVisible();
+  // Home ya refleja lo practicado en el mini-test (gracias a
+  // reclamarIntentosAnonimos: ver backend/src/lib/reclamarIntentosAnonimos.ts).
+  // La racha es determinista (cualquier actividad de hoy cuenta 1 día),
+  // independientemente de qué temas concretos tocara el mini-test al azar.
   await expect(page.getByText(/1 día seguidos/)).toBeVisible();
 });

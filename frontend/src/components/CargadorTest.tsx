@@ -41,11 +41,21 @@ export function CargadorTest({ titulo, cargar, onFinalizar, onLimiteAlcanzado }:
   }, []);
 
   if (error) {
-    return <p className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center text-base text-error">{error}</p>;
+    return (
+      <div className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center">
+        <p className="text-4xl">⚠️</p>
+        <p className="mt-3 text-base text-error">{error}</p>
+      </div>
+    );
   }
 
   if (!preguntas) {
-    return <p className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center text-base text-muted">Cargando…</p>;
+    return (
+      <div className="mx-auto max-w-lg rounded-3xl bg-card p-8 text-center">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-line border-t-primary" />
+        <p className="mt-4 text-base text-muted">Preparando tus preguntas…</p>
+      </div>
+    );
   }
 
   return (
