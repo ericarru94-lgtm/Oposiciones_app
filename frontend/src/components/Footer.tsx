@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 const ENLACES = [
+  { to: "/", label: "Inicio" },
   { to: "/privacidad", label: "Privacidad" },
   { to: "/terminos", label: "Términos y condiciones" },
   { to: "/aviso-legal", label: "Aviso legal" },

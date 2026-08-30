@@ -3,17 +3,27 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { Perfil } from "./Perfil";
-import { crearPortalSession, obtenerProgresoPorTema } from "../api/endpoints";
+import { crearPortalSession, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
-import type { ProgresoPorTema } from "../api/types";
+import type { ProgresoPorTema, ProgresoResumen } from "../api/types";
 
 vi.mock("../context/SessionContext", () => ({
   useSession: vi.fn(),
 }));
 vi.mock("../api/endpoints", () => ({
   obtenerProgresoPorTema: vi.fn(),
+  obtenerResumenProgreso: vi.fn(),
   crearPortalSession: vi.fn(),
 }));
+
+const resumenSinRacha: ProgresoResumen = {
+  totalIntentos: 0,
+  aciertos: 0,
+  precision: null,
+  preguntasEnSeguimiento: 0,
+  pendientesHoy: 0,
+  racha: { dias: 0, ultimaActividad: null },
+};
 
 function renderPerfil() {
   return render(
@@ -40,6 +50,7 @@ const temaSinPracticar: ProgresoPorTema = {
 
 beforeEach(() => {
   vi.mocked(obtenerProgresoPorTema).mockResolvedValue({ temas: [temaSinPracticar] });
+  vi.mocked(obtenerResumenProgreso).mockResolvedValue(resumenSinRacha);
   vi.mocked(crearPortalSession).mockReset();
   vi.stubGlobal("location", { ...window.location, href: "" });
 });
@@ -64,11 +75,25 @@ describe("Perfil — plan gratuito", () => {
     expect(crearPortalSession).not.toHaveBeenCalled();
   });
 
-  it("muestra la fecha de alta y, sin temas dominados, el mensaje de ánimo en vez de la insignia", async () => {
+  it("muestra la fecha de alta y, sin temas dominados ni racha, los mensajes de ánimo en vez de las insignias", async () => {
     renderPerfil();
     expect(await screen.findByText(/Opositando desde/)).toBeInTheDocument();
     expect(screen.getByText(/15 de enero de 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Aún no tienes temas dominados/)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no tienes insignias de racha/)).toBeInTheDocument();
+  });
+
+  it("muestra las insignias de racha acumuladas hasta la racha actual, y no las superiores", async () => {
+    vi.mocked(obtenerResumenProgreso).mockResolvedValue({
+      ...resumenSinRacha,
+      racha: { dias: 7, ultimaActividad: "2026-08-30T12:00:00.000Z" },
+    });
+    renderPerfil();
+    expect(await screen.findByText("Racha iniciada")).toBeInTheDocument();
+    expect(screen.getByText("Una semana sin fallar")).toBeInTheDocument();
+    expect(screen.queryByText("Un mes de constancia")).not.toBeInTheDocument();
+    expect(screen.queryByText("Constancia legendaria")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Aún no tienes insignias de racha/)).not.toBeInTheDocument();
   });
 
   it("no muestra la cuadrícula de estadísticas de estudio (vive en Tests\\/Progreso)", async () => {

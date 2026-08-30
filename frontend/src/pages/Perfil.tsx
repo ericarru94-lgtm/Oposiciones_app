@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
-import { crearPortalSession, obtenerProgresoPorTema } from "../api/endpoints";
+import { crearPortalSession, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { PageTitle } from "../components/PageTitle";
@@ -14,11 +14,27 @@ function esDominado(tema: ProgresoPorTema): boolean {
   return cobertura >= 1 && (tema.precision ?? 0) >= 0.9;
 }
 
+/**
+ * Insignias de constancia (racha de días seguidos), deliberadamente
+ * distintas de las de dominio de temas: premian seguir practicando día
+ * tras día, no lo bien que se conoce el contenido. Por eso usan otro
+ * icono (fuego/rayo/diamante/corona, no el 🏆 de tema dominado) y otro
+ * color de acento (naranja, el mismo que ya usa la racha en Inicio, no
+ * el verde de "dominado").
+ */
+const HITOS_RACHA = [
+  { dias: 3, icono: "🔥", titulo: "Racha iniciada", descripcion: "3 días seguidos practicando" },
+  { dias: 7, icono: "⚡", titulo: "Una semana sin fallar", descripcion: "7 días seguidos practicando" },
+  { dias: 30, icono: "💎", titulo: "Un mes de constancia", descripcion: "30 días seguidos practicando" },
+  { dias: 100, icono: "👑", titulo: "Constancia legendaria", descripcion: "100 días seguidos practicando" },
+] as const;
+
 /** Combina datos de identidad (Clerk: nombre, email, foto) con datos propios (plan, cuenta, logros). */
 export function Perfil() {
   const { usuario, perfilExterno, getToken } = useSession();
   const navigate = useNavigate();
   const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
+  const [rachaDias, setRachaDias] = useState<number | null>(null);
   const [procesandoPortal, setProcesandoPortal] = useState(false);
   const [errorPortal, setErrorPortal] = useState<string | null>(null);
 
@@ -27,8 +43,13 @@ export function Perfil() {
     (async () => {
       const token = await getToken();
       if (!token) return;
-      const { temas } = await obtenerProgresoPorTema(token);
-      if (!cancelado) setTemas(temas);
+      const [{ temas }, resumen] = await Promise.all([
+        obtenerProgresoPorTema(token),
+        obtenerResumenProgreso(token),
+      ]);
+      if (cancelado) return;
+      setTemas(temas);
+      setRachaDias(resumen.racha.dias);
     })();
     return () => {
       cancelado = true;
@@ -36,6 +57,7 @@ export function Perfil() {
   }, [getToken]);
 
   const temasDominados = (temas ?? []).filter(esDominado);
+  const insigniasRacha = HITOS_RACHA.filter((h) => (rachaDias ?? 0) >= h.dias);
   const desdeFecha = usuario?.createdAt
     ? new Date(usuario.createdAt).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })
     : null;
@@ -123,6 +145,29 @@ export function Perfil() {
 
       <div className="rounded-2xl border border-line bg-card p-6">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">🏅 Logros</h2>
+
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Constancia</h3>
+        {rachaDias === null && <p className="text-sm text-muted">Cargando…</p>}
+        {rachaDias !== null && insigniasRacha.length === 0 && (
+          <p className="text-sm text-muted">
+            Aún no tienes insignias de racha. Practica varios días seguidos para conseguir la primera.
+          </p>
+        )}
+        {insigniasRacha.length > 0 && (
+          <ul className="space-y-2">
+            {insigniasRacha.map((hito) => (
+              <li
+                key={hito.dias}
+                className="flex items-center gap-2 rounded-xl bg-accent/5 px-4 py-3 text-sm font-medium text-ink"
+              >
+                <span aria-hidden>{hito.icono}</span> {hito.titulo}
+                <span className="text-xs font-normal text-muted">— {hito.descripcion}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <h3 className="mb-3 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">Dominio de temas</h3>
         {temas === null && <p className="text-sm text-muted">Cargando…</p>}
         {temas !== null && temasDominados.length === 0 && (
           <p className="text-sm text-muted">

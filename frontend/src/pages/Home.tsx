@@ -68,14 +68,18 @@ export function Home() {
         </div>
       )}
 
-      {/* Racha: lo primero que se ve, con presencia real (no solo texto pequeño). */}
+      {/* Racha: tarjeta compacta (icono + número + texto en una fila), no un bloque de pantalla completa. */}
       {resumen && (
-        <div className="mb-6 rounded-3xl bg-accent p-8 text-center text-white">
-          <p className="text-5xl">🔥</p>
-          <p className="mt-2 text-4xl font-extrabold">
-            {resumen.racha.dias} {resumen.racha.dias === 1 ? "día" : "días"}
-          </p>
-          <p className="mt-1 text-white/85">de racha seguidos</p>
+        <div className="mb-6 flex items-center gap-4 rounded-2xl border border-accent/30 bg-accent/10 px-5 py-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-2xl">
+            🔥
+          </span>
+          <div className="flex items-baseline gap-2">
+            <p className="text-lg font-bold text-ink">
+              {resumen.racha.dias} {resumen.racha.dias === 1 ? "día" : "días"}
+            </p>
+            <p className="text-sm text-muted">de racha seguidos</p>
+          </div>
         </div>
       )}
 
