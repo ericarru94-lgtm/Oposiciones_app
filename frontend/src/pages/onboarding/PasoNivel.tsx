@@ -7,7 +7,9 @@ const NIVELES = [
 export function PasoNivel({ onElegir }: { onElegir: (nivel: string) => void }) {
   return (
     <div className="mx-auto max-w-lg rounded-3xl bg-card p-8 shadow-sm">
-      <h2 className="text-xl font-bold text-ink">¿Cómo empiezas?</h2>
+      <h2 className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-ink">
+        <span aria-hidden>👋</span> ¿Cómo empiezas?
+      </h2>
       <p className="mt-1 text-sm text-muted">Así adaptamos tu plan de repaso desde el primer día.</p>
       <div className="mt-6 space-y-3">
         {NIVELES.map((nivel) => (

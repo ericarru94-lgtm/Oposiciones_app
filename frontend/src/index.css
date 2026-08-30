@@ -11,7 +11,10 @@
   --color-primary: #4338ca;
   --color-primary-hover: #3730a3;
 
-  --color-canvas: #fafafa;
+  /* Tono suave dentro de la paleta (lavanda muy claro, no blanco puro): las
+     tarjetas siguen siendo --color-card blanco, para que sigan destacando
+     sobre este fondo en vez de fundirse con él. */
+  --color-canvas: #eef2ff;
   --color-card: #ffffff;
 
   --color-ink: #1e1b2e;

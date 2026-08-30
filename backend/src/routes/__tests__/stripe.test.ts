@@ -166,7 +166,7 @@ describe("POST /api/stripe/crear-portal-session", () => {
     expect(res.status).toBe(200);
     expect(res.body.url).toBe("https://billing.stripe.com/session/test");
     expect(stripeMock.billingPortal.sessions.create).toHaveBeenCalledWith(
-      expect.objectContaining({ customer: "cus_existente" })
+      expect.objectContaining({ customer: "cus_existente", locale: "es" })
     );
   });
 });
@@ -263,6 +263,35 @@ describe("POST /api/stripe/webhook", () => {
     expect(usuario?.plan).toBe("free");
     expect(usuario?.stripeSubscriptionStatus).toBe("canceled");
     expect(usuario?.premiumHasta?.getTime()).toBe(usuarioAntes.premiumHasta?.getTime());
+  });
+
+  it("customer.subscription.updated con cancel_at_period_end=true mantiene premium pero marca la cancelación programada", async () => {
+    await prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { stripeCustomerId: "cus_existente", plan: "premium", cancelaAlFinalizarPeriodo: false },
+    });
+    const finPeriodo = Math.floor(Date.now() / 1000) + 15 * 24 * 60 * 60;
+    stripeMock.webhooks.constructEvent.mockReturnValueOnce({
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_123",
+          customer: "cus_existente",
+          status: "active",
+          cancel_at_period_end: true,
+          items: { data: [{ current_period_end: finPeriodo }] },
+        },
+      },
+    });
+
+    const res = await request(app).post("/api/stripe/webhook").set("stripe-signature", "sig").send({});
+    expect(res.status).toBe(200);
+
+    const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+    // Sigue premium: Stripe mantiene el acceso hasta el fin del periodo ya pagado.
+    expect(usuario?.plan).toBe("premium");
+    expect(usuario?.cancelaAlFinalizarPeriodo).toBe(true);
+    expect(usuario?.premiumHasta?.getTime()).toBe(finPeriodo * 1000);
   });
 
   it("un evento de un customer desconocido no rompe nada (200, sin cambios)", async () => {

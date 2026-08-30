@@ -7,6 +7,7 @@ import { RachaBadge } from "../components/RachaBadge";
 import { EvolucionChart } from "../components/EvolucionChart";
 import { BloqueDesplegable } from "../components/BloqueDesplegable";
 import { StatTile } from "../components/StatTile";
+import { PageTitle } from "../components/PageTitle";
 import type { EvolucionDia, ProgresoPorTema, ProgresoResumen } from "../api/types";
 
 export function Progreso() {
@@ -45,7 +46,7 @@ export function Progreso() {
 
   return (
     <AppLayout>
-      <h1 className="mb-6 text-2xl font-bold text-ink">Tests y progreso</h1>
+      <PageTitle icono="📊">Tests y progreso</PageTitle>
 
       <Link
         to="/simulacro"

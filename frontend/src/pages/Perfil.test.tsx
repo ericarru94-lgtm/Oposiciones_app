@@ -83,3 +83,24 @@ describe("Perfil — plan premium", () => {
     expect(screen.queryByRole("button", { name: "Hazte premium" })).not.toBeInTheDocument();
   });
 });
+
+describe("Perfil — premium con cancelación programada", () => {
+  beforeEach(() => {
+    vi.mocked(useSession).mockReturnValue({
+      usuario: {
+        plan: "premium",
+        email: "premium@example.com",
+        cancelaAlFinalizarPeriodo: true,
+        premiumHasta: "2026-12-31T12:00:00.000Z",
+      },
+      perfilExterno: { nombreCompleto: null, email: "premium@example.com", imagenUrl: null },
+      getToken: vi.fn().mockResolvedValue("token"),
+    } as unknown as ReturnType<typeof useSession>);
+  });
+
+  it("avisa de que la suscripción ya está cancelada y hasta cuándo dura el acceso", async () => {
+    renderPerfil();
+    expect(await screen.findByText(/Suscripción cancelada/)).toBeInTheDocument();
+    expect(screen.getByText(/31\/12\/2026/)).toBeInTheDocument();
+  });
+});

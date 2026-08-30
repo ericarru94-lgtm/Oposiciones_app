@@ -20,9 +20,7 @@ test("responder preguntas, ver feedback y llegar al resumen final", async ({ pag
   await page.getByTestId("opcion-a").click();
   await expect(page.getByTestId("feedback")).toBeVisible();
   await expect(page.getByText(/Incorrecto\. La respuesta correcta es la b\./)).toBeVisible();
-  await expect(
-    page.getByText("Esta pregunta todavía no tiene explicación ni fuente legal añadidas.")
-  ).toBeVisible();
+  await expect(page.getByText(/Sigue repasando este tema, pronto añadiremos más detalle\./)).toBeVisible();
   await page.getByTestId("siguiente").click();
 
   // Pregunta 2: respondemos "b" (correcta).

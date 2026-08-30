@@ -224,9 +224,7 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
             {feedback.explicacion && <p className="mt-2 text-sm text-muted">{feedback.explicacion}</p>}
             {feedback.fuente && <p className="mt-1 text-xs text-muted">Fuente: {feedback.fuente}</p>}
             {!feedback.explicacion && !feedback.fuente && (
-              <p className="mt-2 text-xs text-muted">
-                Esta pregunta todavía no tiene explicación ni fuente legal añadidas.
-              </p>
+              <p className="mt-2 text-xs text-muted">💡 Sigue repasando este tema, pronto añadiremos más detalle.</p>
             )}
             <button
               data-testid="siguiente"

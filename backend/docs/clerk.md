@@ -177,6 +177,21 @@ checkout automáticamente en cuanto `estaAutenticado` es true, sin que el
 usuario tenga que pulsar el botón una segunda vez. Detalle completo del
 lado de Stripe en `backend/docs/stripe.md`.
 
+## Configuración del Dashboard de Clerk: sin username
+
+El formulario de `<SignUp/>` lo renderiza Clerk según la configuración de
+su Dashboard (Configure → User & Authentication → Email, Phone, Username),
+no según props que le pasemos aquí. Si "Username" está activado como
+identificador (obligatorio u opcional), Clerk puede pedirlo en un paso
+adicional tras verificar el email — una pantalla que esta app no controla
+ni necesita: el nombre para mostrar ya lo cubre el que el usuario escriba
+al completar el perfil o, por defecto, el propio email.
+
+Para quitar ese paso: en el Dashboard de Clerk, Configure → User &
+Authentication → Username → desactivarlo (o dejarlo como campo opcional
+que Clerk no pida en el alta). Es un cambio de configuración externo al
+código, no algo que se pueda arreglar editando `Auth.tsx`.
+
 ## Perfil
 
 `frontend/src/pages/Perfil.tsx` combina `perfilExterno` (nombre, email,

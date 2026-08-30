@@ -76,6 +76,10 @@ stripeRouter.post(
     const session = await stripe.billingPortal.sessions.create({
       customer: usuario.stripeCustomerId,
       return_url: `${FRONTEND_URL}/perfil`,
+      // Sin esto, el Billing Portal usa el locale del navegador o el de la
+      // cuenta de Stripe, que puede quedar en inglés aunque toda la app sea
+      // en español.
+      locale: "es",
     });
 
     res.json({ url: session.url });

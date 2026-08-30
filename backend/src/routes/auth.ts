@@ -17,7 +17,16 @@ export const authRouter = Router();
 authRouter.get("/me", authRequerido, asyncHandler(async (req, res) => {
   const usuario = await prisma.usuario.findUnique({
     where: { id: req.auth!.usuarioId },
-    select: { id: true, email: true, plan: true, nivelInicial: true, esAdmin: true, createdAt: true },
+    select: {
+      id: true,
+      email: true,
+      plan: true,
+      nivelInicial: true,
+      esAdmin: true,
+      createdAt: true,
+      premiumHasta: true,
+      cancelaAlFinalizarPeriodo: true,
+    },
   });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
   res.json(usuario);

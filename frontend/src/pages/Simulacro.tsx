@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { obtenerPreguntasSimulacro, obtenerTemas } from "../api/endpoints";
 import { AppLayout } from "../components/AppLayout";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
+import { PageTitle } from "../components/PageTitle";
 import type { Bloque, PreguntaParaResponder, Tema } from "../api/types";
 
 type Paso =
@@ -65,7 +66,7 @@ export function Simulacro() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-lg">
-        <h1 className="text-2xl font-bold text-ink">Simulacro de examen</h1>
+        <PageTitle icono="🎓">Simulacro de examen</PageTitle>
         <p className="mt-2 text-sm text-muted">
           Preguntas de todo el temario, repartidas proporcionalmente al peso de cada tema, con tiempo límite como en
           un examen real.

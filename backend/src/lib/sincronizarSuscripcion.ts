@@ -34,6 +34,12 @@ export async function sincronizarSuscripcionDesdeStripe(subscription: Stripe.Sub
       // Si deja de ser premium (cancelada, impago...) no borramos
       // premiumHasta: queda como registro de hasta cuándo estuvo cubierto.
       premiumHasta: esPremium && finPeriodoUnix ? new Date(finPeriodoUnix * 1000) : usuario.premiumHasta,
+      // Cancelar desde el Billing Portal no borra la suscripción al momento:
+      // Stripe la deja "active" con cancel_at_period_end=true hasta que
+      // termine el periodo ya pagado. Sin este flag, Perfil seguiría
+      // mostrando "Plan premium" sin más, como si la cancelación no hubiera
+      // registrado nada.
+      cancelaAlFinalizarPeriodo: esPremium && subscription.cancel_at_period_end,
     },
   });
 }

@@ -95,7 +95,7 @@ describe("TestRunner", () => {
     await waitFor(() => expect(screen.getByTestId("feedback")).toBeInTheDocument());
     expect(screen.getByText(/Incorrecto/)).toBeInTheDocument();
     expect(
-      screen.getByText("Esta pregunta todavía no tiene explicación ni fuente legal añadidas.")
+      screen.getByText(/Sigue repasando este tema, pronto añadiremos más detalle\./)
     ).toBeInTheDocument();
     await user.click(screen.getByTestId("siguiente"));
 

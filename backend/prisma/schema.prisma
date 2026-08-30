@@ -120,6 +120,12 @@ model Usuario {
   /// en vez de un enum propio para no necesitar una migración cada vez que
   /// Stripe lo amplíe; solo "active"/"trialing" habilitan `plan = premium`.
   stripeSubscriptionStatus String?
+  /// Reflejo de `subscription.cancel_at_period_end`: true cuando el usuario
+  /// ya canceló desde el Billing Portal pero Stripe mantiene el acceso
+  /// premium hasta el fin del periodo ya pagado (comportamiento normal de
+  /// Stripe, no un impago). Sirve para que Perfil pueda avisar de la
+  /// cancelación programada en vez de parecer que no ha pasado nada.
+  cancelaAlFinalizarPeriodo Boolean @default(false)
 
   /// Acceso a la herramienta de revisión editorial. Se activa sola (no hay
   /// alta manual en BD) para cualquier email listado en ADMIN_EMAILS al

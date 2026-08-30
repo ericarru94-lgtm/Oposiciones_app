@@ -6,6 +6,7 @@ import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { RachaBadge } from "../components/RachaBadge";
 import { StatTile } from "../components/StatTile";
+import { PageTitle } from "../components/PageTitle";
 import type { ProgresoResumen } from "../api/types";
 
 /** Combina datos de identidad (Clerk: nombre, email, foto) con datos propios (plan, progreso, racha). */
@@ -48,7 +49,7 @@ export function Perfil() {
 
   return (
     <AppLayout>
-      <h1 className="mb-6 text-2xl font-bold text-ink">Tu perfil</h1>
+      <PageTitle icono="👤">Tu perfil</PageTitle>
 
       <div
         className={`mb-8 overflow-hidden rounded-2xl border ${esPremium ? "border-accent/30" : "border-line"} bg-card`}
@@ -75,6 +76,12 @@ export function Perfil() {
 
             {esPremium ? (
               <div className="mt-3">
+                {usuario?.cancelaAlFinalizarPeriodo && (
+                  <p className="mb-2 text-xs text-accent">
+                    ⚠️ Suscripción cancelada: tendrás acceso premium hasta el{" "}
+                    {usuario.premiumHasta ? new Date(usuario.premiumHasta).toLocaleDateString("es-ES") : "fin del periodo actual"}.
+                  </p>
+                )}
                 <button
                   onClick={gestionarSuscripcion}
                   disabled={procesandoPortal}
