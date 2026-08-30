@@ -108,6 +108,8 @@ Cópialas tal cual de tu `backend/.env` local, **salvo las marcadas
 | `FRONTEND_URL` | La URL que te da Vercel | **Cambia**: `https://tu-proyecto.vercel.app` (o tu dominio propio). Sin `https://` de más ni barra final. |
 | `ADMIN_EMAILS` | `backend/.env` | Los emails con acceso a `/admin/revision`. |
 | `FREE_PLAN_DAILY_LIMIT` | `backend/.env` | Opcional, por defecto 30 si se omite. |
+| `RESEND_API_KEY` | Dashboard de Resend | Ver `backend/docs/newsletter.md`. Sin ella el backend arranca igual — solo falla (con log) el envío de los emails de la newsletter. |
+| `RESEND_FROM_EMAIL` | `backend/.env` | Opcional, por defecto el dominio de pruebas de Resend (`Aprobox <onboarding@resend.dev>`). Cámbialo en cuanto tengas un dominio propio verificado en Resend. |
 
 No hace falta configurar `PORT`: Render lo inyecta solo y `server.ts` ya
 lee `process.env.PORT`. Tampoco hace falta (ni existe) un archivo `.env`

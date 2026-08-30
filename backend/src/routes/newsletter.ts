@@ -3,6 +3,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { asyncHandler } from "../lib/asyncHandler";
+import { obtenerResend, RESEND_FROM_EMAIL } from "../lib/resend";
+import { plantillaBienvenida, plantillaConfirmacion } from "../lib/emailTemplates";
 
 export const newsletterRouter = Router();
 
@@ -11,6 +13,37 @@ const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:5173";
 
 function generarToken(): string {
   return randomBytes(24).toString("hex");
+}
+
+function urlConfirmar(token: string): string {
+  return `${FRONTEND_URL}/newsletter/confirmar?token=${token}`;
+}
+
+function urlBaja(token: string): string {
+  return `${FRONTEND_URL}/newsletter/baja?token=${token}`;
+}
+
+/**
+ * Envía un email de la newsletter sin dejar que un fallo (RESEND_API_KEY
+ * ausente en dev/test, o un error real de Resend) tumbe la petición: la
+ * captura del consentimiento en base de datos ya ha ocurrido antes de
+ * llamar a esto y es lo que RGPD exige poder demostrar, así que un email
+ * no entregado no debe deshacer ni ocultar esa alta. Solo queda registrado
+ * en el log del servidor para poder investigarlo.
+ */
+async function enviarEmail(params: { to: string; subject: string; html: string; text: string }) {
+  try {
+    const { error } = await obtenerResend().emails.send({
+      from: RESEND_FROM_EMAIL,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+    });
+    if (error) console.error(`[newsletter] Resend rechazó el envío a ${params.to}:`, error);
+  } catch (err) {
+    console.error(`[newsletter] No se pudo enviar el email a ${params.to}:`, err);
+  }
 }
 
 const suscribirSchema = z.object({
@@ -26,11 +59,11 @@ const suscribirSchema = z.object({
 
 /**
  * Alta a la newsletter (RGPD: consentimiento explícito + doble opt-in).
- * Solo registra el consentimiento (con fecha) y deja la fila en "pendiente"
- * con un token de confirmación — el envío real del email de confirmación
- * no está implementado todavía (ver backend/docs/newsletter.md), así que
- * de momento la confirmación solo puede completarse llamando a
- * GET /confirmar con ese token por otra vía (p.ej. a mano en QA).
+ * Registra el consentimiento (con fecha), deja la fila en "pendiente" con
+ * un token de confirmación, y envía el email de confirmación vía Resend
+ * (ver lib/resend.ts) — si RESEND_API_KEY no está configurada (dev/test)
+ * o Resend falla, el alta se guarda igual y el envío solo queda registrado
+ * en el log del servidor (ver enviarEmail más arriba).
  */
 newsletterRouter.post("/suscribir", asyncHandler(async (req, res) => {
   const parsed = suscribirSchema.safeParse(req.body);
@@ -61,14 +94,11 @@ newsletterRouter.post("/suscribir", asyncHandler(async (req, res) => {
     ? await prisma.newsletterSuscriptor.update({ where: { email }, data: datos })
     : await prisma.newsletterSuscriptor.create({ data: { email, ...datos } });
 
-  // TODO(newsletter): en cuanto haya proveedor de email (ver
-  // backend/docs/newsletter.md), enviar aquí el correo de confirmación con
-  // el enlace a /newsletter/confirmar?token=<tokenConfirmacion>. Mientras
-  // tanto, se deja constancia en el log del servidor para poder confirmar
-  // manualmente en QA/soporte.
-  console.log(
-    `[newsletter] Alta pendiente de confirmar para ${email}. Enlace de confirmación (envío de email aún no implementado): ${FRONTEND_URL}/newsletter/confirmar?token=${suscriptor.tokenConfirmacion}`
-  );
+  const { subject, html, text } = plantillaConfirmacion({
+    confirmarUrl: urlConfirmar(suscriptor.tokenConfirmacion),
+    bajaUrl: urlBaja(suscriptor.tokenBaja),
+  });
+  await enviarEmail({ to: email, subject, html, text });
 
   res.status(201).json({ estado: suscriptor.estado });
 }));
@@ -95,6 +125,13 @@ newsletterRouter.get("/confirmar", asyncHandler(async (req, res) => {
     where: { id: suscriptor.id },
     data: { estado: "confirmado", confirmadoEn: new Date() },
   });
+
+  const { subject, html, text } = plantillaBienvenida({
+    frontendUrl: FRONTEND_URL,
+    bajaUrl: urlBaja(suscriptor.tokenBaja),
+  });
+  await enviarEmail({ to: suscriptor.email, subject, html, text });
+
   res.json({ estado: "confirmado" });
 }));
 

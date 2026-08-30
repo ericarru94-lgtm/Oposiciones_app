@@ -1,10 +1,21 @@
 /**
  * Tests de integración de /api/newsletter/*: alta con consentimiento
- * explícito (RGPD), confirmación por token (doble opt-in) y baja.
+ * explícito (RGPD), confirmación por token (doble opt-in) y baja. El
+ * cliente de Resend (lib/resend.ts) se mockea por completo — nunca se
+ * llama a la API real, así que estos tests corren igual de aislados que
+ * el resto de la suite (misma BD de test, sin red ni RESEND_API_KEY).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 
+const { resendMock } = vi.hoisted(() => ({
+  resendMock: { emails: { send: vi.fn().mockResolvedValue({ data: { id: "email_test" }, error: null }) } },
+}));
+
+vi.mock("../../lib/resend", () => ({
+  obtenerResend: () => resendMock,
+  RESEND_FROM_EMAIL: "Aprobox <onboarding@resend.dev>",
+}));
 vi.mock("@clerk/express", () => import("../../test-utils/clerkMock"));
 
 import { crearApp } from "../../app";
@@ -24,6 +35,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await limpiarFixtures();
+  resendMock.emails.send.mockClear();
 });
 
 afterAll(async () => {
@@ -61,6 +73,13 @@ describe("POST /api/newsletter/suscribir", () => {
     expect(fila!.estado).toBe("pendiente");
     expect(fila!.tokenConfirmacion).toBeTruthy();
     expect(fila!.tokenBaja).toBeTruthy();
+
+    expect(resendMock.emails.send).toHaveBeenCalledTimes(1);
+    const envio = resendMock.emails.send.mock.calls[0][0];
+    expect(envio.to).toBe(EMAIL);
+    expect(envio.subject).toMatch(/confirma/i);
+    expect(envio.html).toContain(`/newsletter/confirmar?token=${fila!.tokenConfirmacion}`);
+    expect(envio.html).toContain(`/newsletter/baja?token=${fila!.tokenBaja}`);
   });
 
   it("es idempotente: repetir el alta con el mismo email no crea una segunda fila", async () => {
@@ -72,6 +91,20 @@ describe("POST /api/newsletter/suscribir", () => {
 
     const filas = await prisma.newsletterSuscriptor.findMany({ where: { email: EMAIL } });
     expect(filas).toHaveLength(1);
+  });
+
+  it("guarda el alta aunque Resend falle al enviar el email", async () => {
+    resendMock.emails.send.mockRejectedValueOnce(new Error("fallo simulado de Resend"));
+
+    const res = await request(app)
+      .post("/api/newsletter/suscribir")
+      .send({ email: EMAIL, consentimiento: true });
+    expect(res.status).toBe(201);
+    expect(res.body.estado).toBe("pendiente");
+
+    const fila = await prisma.newsletterSuscriptor.findUnique({ where: { email: EMAIL } });
+    expect(fila).not.toBeNull();
+    expect(fila!.consentimiento).toBe(true);
   });
 
   it("permite volver a suscribirse tras una baja", async () => {
@@ -99,6 +132,13 @@ describe("GET /api/newsletter/confirmar", () => {
     const confirmado = await prisma.newsletterSuscriptor.findUnique({ where: { email: EMAIL } });
     expect(confirmado!.estado).toBe("confirmado");
     expect(confirmado!.confirmadoEn).toBeInstanceOf(Date);
+
+    // El email de confirmación (alta) + el de bienvenida (al confirmar).
+    expect(resendMock.emails.send).toHaveBeenCalledTimes(2);
+    const bienvenida = resendMock.emails.send.mock.calls[1][0];
+    expect(bienvenida.to).toBe(EMAIL);
+    expect(bienvenida.subject).toMatch(/bienvenid/i);
+    expect(bienvenida.html).toContain(`/newsletter/baja?token=${confirmado!.tokenBaja}`);
   });
 
   it("responde 404 con un token de confirmación que no existe", async () => {
