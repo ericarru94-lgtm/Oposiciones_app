@@ -1,11 +1,23 @@
 import type { ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSession } from "../context/SessionContext";
 import { Footer } from "./Footer";
+
+/**
+ * Rutas que cuentan como parte de cada sección de la barra de navegación,
+ * más allá de la propia ruta del enlace (p.ej. practicar un tema o ver su
+ * resumen siguen siendo "Tests" a efectos de qué se marca en negrita).
+ */
+function seccionActiva(pathname: string, prefijos: string[]): boolean {
+  return prefijos.some((prefijo) => pathname === prefijo || pathname.startsWith(`${prefijo}/`));
+}
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { usuario, logout } = useSession();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const claseEnlace = (activo: boolean) => (activo ? "font-bold text-ink" : "hover:text-ink");
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
@@ -17,18 +29,23 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <span className="sr-only">Servicio activo</span>
           </Link>
           <nav className="flex items-center gap-5 text-sm text-muted">
-            <Link to="/home" className="hover:text-ink">
+            <Link to="/home" className={claseEnlace(seccionActiva(pathname, ["/home"]))}>
               Inicio
             </Link>
-            <Link to="/progreso" className="hover:text-ink">
+            <Link
+              to="/progreso"
+              className={claseEnlace(
+                seccionActiva(pathname, ["/progreso", "/practicar", "/temas", "/simulacro", "/repasar-hoy"])
+              )}
+            >
               Tests
             </Link>
             {usuario?.esAdmin && (
-              <Link to="/admin/revision" className="hover:text-ink">
+              <Link to="/admin/revision" className={claseEnlace(seccionActiva(pathname, ["/admin"]))}>
                 Revisión
               </Link>
             )}
-            <Link to="/perfil" className="hover:text-ink">
+            <Link to="/perfil" className={claseEnlace(seccionActiva(pathname, ["/perfil"]))}>
               Perfil
             </Link>
             <button

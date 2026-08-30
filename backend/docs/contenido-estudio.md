@@ -26,6 +26,16 @@ texto legal público como entrada y pide una redacción propia, nunca le
 pidas que "resuma tal academia" o le pegues contenido de terceros para
 reescribir.
 
+**Excepción deliberada — temas sin normativa que citar**: los 8 temas
+de informática/ofimática del Bloque II (II.5 a II.12: informática
+básica, Windows, su explorador, Word, Excel, Access, Outlook e
+Internet) no tienen ninguna ley detrás — son contenido técnico, no
+jurídico. Para esos temas el resumen es conceptual/técnico y **no
+cita ningún artículo ni norma** (inventar una cita legal para una
+función de Excel sería peor que no citar ninguna). Mismo criterio ya
+aplicado a las preguntas psicotécnicas sin fuente del banco de
+preguntas (ver `banco-preguntas.md`).
+
 ## 3. Formato de `resumen`
 
 Texto plano con una convención ligera (sin depender de una librería de
@@ -54,17 +64,18 @@ base de datos.
 El log del import reporta cuántos temas tienen resumen en el fichero:
 `N temas sincronizados (M con resumen de estudio en el dataset)`.
 
-## 5. Estado actual: piloto del Bloque I
+## 5. Estado actual: los 28 temas completos
 
-Los 16 temas del Bloque I ya tienen resumen (`resumen_generado_ia:
-true` en los 16). Los 12 temas del Bloque II todavía no — quedó así
-deliberadamente, como plan piloto a evaluar antes de escribir el resto
-(ver el encargo que originó esto). Si el resultado se valida, el
-siguiente paso natural es añadir las entradas que faltan a
-`resumenes_temas.json` siguiendo el mismo criterio de fuentes.
+Los 28 temas (16 del Bloque I + 12 del Bloque II) tienen resumen
+(`resumen_generado_ia: true` en los 28). El Bloque I salió primero
+como piloto; una vez validado, se completó el Bloque II con el mismo
+criterio de fuentes de la sección 2 — incluida la excepción de los 8
+temas de informática/ofimática sin normativa que citar.
 
 Como con las explicaciones de preguntas generadas por IA
 (`Pregunta.explicacionGeneradaIA`, ver `banco-preguntas.md`), el
 frontend muestra un aviso discreto bajo el resumen cuando
-`resumenGeneradoIA` es `true`, invitando a verificar en la fuente
-oficial.
+`resumenGeneradoIA` es `true`, invitando a verificar el contenido con
+otras fuentes — sin decir "fuente oficial" ni "normativa pública" de
+forma genérica, precisamente porque no todos los resúmenes citan
+ninguna (ver la excepción de la sección 2).

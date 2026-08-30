@@ -37,8 +37,7 @@ export function ResumenTema() {
               <EsquemaResumen texto={tema.resumen} />
               {tema.resumenGeneradoIA && (
                 <p className="mt-6 text-xs italic text-muted/80">
-                  Resumen generado automáticamente a partir de la normativa pública citada — verifica siempre en la
-                  fuente oficial.
+                  Resumen generado automáticamente — verifica siempre el contenido con otras fuentes.
                 </p>
               )}
             </>
