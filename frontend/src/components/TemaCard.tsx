@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ProgressBar } from "./ProgressBar";
 import type { ProgresoPorTema } from "../api/types";
 
@@ -13,35 +13,43 @@ export function TemaCard({ tema }: { tema: ProgresoPorTema }) {
         dominado ? "border-success/30" : "border-line"
       }`}
     >
-      <button onClick={() => navigate(`/practicar/${tema.temaId}`)} className="w-full text-left">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-medium text-ink">
-            {dominado && <span aria-label="Tema dominado">🏆 </span>}
-            Tema {tema.numero}. {tema.nombre}
-          </p>
-          {tema.precision !== null && (
-            <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                tema.precision >= 0.7 ? "bg-success/10 text-success" : "bg-accent/10 text-accent"
-              }`}
-            >
-              {Math.round(tema.precision * 100)}%
-            </span>
-          )}
-        </div>
-        <div className="mt-4">
-          <ProgressBar valor={cobertura} />
-          <p className="mt-2 text-xs text-muted">
-            {tema.preguntasContestadas}/{tema.totalPreguntas} preguntas practicadas
-          </p>
-        </div>
-      </button>
-      <Link
-        to={`/temas/${tema.temaId}/resumen`}
-        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-      >
-        📖 Ver resumen
-      </Link>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-ink">
+          {dominado && <span aria-label="Tema dominado">🏆 </span>}
+          Tema {tema.numero}. {tema.nombre}
+        </p>
+        {tema.precision !== null && (
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+              tema.precision >= 0.7 ? "bg-success/10 text-success" : "bg-accent/10 text-accent"
+            }`}
+          >
+            {Math.round(tema.precision * 100)}%
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4">
+        <ProgressBar valor={cobertura} />
+        <p className="mt-2 text-xs text-muted">
+          {tema.preguntasContestadas}/{tema.totalPreguntas} preguntas practicadas
+        </p>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={() => navigate(`/practicar/${tema.temaId}`)}
+          className="flex-1 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-hover"
+        >
+          ▶ Practicar
+        </button>
+        <button
+          onClick={() => navigate(`/temas/${tema.temaId}/resumen`)}
+          className="flex-1 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-primary hover:border-primary/40"
+        >
+          📖 Resumen
+        </button>
+      </div>
     </div>
   );
 }
