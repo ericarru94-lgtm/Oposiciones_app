@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Footer } from "../components/Footer";
 
 const BENEFICIOS = [
   {
@@ -24,7 +25,11 @@ export function Landing() {
     <div className="min-h-screen bg-canvas">
       <header className="border-b border-white/10 bg-primary">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <span className="font-semibold text-white">Aprobox</span>
+          <span className="inline-flex items-center gap-1.5 font-semibold text-white">
+            Aprobox
+            <span aria-hidden className="h-2 w-2 rounded-full bg-success" />
+            <span className="sr-only">Servicio activo</span>
+          </span>
           <Link to="/login" className="text-sm text-white/80 hover:text-white">
             Iniciar sesión
           </Link>
@@ -88,6 +93,7 @@ export function Landing() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

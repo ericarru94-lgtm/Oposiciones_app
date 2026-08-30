@@ -61,6 +61,11 @@ model Pregunta {
   opciones               Json // array de 4 strings, orden = a,b,c,d
   respuestaCorrecta      Opcion?
   explicacion            String?
+  /// true si `explicacion` la redactó una IA (a partir de la fuente ya
+  /// vinculada, o de forma conceptual si no había fuente) en vez de venir
+  /// del examen oficial o de una revisión editorial humana. El frontend usa
+  /// esto para mostrar un aviso discreto junto a la explicación.
+  explicacionGeneradaIA  Boolean        @default(false)
   fuente                 String?
   origen                 OrigenPregunta
   convocatoria           String?

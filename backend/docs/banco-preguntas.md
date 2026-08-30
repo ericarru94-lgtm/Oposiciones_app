@@ -108,9 +108,39 @@ completo** y no la toca. Reimportar sigue sirviendo para:
 - Actualizar preguntas que siguen en borrador (para corregir el dataset
   antes de que nadie las haya revisado todavía).
 
-Pero nunca vuelve a pisar una pregunta ya verificada o anulada. El log
-final del script ahora reporta las tres cosas por separado:
-`X creadas, Y actualizadas, Z omitidas (ya revisadas por un admin)`.
+Pero nunca vuelve a pisar `estado`/`enunciado`/`opciones`/`respuestaCorrecta`
+de una pregunta ya verificada o anulada con contenido distinto. Hay dos
+excepciones, ambas deliberadas y ambas basadas en el mismo principio —
+completar o reordenar, nunca reescribir contenido:
+
+1. Si a una fila ya revisada le falta `explicacion` o `fuente` en la base
+   de datos y el dataset ya trae contenido nuevo para ese campo (p.ej. las
+   explicaciones generadas por IA a posteriori, ver más abajo), el
+   reimport sí lo rellena — nunca sobreescribe un campo que ya tuviera
+   contenido.
+2. Si el dataset reordena las `opciones` de una fila ya revisada (p.ej.
+   para repartir mejor la posición de la respuesta correcta entre A/B/C/D,
+   ver la sección de aleatorización más abajo) pero el **conjunto de
+   textos de opción es exactamente el mismo** y el texto de la respuesta
+   correcta tampoco cambia, el reimport aplica el nuevo orden. Es un
+   reordenamiento verificado contenido-por-contenido, no una reescritura:
+   si el conjunto de textos difiere en algo — lo que indicaría una edición
+   real hecha a mano por un admin —, el reimport no toca nada, igual que
+   siempre.
+
+El log final del script reporta las cinco cosas por separado:
+`X creadas, Y actualizadas, Z completadas (explicación/fuente añadidas a
+preguntas ya revisadas), N reordenadas (opciones reordenadas sin cambiar
+contenido en preguntas ya revisadas), W omitidas sin cambios`.
+
+Esta segunda excepción es la que hace que la aleatorización de la
+posición de la respuesta correcta (mezclada una sola vez sobre el propio
+dataset JSON) llegue también a las bases de datos que ya tenían esas
+preguntas importadas como verificadas — incluida producción, donde
+`import-questions.js` se ejecuta automáticamente en cada arranque (ver
+sección 4) y es el único cauce por el que el dataset llega a la base de
+datos real, al no haber Shell en el plan free para correr un script
+suelto a mano.
 
 ## 4. Cómo llega el dataset a producción (Render), sin tocar test/E2E
 

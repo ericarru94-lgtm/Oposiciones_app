@@ -122,6 +122,47 @@ describe("TestRunner", () => {
     expect(screen.queryByTestId("feedback")).not.toBeInTheDocument();
   });
 
+  it("con explicacionGeneradaIA muestra el aviso discreto de contenido generado", async () => {
+    const user = userEvent.setup();
+    vi.mocked(responderPregunta).mockResolvedValueOnce({
+      esCorrecta: true,
+      respuestaCorrecta: "a",
+      explicacion: "La opción a es correcta porque...",
+      explicacionGeneradaIA: true,
+      fuente: null,
+      limiteDiario: { restantes: 29, usadas: 1 },
+    });
+
+    render(
+      <TestRunner titulo="Test" preguntas={[preguntas[0]]} onFinalizar={vi.fn()} onLimiteAlcanzado={vi.fn()} />
+    );
+    await user.click(screen.getByTestId("opcion-a"));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Explicación generada automáticamente/)).toBeInTheDocument()
+    );
+  });
+
+  it("sin explicacionGeneradaIA no muestra el aviso de contenido generado", async () => {
+    const user = userEvent.setup();
+    vi.mocked(responderPregunta).mockResolvedValueOnce({
+      esCorrecta: true,
+      respuestaCorrecta: "a",
+      explicacion: "Porque el artículo 1 lo dice.",
+      explicacionGeneradaIA: false,
+      fuente: "Art. 1 CE",
+      limiteDiario: { restantes: 29, usadas: 1 },
+    });
+
+    render(
+      <TestRunner titulo="Test" preguntas={[preguntas[0]]} onFinalizar={vi.fn()} onLimiteAlcanzado={vi.fn()} />
+    );
+    await user.click(screen.getByTestId("opcion-a"));
+
+    await waitFor(() => expect(screen.getByTestId("feedback")).toBeInTheDocument());
+    expect(screen.queryByText(/Explicación generada automáticamente/)).not.toBeInTheDocument();
+  });
+
   it("sin preguntas muestra un estado vacío y permite volver", async () => {
     const user = userEvent.setup();
     const onFinalizar = vi.fn();

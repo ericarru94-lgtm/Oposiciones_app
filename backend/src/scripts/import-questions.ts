@@ -17,6 +17,7 @@ interface PreguntaJSON {
   opciones: string[];
   respuesta_correcta: string | null;
   explicacion: string | null;
+  explicacion_generada_ia?: boolean;
   fuente: string | null;
   origen: string;
   convocatoria: string | null;
@@ -70,13 +71,67 @@ async function main() {
   // corregido a mano). Ver backend/docs/banco-preguntas.md.
   let creadas = 0;
   let actualizadas = 0;
+  let completadas = 0;
+  let reordenadas = 0;
   let omitidas = 0;
+  const LETRAS: Opcion[] = [Opcion.a, Opcion.b, Opcion.c, Opcion.d];
   for (const p of preguntas) {
     const temaId = p.tema ? temaIdPorClave.get(`${p.tema.bloque}-${p.tema.numero}`) : null;
 
     const existente = await prisma.pregunta.findUnique({ where: { id: p.id } });
     if (existente && existente.estado !== "borrador") {
-      omitidas++;
+      // No tocamos estado/enunciado/opciones/respuestaCorrecta de una
+      // pregunta ya revisada por un admin (ver más abajo). Pero sí
+      // completamos explicación/fuente si hoy están vacías en la fila y el
+      // dataset ya trae contenido nuevo para ellas (p.ej. explicaciones
+      // generadas por IA a posteriori) — nunca al revés, nunca pisando
+      // contenido que ya existiera.
+      const completar: {
+        explicacion?: string;
+        explicacionGeneradaIA?: boolean;
+        fuente?: string;
+        opciones?: string[];
+        respuestaCorrecta?: Opcion;
+      } = {};
+      if (!existente.explicacion && p.explicacion) {
+        completar.explicacion = p.explicacion;
+        completar.explicacionGeneradaIA = p.explicacion_generada_ia ?? false;
+      }
+      if (!existente.fuente && p.fuente) completar.fuente = p.fuente;
+
+      // Excepción también deliberada: si el dataset reordena las opciones
+      // de una pregunta ya revisada (p.ej. para repartir mejor la posición
+      // de la respuesta correcta) pero el CONTENIDO no cambia — mismo
+      // conjunto de textos de opción, mismo texto en la respuesta
+      // correcta —, sí aplicamos el nuevo orden. Es un reordenamiento, no
+      // una reescritura: nunca se sobreescribe si el conjunto de textos
+      // difiere (eso sí sería una edición de contenido, y esa se protege
+      // como siempre).
+      const opcionesJSON = p.opciones;
+      const opcionesDB = existente.opciones as unknown as string[];
+      const mismoConjunto =
+        Array.isArray(opcionesDB) &&
+        opcionesJSON.length === opcionesDB.length &&
+        [...opcionesJSON].sort().join("|") === [...opcionesDB].sort().join("|");
+      const indiceCorrectaJSON = p.respuesta_correcta ? LETRAS.indexOf(p.respuesta_correcta as Opcion) : -1;
+      const indiceCorrectaDB =
+        mismoConjunto && existente.respuestaCorrecta ? LETRAS.indexOf(existente.respuestaCorrecta) : -1;
+      const textoCorrectaJSON = indiceCorrectaJSON >= 0 ? opcionesJSON[indiceCorrectaJSON] : null;
+      const textoCorrectaDB = indiceCorrectaDB >= 0 ? opcionesDB[indiceCorrectaDB] : null;
+      const ordenDistinto = JSON.stringify(opcionesJSON) !== JSON.stringify(opcionesDB);
+      if (mismoConjunto && textoCorrectaJSON !== null && textoCorrectaJSON === textoCorrectaDB && ordenDistinto) {
+        completar.opciones = opcionesJSON;
+        completar.respuestaCorrecta = p.respuesta_correcta as Opcion;
+      }
+
+      if (Object.keys(completar).length > 0) {
+        await prisma.pregunta.update({ where: { id: p.id }, data: completar });
+        if (completar.opciones) reordenadas++;
+        if (completar.explicacion || completar.fuente) completadas++;
+        if (!completar.opciones && !completar.explicacion && !completar.fuente) omitidas++;
+      } else {
+        omitidas++;
+      }
       continue;
     }
 
@@ -86,6 +141,7 @@ async function main() {
       opciones: p.opciones,
       respuestaCorrecta: (p.respuesta_correcta as Opcion | null) ?? null,
       explicacion: p.explicacion,
+      explicacionGeneradaIA: p.explicacion_generada_ia ?? false,
       fuente: p.fuente,
       origen: p.origen as OrigenPregunta,
       convocatoria: p.convocatoria,
@@ -107,7 +163,7 @@ async function main() {
   }
 
   console.log(
-    `Importación completada: ${creadas} creadas, ${actualizadas} actualizadas, ${omitidas} omitidas (ya revisadas por un admin)`
+    `Importación completada: ${creadas} creadas, ${actualizadas} actualizadas, ${completadas} completadas (explicación/fuente añadidas a preguntas ya revisadas), ${reordenadas} reordenadas (opciones reordenadas sin cambiar contenido en preguntas ya revisadas), ${omitidas} omitidas sin cambios`
   );
 }
 

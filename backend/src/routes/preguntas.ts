@@ -214,6 +214,7 @@ preguntasRouter.post("/:id/responder", authOpcional, asyncHandler(async (req, re
     esCorrecta,
     respuestaCorrecta: pregunta.respuestaCorrecta,
     explicacion: pregunta.explicacion,
+    explicacionGeneradaIA: pregunta.explicacionGeneradaIA,
     fuente: pregunta.fuente,
     limiteDiario: { restantes: restantes.restantes, usadas: restantes.usadas },
   });

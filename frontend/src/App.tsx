@@ -14,6 +14,11 @@ import { Simulacro } from "./pages/Simulacro";
 import { Perfil } from "./pages/Perfil";
 import { Upgrade } from "./pages/Upgrade";
 import { Revision } from "./pages/admin/Revision";
+import { AvisoLegal } from "./pages/legal/AvisoLegal";
+import { Privacidad } from "./pages/legal/Privacidad";
+import { Terminos } from "./pages/legal/Terminos";
+import { Cookies } from "./pages/legal/Cookies";
+import { Contacto } from "./pages/Contacto";
 
 export function App() {
   return (
@@ -25,6 +30,11 @@ export function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
           <Route path="/upgrade" element={<Upgrade />} />
+          <Route path="/aviso-legal" element={<AvisoLegal />} />
+          <Route path="/privacidad" element={<Privacidad />} />
+          <Route path="/terminos" element={<Terminos />} />
+          <Route path="/cookies" element={<Cookies />} />
+          <Route path="/contacto" element={<Contacto />} />
           <Route
             path="/perfil"
             element={

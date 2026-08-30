@@ -24,6 +24,8 @@ export interface RespuestaFeedback {
   esCorrecta: boolean;
   respuestaCorrecta: Opcion;
   explicacion: string | null;
+  /** true si `explicacion` la redactó una IA (no viene del examen oficial ni de revisión editorial humana). */
+  explicacionGeneradaIA?: boolean;
   fuente: string | null;
   limiteDiario: { restantes: number; usadas: number };
 }
