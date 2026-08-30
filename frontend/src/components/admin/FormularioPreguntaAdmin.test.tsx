@@ -17,7 +17,7 @@ vi.mock("../../api/endpoints", () => ({
 const preguntaBase: PreguntaAdmin = {
   id: "q1",
   temaId: 1,
-  tema: { id: 1, bloque: "I", numero: 1, nombre: "La Constitución Española de 1978" },
+  tema: { id: 1, bloque: "I", numero: 1, nombre: "La Constitución Española de 1978", resumen: null },
   enunciado: "¿Enunciado original?",
   opciones: ["Opción A", "Opción B", "Opción C", "Opción D"],
   respuestaCorrecta: "a",

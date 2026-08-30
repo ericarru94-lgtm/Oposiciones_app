@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { Perfil } from "./Perfil";
 import { crearPortalSession, obtenerProgresoPorTema } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
+import type { ProgresoPorTema } from "../api/types";
 
 vi.mock("../context/SessionContext", () => ({
   useSession: vi.fn(),
@@ -25,7 +26,7 @@ function renderPerfil() {
   );
 }
 
-const temaSinPracticar = {
+const temaSinPracticar: ProgresoPorTema = {
   temaId: 1,
   bloque: "I",
   numero: 1,
