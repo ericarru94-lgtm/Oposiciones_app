@@ -148,3 +148,28 @@ export function crearCheckoutSession(token: string) {
 export function crearPortalSession(token: string) {
   return apiFetch<{ url: string }>("/stripe/crear-portal-session", { method: "POST", token });
 }
+
+// --- Newsletter ---
+
+export type EstadoSuscripcionNewsletter = "pendiente" | "confirmado" | "baja";
+
+/** Alta a la newsletter. `consentimiento` debe venir de un checkbox nunca premarcado (RGPD). */
+export function suscribirseNewsletter(email: string, consentimiento: true) {
+  return apiFetch<{ estado: EstadoSuscripcionNewsletter }>("/newsletter/suscribir", {
+    method: "POST",
+    body: { email, consentimiento },
+  });
+}
+
+export function confirmarNewsletter(token: string) {
+  return apiFetch<{ estado: EstadoSuscripcionNewsletter }>(
+    `/newsletter/confirmar?token=${encodeURIComponent(token)}`
+  );
+}
+
+export function darseDeBajaNewsletter(token: string) {
+  return apiFetch<{ estado: EstadoSuscripcionNewsletter }>(
+    `/newsletter/baja?token=${encodeURIComponent(token)}`,
+    { method: "POST" }
+  );
+}

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { crearCheckoutSession } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
+import { ComparativaPlanes } from "../components/ComparativaPlanes";
 
 /** A dónde volver tras el login/registro de Clerk disparado desde "Suscribirme". */
 const DESTINO_TRAS_AUTH = "/upgrade?continuar=1";
@@ -58,8 +59,8 @@ export function Upgrade() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
-      <div className="max-w-md overflow-hidden rounded-3xl bg-card text-center shadow-sm">
+    <div className="min-h-screen bg-canvas px-4 py-10">
+      <div className="mx-auto max-w-md overflow-hidden rounded-3xl bg-card text-center shadow-sm">
         <div className="bg-primary px-8 pb-7 pt-9 text-white">
           <p className="text-4xl">⏳</p>
           <h1 className="mt-3 text-xl font-bold">Has llegado a tu límite diario gratuito</h1>
@@ -67,13 +68,8 @@ export function Upgrade() {
         <div className="p-8">
           <p className="text-sm text-muted">
             El plan gratuito incluye un número limitado de preguntas al día. Hazte premium para practicar sin
-            límites, con estadísticas avanzadas y repaso ilimitado.
+            límites.
           </p>
-
-          <div className="mt-6 rounded-xl border border-accent/30 bg-accent/10 p-4 text-left">
-            <p className="font-semibold text-ink">⭐ Premium mensual</p>
-            <p className="text-sm text-muted">Preguntas ilimitadas · Repaso espaciado sin restricciones</p>
-          </div>
 
           {error && <p className="mt-4 text-sm text-error">{error}</p>}
 
@@ -104,6 +100,10 @@ export function Upgrade() {
             Volver mañana
           </button>
         </div>
+      </div>
+
+      <div className="mx-auto mt-10 max-w-3xl">
+        <ComparativaPlanes />
       </div>
     </div>
   );

@@ -25,19 +25,28 @@ export function Privacidad() {
           Datos de pago: los gestiona íntegramente Stripe como pasarela de pago; Aprobox nunca almacena el número de
           tu tarjeta.
         </li>
+        <li>
+          Datos de newsletter (si te suscribes, es opcional y separado de la cuenta): email, el consentimiento que
+          diste y la fecha en la que lo diste, y el estado de la suscripción (pendiente de confirmar, confirmada o
+          de baja) — se guardan para poder demostrar ese consentimiento si hiciera falta.
+        </li>
       </ul>
 
       <h2 className="text-base font-semibold text-ink">3. Finalidad del tratamiento</h2>
       <p>
         Prestar el Servicio (guardar tu progreso, calcular tu repaso por repetición espaciada), gestionar tu cuenta
         y, si te suscribes al plan premium, procesar el cobro recurrente y darte acceso a las funciones sin límites.
+        Si te suscribes a la newsletter, además, enviarte los correos para los que diste tu consentimiento
+        (confirmación de alta, recordatorios de racha, novedades y contenido nuevo).
       </p>
 
       <h2 className="text-base font-semibold text-ink">4. Base legal</h2>
       <p>
         Ejecución del contrato de prestación del Servicio (art. 6.1.b RGPD) para los datos de cuenta y progreso, y
         para el cobro de la suscripción si te haces premium. El registro es voluntario: no tratamos tus datos con
-        una base legal distinta a la necesaria para ofrecerte el Servicio que solicitas.
+        una base legal distinta a la necesaria para ofrecerte el Servicio que solicitas. Para la newsletter, la base
+        legal es tu consentimiento explícito (art. 6.1.a RGPD), que puedes retirar en cualquier momento desde el
+        enlace de baja incluido en cada envío, sin que ello afecte a tu cuenta ni al resto del Servicio.
       </p>
 
       <h2 className="text-base font-semibold text-ink">5. Conservación de los datos</h2>
@@ -66,7 +75,9 @@ export function Privacidad() {
           aprobox@gmail.com
         </a>
         . También puedes eliminar preguntas respondidas o tu cuenta directamente desde la app cuando esa
-        funcionalidad esté disponible, o solicitándolo por email.
+        funcionalidad esté disponible, o solicitándolo por email. Para la newsletter en concreto: el alta exige
+        doble confirmación (marcar la casilla de consentimiento y, después, confirmar desde el enlace del email que
+        te enviamos) y puedes darte de baja en cualquier momento con el enlace que incluye cada envío.
       </p>
     </PaginaEstatica>
   );

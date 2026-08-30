@@ -10,6 +10,13 @@ import path from "path";
 import { prisma } from "../lib/prisma";
 import { Bloque, EstadoPregunta, Opcion, OrigenPregunta, TipoPregunta } from "@prisma/client";
 
+interface ResumenTemaJSON {
+  bloque: string;
+  numero: number;
+  resumen: string;
+  resumen_generado_ia?: boolean;
+}
+
 interface PreguntaJSON {
   id: string;
   tema: { bloque: string; numero: number; nombre: string } | null;
@@ -48,20 +55,37 @@ async function main() {
     if (!temasUnicos.has(key)) temasUnicos.set(key, p.tema);
   }
 
+  // Resúmenes de estudio por tema: fichero aparte (no van dentro de cada
+  // pregunta) y opcional — todavía no cubre los 28 temas (empezó como
+  // piloto en el Bloque I, ver backend/docs/contenido-estudio.md), así que
+  // un tema ausente de este fichero simplemente no toca su `resumen` en
+  // este import, sea cual sea su valor actual en la base de datos.
+  const rutaResumenes = path.join(__dirname, "../../data/resumenes_temas.json");
+  const resumenesPorClave = new Map<string, ResumenTemaJSON>();
+  if (fs.existsSync(rutaResumenes)) {
+    const resumenes: ResumenTemaJSON[] = JSON.parse(fs.readFileSync(rutaResumenes, "utf-8"));
+    for (const r of resumenes) resumenesPorClave.set(`${r.bloque}-${r.numero}`, r);
+  }
+
   const temaIdPorClave = new Map<string, number>();
   for (const [key, tema] of temasUnicos) {
+    const resumenTema = resumenesPorClave.get(key);
+    const datosResumen = resumenTema
+      ? { resumen: resumenTema.resumen, resumenGeneradoIA: resumenTema.resumen_generado_ia ?? false }
+      : {};
     const registrado = await prisma.tema.upsert({
       where: { bloque_numero: { bloque: tema.bloque as Bloque, numero: tema.numero } },
       create: {
         bloque: tema.bloque as Bloque,
         numero: tema.numero,
         nombre: tema.nombre,
+        ...datosResumen,
       },
-      update: { nombre: tema.nombre },
+      update: { nombre: tema.nombre, ...datosResumen },
     });
     temaIdPorClave.set(key, registrado.id);
   }
-  console.log(`${temaIdPorClave.size} temas sincronizados`);
+  console.log(`${temaIdPorClave.size} temas sincronizados (${resumenesPorClave.size} con resumen de estudio en el dataset)`);
 
   // 2) Upsert de las preguntas. Una vez que un admin ha revisado una
   // pregunta (estado ya no es "borrador"), reimportar el dataset nunca la

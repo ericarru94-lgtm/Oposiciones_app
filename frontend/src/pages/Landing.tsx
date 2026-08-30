@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { Footer } from "../components/Footer";
+import { NewsletterForm } from "../components/NewsletterForm";
+import { ComparativaPlanes } from "../components/ComparativaPlanes";
 
 const BENEFICIOS = [
   {
@@ -77,20 +79,26 @@ export function Landing() {
           ))}
         </section>
 
-        <section className="my-20 overflow-hidden rounded-3xl bg-ink text-center">
-          <div className="px-8 py-12">
-            <p className="text-sm font-semibold uppercase tracking-wide text-accent">Plan Premium</p>
-            <p className="mt-2 text-4xl font-bold text-white">4,99€/mes</p>
-            <p className="mx-auto mt-3 max-w-md text-sm text-white/70">
-              Preguntas ilimitadas y repaso por repetición espaciada sin restricciones del límite diario.
-            </p>
+        <section className="my-20">
+          <h2 className="text-center text-2xl font-bold text-ink">Elige tu plan</h2>
+          <p className="mx-auto mt-2 max-w-md text-center text-sm text-muted">
+            Empieza gratis. Pasa a premium cuando quieras practicar sin límite diario.
+          </p>
+          <div className="mt-8">
+            <ComparativaPlanes />
+          </div>
+          <div className="mt-8 text-center">
             <Link
               to="/registro"
-              className="mt-7 inline-block rounded-full bg-accent px-8 py-3 text-sm font-bold text-white transition-colors hover:bg-accent/90"
+              className="inline-block rounded-full bg-accent px-8 py-3 text-sm font-bold text-white transition-colors hover:bg-accent/90"
             >
               Crear cuenta gratis
             </Link>
           </div>
+        </section>
+
+        <section className="mb-20 mx-auto max-w-md">
+          <NewsletterForm />
         </section>
       </main>
       <Footer />

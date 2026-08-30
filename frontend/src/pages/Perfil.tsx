@@ -5,6 +5,7 @@ import { crearPortalSession, obtenerProgresoPorTema } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { PageTitle } from "../components/PageTitle";
+import { NewsletterForm } from "../components/NewsletterForm";
 import type { ProgresoPorTema } from "../api/types";
 
 /** Un tema cuenta como "dominado" con el mismo criterio que la insignia de TemaCard. */
@@ -142,6 +143,8 @@ export function Perfil() {
           </ul>
         )}
       </div>
+
+      <NewsletterForm className="mt-6" />
     </AppLayout>
   );
 }

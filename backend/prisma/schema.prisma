@@ -46,6 +46,12 @@ model Tema {
   bloque    Bloque
   numero    Int
   nombre    String
+  /// Resumen/esquema de estudio breve del tema (no un temario completo),
+  /// redactado a partir de texto legal público (dominio público en España)
+  /// más redacción propia — nunca copiado de academias o webs privadas con
+  /// copyright. Ver backend/docs/contenido-estudio.md.
+  resumen           String?
+  resumenGeneradoIA Boolean  @default(false)
   preguntas Pregunta[]
 
   @@unique([bloque, numero])
@@ -186,4 +192,35 @@ model Intento {
 
   @@index([usuarioId, createdAt])
   @@index([sesionAnonima, createdAt])
+}
+
+// --------------------------------------------------------------------------
+// Newsletter (RGPD: doble opt-in)
+// --------------------------------------------------------------------------
+
+enum EstadoSuscripcionNewsletter {
+  /// Ya dio el consentimiento y se generó el token de confirmación, pero
+  /// todavía no ha confirmado por email (el envío de la confirmación no
+  /// está implementado todavía — ver backend/docs/newsletter.md).
+  pendiente
+  confirmado
+  baja
+}
+
+/// Alta a la newsletter (RGPD: consentimiento explícito + doble opt-in).
+/// No implementa el envío del email de confirmación todavía (ver
+/// backend/docs/newsletter.md) — solo la captura del consentimiento, con
+/// fecha, y el token que activará la confirmación cuando se conecte un
+/// proveedor de email.
+model NewsletterSuscriptor {
+  id                  String                      @id @default(cuid())
+  email               String                      @unique
+  consentimiento      Boolean
+  fechaConsentimiento DateTime
+  estado              EstadoSuscripcionNewsletter  @default(pendiente)
+  tokenConfirmacion   String                       @unique
+  tokenBaja           String                       @unique
+  confirmadoEn        DateTime?
+  bajaEn              DateTime?
+  createdAt           DateTime                     @default(now())
 }

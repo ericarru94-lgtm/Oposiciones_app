@@ -9,6 +9,7 @@ import { Registro } from "./pages/Registro";
 import { Home } from "./pages/Home";
 import { RepasarHoy } from "./pages/RepasarHoy";
 import { PracticarTema } from "./pages/PracticarTema";
+import { ResumenTema } from "./pages/ResumenTema";
 import { Progreso } from "./pages/Progreso";
 import { Simulacro } from "./pages/Simulacro";
 import { Perfil } from "./pages/Perfil";
@@ -19,6 +20,8 @@ import { Privacidad } from "./pages/legal/Privacidad";
 import { Terminos } from "./pages/legal/Terminos";
 import { Cookies } from "./pages/legal/Cookies";
 import { Contacto } from "./pages/Contacto";
+import { NewsletterConfirmar } from "./pages/NewsletterConfirmar";
+import { NewsletterBaja } from "./pages/NewsletterBaja";
 
 export function App() {
   return (
@@ -35,6 +38,8 @@ export function App() {
           <Route path="/terminos" element={<Terminos />} />
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/contacto" element={<Contacto />} />
+          <Route path="/newsletter/confirmar" element={<NewsletterConfirmar />} />
+          <Route path="/newsletter/baja" element={<NewsletterBaja />} />
           <Route
             path="/perfil"
             element={
@@ -64,6 +69,14 @@ export function App() {
             element={
               <RutaProtegida>
                 <PracticarTema />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/temas/:temaId/resumen"
+            element={
+              <RutaProtegida>
+                <ResumenTema />
               </RutaProtegida>
             }
           />

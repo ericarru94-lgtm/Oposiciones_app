@@ -9,6 +9,10 @@ export interface Tema {
   bloque: Bloque;
   numero: number;
   nombre: string;
+  /** Resumen/esquema de estudio breve del tema; null si todavía no se ha redactado para este tema. */
+  resumen: string | null;
+  /** true si `resumen` lo redactó una IA (a partir de ley pública) en vez de venir de una revisión editorial humana. */
+  resumenGeneradoIA?: boolean;
 }
 
 /** Pregunta tal como se sirve al cliente antes de responder: sin la respuesta correcta. */

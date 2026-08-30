@@ -7,6 +7,7 @@ import { progresoRouter } from "./routes/progreso";
 import { adminRouter } from "./routes/admin";
 import { stripeRouter } from "./routes/stripe";
 import { stripeWebhookHandler } from "./routes/stripeWebhook";
+import { newsletterRouter } from "./routes/newsletter";
 
 /**
  * Orígenes desde los que el navegador puede llamar a esta API. En
@@ -53,6 +54,7 @@ export function crearApp() {
   app.use("/api/progreso", progresoRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/stripe", stripeRouter);
+  app.use("/api/newsletter", newsletterRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
