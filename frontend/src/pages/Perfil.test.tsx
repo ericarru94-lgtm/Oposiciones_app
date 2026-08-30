@@ -3,14 +3,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { Perfil } from "./Perfil";
-import { crearPortalSession, obtenerResumenProgreso } from "../api/endpoints";
+import { crearPortalSession, obtenerProgresoPorTema } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 
 vi.mock("../context/SessionContext", () => ({
   useSession: vi.fn(),
 }));
 vi.mock("../api/endpoints", () => ({
-  obtenerResumenProgreso: vi.fn(),
+  obtenerProgresoPorTema: vi.fn(),
   crearPortalSession: vi.fn(),
 }));
 
@@ -25,12 +25,20 @@ function renderPerfil() {
   );
 }
 
+const temaSinPracticar = {
+  temaId: 1,
+  bloque: "I",
+  numero: 1,
+  nombre: "La Constitución Española de 1978",
+  totalPreguntas: 10,
+  preguntasContestadas: 0,
+  totalIntentos: 0,
+  aciertos: 0,
+  precision: null,
+};
+
 beforeEach(() => {
-  vi.mocked(obtenerResumenProgreso).mockResolvedValue({
-    totalIntentos: 10,
-    precision: 0.5,
-    racha: { dias: 1 },
-  } as unknown as Awaited<ReturnType<typeof obtenerResumenProgreso>>);
+  vi.mocked(obtenerProgresoPorTema).mockResolvedValue({ temas: [temaSinPracticar] });
   vi.mocked(crearPortalSession).mockReset();
   vi.stubGlobal("location", { ...window.location, href: "" });
 });
@@ -38,7 +46,7 @@ beforeEach(() => {
 describe("Perfil — plan gratuito", () => {
   beforeEach(() => {
     vi.mocked(useSession).mockReturnValue({
-      usuario: { plan: "free", email: "gratis@example.com" },
+      usuario: { plan: "free", email: "gratis@example.com", createdAt: "2026-01-15T12:00:00.000Z" },
       perfilExterno: { nombreCompleto: null, email: "gratis@example.com", imagenUrl: null },
       getToken: vi.fn().mockResolvedValue("token"),
     } as unknown as ReturnType<typeof useSession>);
@@ -53,6 +61,47 @@ describe("Perfil — plan gratuito", () => {
 
     await waitFor(() => expect(screen.getByText("Pantalla de upgrade")).toBeInTheDocument());
     expect(crearPortalSession).not.toHaveBeenCalled();
+  });
+
+  it("muestra la fecha de alta y, sin temas dominados, el mensaje de ánimo en vez de la insignia", async () => {
+    renderPerfil();
+    expect(await screen.findByText(/Opositando desde/)).toBeInTheDocument();
+    expect(screen.getByText(/15 de enero de 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no tienes temas dominados/)).toBeInTheDocument();
+  });
+
+  it("no muestra la cuadrícula de estadísticas de estudio (vive en Tests\\/Progreso)", async () => {
+    renderPerfil();
+    await screen.findByText(/Opositando desde/);
+    expect(screen.queryByText("Preguntas respondidas")).not.toBeInTheDocument();
+    expect(screen.queryByText("% de acierto")).not.toBeInTheDocument();
+  });
+});
+
+describe("Perfil — con un tema dominado", () => {
+  beforeEach(() => {
+    vi.mocked(obtenerProgresoPorTema).mockResolvedValue({
+      temas: [
+        {
+          ...temaSinPracticar,
+          preguntasContestadas: 10,
+          totalIntentos: 10,
+          aciertos: 10,
+          precision: 1,
+        },
+      ],
+    });
+    vi.mocked(useSession).mockReturnValue({
+      usuario: { plan: "free", email: "gratis@example.com", createdAt: "2026-01-15T12:00:00.000Z" },
+      perfilExterno: { nombreCompleto: null, email: "gratis@example.com", imagenUrl: null },
+      getToken: vi.fn().mockResolvedValue("token"),
+    } as unknown as ReturnType<typeof useSession>);
+  });
+
+  it("lista el tema dominado como insignia", async () => {
+    renderPerfil();
+    expect(await screen.findByText(/La Constitución Española de 1978/)).toBeInTheDocument();
+    expect(screen.queryByText(/Aún no tienes temas dominados/)).not.toBeInTheDocument();
   });
 });
 

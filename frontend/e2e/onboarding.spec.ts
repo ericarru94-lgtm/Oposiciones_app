@@ -41,5 +41,6 @@ test("mini-test -> nivel -> registro -> home", async ({ page }) => {
   // reclamarIntentosAnonimos: ver backend/src/lib/reclamarIntentosAnonimos.ts).
   // La racha es determinista (cualquier actividad de hoy cuenta 1 día),
   // independientemente de qué temas concretos tocara el mini-test al azar.
-  await expect(page.getByText(/1 día seguidos/)).toBeVisible();
+  await expect(page.getByText("1 día")).toBeVisible();
+  await expect(page.getByText("de racha seguidos")).toBeVisible();
 });

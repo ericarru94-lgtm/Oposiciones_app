@@ -34,6 +34,7 @@ export interface Usuario {
   plan: Plan;
   nivelInicial?: string | null;
   esAdmin?: boolean;
+  createdAt?: string;
   premiumHasta?: string | null;
   /** true si ya canceló desde el Billing Portal pero Stripe mantiene el acceso hasta `premiumHasta`. */
   cancelaAlFinalizarPeriodo?: boolean;

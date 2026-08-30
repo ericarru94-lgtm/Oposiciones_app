@@ -4,9 +4,10 @@ import { iniciarSesionEnNavegador, registrarUsuarioApi } from "./helpers.js";
 /**
  * Pantalla de perfil: combina datos de identidad (nombre/email — en modo
  * bypass de E2E, solo el email, ver context/SessionContext.tsx) con datos
- * propios (plan, progreso, racha).
+ * propios de cuenta (plan, fecha de alta, logros) — las métricas de estudio
+ * viven en Tests/Progreso, no se duplican aquí.
  */
-test("muestra el email, el plan y el resumen de progreso del usuario", async ({ page, request }) => {
+test("muestra el email, el plan, la fecha de alta y los logros del usuario", async ({ page, request }) => {
   const { email, token } = await registrarUsuarioApi(request, "e2e-perfil");
 
   await iniciarSesionEnNavegador(page, token);
@@ -15,7 +16,8 @@ test("muestra el email, el plan y el resumen de progreso del usuario", async ({ 
   await expect(page.getByRole("heading", { name: "Tu perfil" })).toBeVisible();
   await expect(page.getByText(email).first()).toBeVisible();
   await expect(page.getByText("Plan gratuito")).toBeVisible();
-  await expect(page.getByText("Preguntas respondidas")).toBeVisible();
+  await expect(page.getByText(/Opositando desde/)).toBeVisible();
+  await expect(page.getByText(/Aún no tienes temas dominados/)).toBeVisible();
 });
 
 test("'Salir' cierra sesión y lleva a la landing pública, no a la pantalla de login", async ({ page, request }) => {
