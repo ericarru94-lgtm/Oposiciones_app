@@ -23,7 +23,7 @@ export function Contacto() {
         </a>
 
         <a
-          href="mailto:aprobox@gmail.com"
+          href="mailto:aprobox.app@gmail.com"
           className="flex items-center gap-4 rounded-xl border border-line bg-canvas p-4 transition-colors hover:border-primary/40"
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xl">
@@ -31,7 +31,7 @@ export function Contacto() {
           </span>
           <div>
             <p className="text-xs text-muted">Email</p>
-            <p className="font-semibold text-ink">aprobox@gmail.com</p>
+            <p className="font-semibold text-ink">aprobox.app@gmail.com</p>
           </div>
         </a>
       </div>

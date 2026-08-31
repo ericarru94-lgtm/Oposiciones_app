@@ -11,8 +11,8 @@ export function Privacidad() {
       <h2 className="text-base font-semibold text-ink">1. Responsable del tratamiento</h2>
       <p>
         <strong>[Nombre y apellidos / razón social del titular]</strong>, contacto:{" "}
-        <a href="mailto:aprobox@gmail.com" className="text-primary hover:underline">
-          aprobox@gmail.com
+        <a href="mailto:aprobox.app@gmail.com" className="text-primary hover:underline">
+          aprobox.app@gmail.com
         </a>
         .
       </p>
@@ -71,8 +71,8 @@ export function Privacidad() {
       <p>
         Puedes ejercer tus derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y
         portabilidad escribiendo a{" "}
-        <a href="mailto:aprobox@gmail.com" className="text-primary hover:underline">
-          aprobox@gmail.com
+        <a href="mailto:aprobox.app@gmail.com" className="text-primary hover:underline">
+          aprobox.app@gmail.com
         </a>
         . También puedes eliminar preguntas respondidas o tu cuenta directamente desde la app cuando esa
         funcionalidad esté disponible, o solicitándolo por email. Para la newsletter en concreto: el alta exige

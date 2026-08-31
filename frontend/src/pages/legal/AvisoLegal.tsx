@@ -14,8 +14,8 @@ export function AvisoLegal() {
         <strong>[NIF/CIF]</strong> y domicilio a efectos de notificaciones en <strong>[dirección]</strong>. Si opera
         como particular o autónomo sin obligación de inscripción registral, sustituye este apartado únicamente por
         los datos identificativos y de contacto exigidos por la normativa vigente. Contacto:{" "}
-        <a href="mailto:aprobox@gmail.com" className="text-primary hover:underline">
-          aprobox@gmail.com
+        <a href="mailto:aprobox.app@gmail.com" className="text-primary hover:underline">
+          aprobox.app@gmail.com
         </a>
         .
       </p>
