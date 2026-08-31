@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aprobox — sin conexión</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        min-height: 100vh;
+        align-items: center;
+        justify-content: center;
+        background: #eef2ff;
+        color: #1e1b2e;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      .tarjeta {
+        max-width: 26rem;
+        background: #ffffff;
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(67, 56, 202, 0.12);
+      }
+      .icono {
+        font-size: 2.5rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0.75rem 0 0.5rem;
+      }
+      p {
+        color: #6b7280;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin: 0;
+      }
+      button {
+        margin-top: 1.5rem;
+        background: #4338ca;
+        color: #fff;
+        border: none;
+        border-radius: 0.6rem;
+        padding: 0.65rem 1.25rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #3730a3;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tarjeta">
+      <div class="icono">📡</div>
+      <h1>Sin conexión</h1>
+      <p>
+        No hay conexión a internet en este momento. Aprobox necesita conexión para cargar tests nuevos, pero puedes
+        volver a intentarlo en cuanto la recuperes.
+      </p>
+      <button onclick="location.reload()">Reintentar</button>
+    </div>
+  </body>
+</html>

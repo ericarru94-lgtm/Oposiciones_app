@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "postbuild": "node scripts/inject-sw-assets.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
