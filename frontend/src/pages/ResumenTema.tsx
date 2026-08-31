@@ -4,6 +4,7 @@ import { obtenerTemas } from "../api/endpoints";
 import { AppLayout } from "../components/AppLayout";
 import { PageTitle } from "../components/PageTitle";
 import { EsquemaResumen } from "../components/EsquemaResumen";
+import { generarPdfResumen } from "../lib/generarPdfResumen";
 import type { Tema } from "../api/types";
 
 export function ResumenTema() {
@@ -57,6 +58,14 @@ export function ResumenTema() {
             className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
           >
             Practicar este tema
+          </button>
+        )}
+        {tema?.resumen && (
+          <button
+            onClick={() => generarPdfResumen(tema)}
+            className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas"
+          >
+            📄 Descargar PDF
           </button>
         )}
         <Link
