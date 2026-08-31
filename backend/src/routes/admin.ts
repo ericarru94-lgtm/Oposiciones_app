@@ -80,6 +80,7 @@ const edicionSchema = z.object({
   respuestaCorrecta: z.nativeEnum(Opcion).nullable().optional(),
   explicacion: z.string().nullable().optional(),
   fuente: z.string().nullable().optional(),
+  fuenteUrl: z.string().nullable().optional(),
   estado: z.nativeEnum(EstadoPregunta).optional(),
 });
 

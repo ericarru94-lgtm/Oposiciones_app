@@ -222,7 +222,25 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
                 : `❌ Incorrecto. La respuesta correcta es la ${feedback.respuestaCorrecta}.`}
             </p>
             {feedback.explicacion && <p className="mt-2 text-sm text-muted">{feedback.explicacion}</p>}
-            {feedback.fuente && <p className="mt-1 text-xs text-muted">Fuente: {feedback.fuente}</p>}
+            {feedback.fuente && (
+              <p className="mt-1 text-xs text-muted">
+                Fuente: {feedback.fuente}
+                {feedback.fuenteUrl && (
+                  <>
+                    {" "}
+                    ·{" "}
+                    <a
+                      href={feedback.fuenteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      Ver en el BOE
+                    </a>
+                  </>
+                )}
+              </p>
+            )}
             {feedback.explicacion && feedback.explicacionGeneradaIA && (
               <p className="mt-2 text-xs italic text-muted/80">
                 Explicación generada automáticamente — verifica siempre en la fuente oficial.

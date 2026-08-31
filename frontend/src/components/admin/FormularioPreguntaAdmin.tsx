@@ -20,6 +20,7 @@ export function FormularioPreguntaAdmin({ pregunta, onCompletado, onSaltar }: Pr
   const [respuestaCorrecta, setRespuestaCorrecta] = useState<Opcion | null>(pregunta.respuestaCorrecta);
   const [explicacion, setExplicacion] = useState(pregunta.explicacion ?? "");
   const [fuente, setFuente] = useState(pregunta.fuente ?? "");
+  const [fuenteUrl, setFuenteUrl] = useState(pregunta.fuenteUrl ?? "");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export function FormularioPreguntaAdmin({ pregunta, onCompletado, onSaltar }: Pr
         respuestaCorrecta,
         explicacion: explicacion || null,
         fuente: fuente || null,
+        fuenteUrl: fuenteUrl || null,
         estado: nuevoEstado,
       });
       onCompletado();
@@ -110,6 +112,14 @@ export function FormularioPreguntaAdmin({ pregunta, onCompletado, onSaltar }: Pr
         value={fuente}
         onChange={(e) => setFuente(e.target.value)}
         placeholder="Art. X de la Ley Y"
+        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+      />
+
+      <label className="mt-3 block text-xs font-medium text-slate-500">Enlace al BOE (opcional)</label>
+      <input
+        value={fuenteUrl}
+        onChange={(e) => setFuenteUrl(e.target.value)}
+        placeholder="https://www.boe.es/buscar/act.php?id=BOE-A-…#aX"
         className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
       />
 

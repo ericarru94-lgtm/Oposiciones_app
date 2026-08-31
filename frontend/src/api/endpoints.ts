@@ -126,6 +126,7 @@ export interface CambiosPregunta {
   respuestaCorrecta?: Opcion | null;
   explicacion?: string | null;
   fuente?: string | null;
+  fuenteUrl?: string | null;
   estado?: EstadoPregunta;
 }
 

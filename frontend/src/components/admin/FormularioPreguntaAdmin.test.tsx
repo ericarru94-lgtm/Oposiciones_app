@@ -23,6 +23,7 @@ const preguntaBase: PreguntaAdmin = {
   respuestaCorrecta: "a",
   explicacion: null,
   fuente: null,
+  fuenteUrl: null,
   origen: "examen_oficial",
   convocatoria: "2025",
   estado: "borrador",
@@ -70,6 +71,7 @@ describe("FormularioPreguntaAdmin", () => {
       respuestaCorrecta: "a",
       explicacion: null,
       fuente: null,
+      fuenteUrl: null,
       estado: "verificada",
     });
     expect(onCompletado).toHaveBeenCalledTimes(1);

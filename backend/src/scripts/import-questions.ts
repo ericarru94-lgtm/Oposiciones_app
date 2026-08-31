@@ -26,6 +26,7 @@ interface PreguntaJSON {
   explicacion: string | null;
   explicacion_generada_ia?: boolean;
   fuente: string | null;
+  fuente_url?: string | null;
   origen: string;
   convocatoria: string | null;
   estado: string;
@@ -114,6 +115,7 @@ async function main() {
         explicacion?: string;
         explicacionGeneradaIA?: boolean;
         fuente?: string;
+        fuenteUrl?: string;
         opciones?: string[];
         respuestaCorrecta?: Opcion;
       } = {};
@@ -122,6 +124,7 @@ async function main() {
         completar.explicacionGeneradaIA = p.explicacion_generada_ia ?? false;
       }
       if (!existente.fuente && p.fuente) completar.fuente = p.fuente;
+      if (!existente.fuenteUrl && p.fuente_url) completar.fuenteUrl = p.fuente_url;
 
       // Excepción también deliberada: si el dataset reordena las opciones
       // de una pregunta ya revisada (p.ej. para repartir mejor la posición
@@ -151,8 +154,8 @@ async function main() {
       if (Object.keys(completar).length > 0) {
         await prisma.pregunta.update({ where: { id: p.id }, data: completar });
         if (completar.opciones) reordenadas++;
-        if (completar.explicacion || completar.fuente) completadas++;
-        if (!completar.opciones && !completar.explicacion && !completar.fuente) omitidas++;
+        if (completar.explicacion || completar.fuente || completar.fuenteUrl) completadas++;
+        if (!completar.opciones && !completar.explicacion && !completar.fuente && !completar.fuenteUrl) omitidas++;
       } else {
         omitidas++;
       }
@@ -167,6 +170,7 @@ async function main() {
       explicacion: p.explicacion,
       explicacionGeneradaIA: p.explicacion_generada_ia ?? false,
       fuente: p.fuente,
+      fuenteUrl: p.fuente_url ?? null,
       origen: p.origen as OrigenPregunta,
       convocatoria: p.convocatoria,
       estado: p.estado as EstadoPregunta,

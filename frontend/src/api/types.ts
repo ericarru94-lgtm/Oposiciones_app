@@ -31,6 +31,8 @@ export interface RespuestaFeedback {
   /** true si `explicacion` la redactó una IA (no viene del examen oficial ni de revisión editorial humana). */
   explicacionGeneradaIA?: boolean;
   fuente: string | null;
+  /** Enlace directo al BOE (ley/artículo) para `fuente`, cuando aplica. */
+  fuenteUrl?: string | null;
   limiteDiario: { restantes: number; usadas: number };
 }
 
@@ -56,6 +58,7 @@ export interface PreguntaAdmin {
   respuestaCorrecta: Opcion | null;
   explicacion: string | null;
   fuente: string | null;
+  fuenteUrl: string | null;
   origen: "examen_oficial" | "generada_ia";
   convocatoria: string | null;
   estado: EstadoPregunta;

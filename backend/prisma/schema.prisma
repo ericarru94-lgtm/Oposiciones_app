@@ -73,6 +73,13 @@ model Pregunta {
   /// esto para mostrar un aviso discreto junto a la explicación.
   explicacionGeneradaIA  Boolean        @default(false)
   fuente                 String?
+  /// Enlace directo al BOE (ley/artículo consolidado) para la fuente legal
+  /// citada arriba. Solo se rellena cuando `fuente` cita una norma publicada
+  /// en el BOE (leyes, reales decretos y órdenes españolas); las citas a
+  /// derecho de la UE (RGPD, TUE, TFUE, tratados) o a documentos no
+  /// normativos (planes, protocolos) se dejan sin enlazar. Ver
+  /// backend/scripts/generar-enlaces-boe.js.
+  fuenteUrl              String?
   origen                 OrigenPregunta
   convocatoria           String?
   estado                 EstadoPregunta @default(borrador)
