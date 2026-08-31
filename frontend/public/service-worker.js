@@ -94,3 +94,46 @@ self.addEventListener("fetch", (event) => {
     })()
   );
 });
+
+/**
+ * Recordatorio diario de repaso (Web Push). El payload lo manda el backend
+ * como JSON (ver lib/enviarRecordatorios.ts): { title, body, url }. Si el
+ * evento no trae datos parseables, se usa un aviso genérico en vez de
+ * fallar silenciosamente sin mostrar nada.
+ */
+self.addEventListener("push", (event) => {
+  let datos = { title: "Aprobox", body: "Tienes repaso pendiente hoy.", url: "/repasar-hoy" };
+  try {
+    if (event.data) datos = { ...datos, ...event.data.json() };
+  } catch {
+    // payload no-JSON: se mantiene el aviso genérico de arriba.
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(datos.title, {
+      body: datos.body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: datos.url },
+    })
+  );
+});
+
+/** Al pulsar la notificación: enfoca una pestaña de Aprobox ya abierta si existe, o abre una nueva en la URL del aviso. */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/repasar-hoy";
+
+  event.waitUntil(
+    (async () => {
+      const clientesAbiertos = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const yaAbierto = clientesAbiertos.find((c) => new URL(c.url).origin === self.location.origin);
+      if (yaAbierto) {
+        await yaAbierto.focus();
+        if ("navigate" in yaAbierto) await yaAbierto.navigate(url);
+        return;
+      }
+      await self.clients.openWindow(url);
+    })()
+  );
+});

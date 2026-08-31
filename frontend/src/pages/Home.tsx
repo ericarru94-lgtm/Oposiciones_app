@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { obtenerEvolucion, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
+import { AvisoRecordatorioPush } from "../components/AvisoRecordatorioPush";
 import { BloqueDesplegable } from "../components/BloqueDesplegable";
 import { ProgressBar } from "../components/ProgressBar";
 import { EvolucionChart } from "../components/EvolucionChart";
@@ -67,6 +68,8 @@ export function Home() {
           </button>
         </div>
       )}
+
+      {resumen && <AvisoRecordatorioPush diasRacha={resumen.racha.dias} />}
 
       {/* Racha: tarjeta compacta (icono + número + texto en una fila), no un bloque de pantalla completa. */}
       {resumen && (

@@ -1,4 +1,7 @@
+import cron from "node-cron";
 import { crearApp } from "./app";
+import { pushConfigurado } from "./lib/webPush";
+import { enviarRecordatoriosDiarios } from "./lib/enviarRecordatorios";
 
 /**
  * Este archivo no carga ningún `.env`: en producción (Render) las
@@ -18,3 +21,21 @@ const PORT = Number(process.env.PORT ?? 3001);
 app.listen(PORT, () => {
   console.log(`Backend escuchando en http://localhost:${PORT}`);
 });
+
+/**
+ * Recordatorio diario de repaso (Web Push): programado en proceso para que
+ * funcione sin configurar nada más en Render — mientras el servicio esté
+ * despierto a las 18:00 UTC, se envía. Si el plan free de Render lo
+ * hubiera dormido por inactividad, no se enviaría ese día; para no
+ * depender de eso, `npm run enviar-recordatorios` (scripts/enviar-
+ * recordatorios-diarios.ts) hace exactamente lo mismo y puede invocarse
+ * desde un Cron Job externo — ver backend/docs/notificaciones-push.md.
+ * Sin VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY configuradas (dev/test) esto no
+ * se programa.
+ */
+if (pushConfigurado()) {
+  cron.schedule("0 18 * * *", () => {
+    enviarRecordatoriosDiarios().catch((err) => console.error("[push] Error en el envío diario programado:", err));
+  });
+  console.log("[push] Recordatorio diario programado a las 18:00 UTC.");
+}

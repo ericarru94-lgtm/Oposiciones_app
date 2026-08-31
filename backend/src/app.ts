@@ -8,6 +8,7 @@ import { adminRouter } from "./routes/admin";
 import { stripeRouter } from "./routes/stripe";
 import { stripeWebhookHandler } from "./routes/stripeWebhook";
 import { newsletterRouter } from "./routes/newsletter";
+import { pushRouter } from "./routes/push";
 
 /**
  * Orígenes desde los que el navegador puede llamar a esta API. En
@@ -55,6 +56,7 @@ export function crearApp() {
   app.use("/api/admin", adminRouter);
   app.use("/api/stripe", stripeRouter);
   app.use("/api/newsletter", newsletterRouter);
+  app.use("/api/push", pushRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

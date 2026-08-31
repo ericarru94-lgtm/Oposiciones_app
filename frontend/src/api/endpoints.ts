@@ -174,3 +174,23 @@ export function darseDeBajaNewsletter(token: string) {
     { method: "POST" }
   );
 }
+
+// --- Notificaciones push ---
+
+/** Lanza ApiError(404) si el servidor no tiene VAPID configurado (notificaciones no disponibles). */
+export function obtenerClavePublicaPush() {
+  return apiFetch<{ clavePublica: string }>("/push/clave-publica");
+}
+
+export interface SuscripcionPushJSON {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+export function suscribirPush(token: string, suscripcion: SuscripcionPushJSON) {
+  return apiFetch<{ ok: true }>("/push/suscribir", { method: "POST", body: suscripcion, token });
+}
+
+export function desuscribirPush(token: string, endpoint: string) {
+  return apiFetch<{ ok: true }>("/push/desuscribir", { method: "POST", body: { endpoint }, token });
+}

@@ -151,8 +151,26 @@ model Usuario {
   esAdmin       Boolean  @default(false)
   createdAt     DateTime @default(now())
 
-  progresos Progreso[]
-  intentos  Intento[]
+  progresos          Progreso[]
+  intentos           Intento[]
+  pushSuscripciones  PushSuscripcion[]
+}
+
+/// Suscripción push (Web Push API) de un usuario en un dispositivo/navegador
+/// concreto. Un usuario puede tener varias (móvil + escritorio, por
+/// ejemplo); `endpoint` identifica de forma única cada una frente al
+/// servicio push del navegador. Se usa para el recordatorio diario de
+/// repaso (ver lib/enviarRecordatorios.ts).
+model PushSuscripcion {
+  id        String   @id @default(cuid())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuarioId String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
 }
 
 /// Estado de repetición espaciada (SM-2) por usuario y pregunta.
