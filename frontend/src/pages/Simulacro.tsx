@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { obtenerPreguntasSimulacro, obtenerTemas } from "../api/endpoints";
 import { AppLayout } from "../components/AppLayout";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
@@ -72,7 +72,20 @@ export function Simulacro() {
           un examen real.
         </p>
 
-        <div className="mt-8 rounded-3xl bg-card p-8 shadow-sm">
+        <Link
+          to="/simulacro/examen-oficial"
+          className="mt-6 flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 transition-colors hover:bg-primary/10"
+        >
+          <div>
+            <p className="text-sm font-semibold text-ink">🏛️ ¿Prefieres la estructura exacta del examen real?</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Parte 1: 60 preg. (30 Bloque I + 30 psicotécnicas) en 90 min · Parte 2: 50 preg. de ofimática en 45 min
+            </p>
+          </div>
+          <span className="text-primary">→</span>
+        </Link>
+
+        <div className="mt-6 rounded-3xl bg-card p-8 shadow-sm">
           <label className="block text-sm font-semibold text-ink">📝 Número de preguntas</label>
           <div className="mt-3 grid grid-cols-4 gap-2">
             {OPCIONES_PREGUNTAS.map((n) => (

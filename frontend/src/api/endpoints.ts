@@ -57,6 +57,16 @@ export function obtenerPreguntasSimulacro(numPreguntas: number) {
   return apiFetch<{ preguntas: PreguntaParaResponder[] }>(`/preguntas/simulacro?numPreguntas=${numPreguntas}`);
 }
 
+export interface FaseExamenOficial {
+  preguntas: PreguntaParaResponder[];
+  tiempoLimiteMin: number;
+}
+
+/** Estructura fija del primer ejercicio real: Parte 1 (60 preg., 30 Bloque I + 30 psicotécnicas) y Parte 2 (50 preg. Bloque II). */
+export function obtenerExamenOficial() {
+  return apiFetch<{ parte1: FaseExamenOficial; parte2: FaseExamenOficial }>("/preguntas/examen-oficial");
+}
+
 export function obtenerPreguntasAleatorias(params: {
   limit?: number;
   tipo?: TipoPregunta;

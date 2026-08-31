@@ -12,6 +12,7 @@ import { PracticarTema } from "./pages/PracticarTema";
 import { ResumenTema } from "./pages/ResumenTema";
 import { Progreso } from "./pages/Progreso";
 import { Simulacro } from "./pages/Simulacro";
+import { ExamenOficial } from "./pages/ExamenOficial";
 import { Perfil } from "./pages/Perfil";
 import { Upgrade } from "./pages/Upgrade";
 import { Revision } from "./pages/admin/Revision";
@@ -93,6 +94,14 @@ export function App() {
             element={
               <RutaProtegida>
                 <Simulacro />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/simulacro/examen-oficial"
+            element={
+              <RutaProtegida>
+                <ExamenOficial />
               </RutaProtegida>
             }
           />

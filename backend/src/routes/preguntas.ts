@@ -5,6 +5,7 @@ import { authOpcional } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { haAlcanzadoLimiteDiario } from "../lib/dailyLimit";
 import { seleccionarProporcionalAlTemario } from "../lib/seleccionProporcional";
+import { ESTRUCTURA_EXAMEN_OFICIAL, seleccionarExamenOficial } from "../lib/examenOficial";
 import { siguienteEstadoSM2, calidadDesdeAcierto } from "../lib/sm2";
 import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
 
@@ -100,6 +101,49 @@ preguntasRouter.get("/simulacro", asyncHandler(async (req, res) => {
 
   const seleccion = seleccionarProporcionalAlTemario(disponibles, numPreguntas);
   res.json({ preguntas: seleccion.map(ocultarRespuesta) });
+}));
+
+/**
+ * Simulacro "Examen oficial": estructura fija del primer ejercicio real de
+ * la oposición (ver lib/examenOficial.ts), no proporcional ni configurable
+ * por el usuario. Devuelve las dos fases por separado para que el
+ * frontend las ejecute como dos simulacros consecutivos (mismo motor,
+ * SimulacroRunner) con sus propios tiempos.
+ */
+preguntasRouter.get("/examen-oficial", asyncHandler(async (_req, res) => {
+  const disponibles = await prisma.pregunta.findMany({
+    where: { estado: EstadoPregunta.verificada },
+    select: {
+      id: true,
+      enunciado: true,
+      opciones: true,
+      tipo: true,
+      temaId: true,
+      tema: { select: { bloque: true } },
+    },
+  });
+
+  const normalizadas = disponibles.map((p) => ({ ...p, bloque: p.tema?.bloque ?? null }));
+  const { bloqueI, psicotecnicas, bloqueII } = seleccionarExamenOficial(normalizadas);
+
+  const { parte1, parte2 } = ESTRUCTURA_EXAMEN_OFICIAL;
+  if (bloqueI.length < parte1.bloqueI || psicotecnicas.length < parte1.psicotecnicas || bloqueII.length < parte2.bloqueII) {
+    return res.status(409).json({
+      error:
+        "Todavía no hay preguntas verificadas suficientes para generar el examen oficial completo (30 Bloque I + 30 psicotécnicas + 50 Bloque II).",
+    });
+  }
+
+  res.json({
+    parte1: {
+      preguntas: barajar([...bloqueI, ...psicotecnicas]).map(ocultarRespuesta),
+      tiempoLimiteMin: parte1.tiempoLimiteMin,
+    },
+    parte2: {
+      preguntas: bloqueII.map(ocultarRespuesta),
+      tiempoLimiteMin: parte2.tiempoLimiteMin,
+    },
+  });
 }));
 
 const responderSchema = z.object({
