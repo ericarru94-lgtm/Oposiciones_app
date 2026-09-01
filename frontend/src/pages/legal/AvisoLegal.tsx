@@ -10,14 +10,12 @@ export function AvisoLegal() {
 
       <h2 className="text-base font-semibold text-ink">1. Identificación del titular</h2>
       <p>
-        Aprobox es un proyecto operado por <strong>[Nombre y apellidos / razón social del titular]</strong>, con NIF/CIF{" "}
-        <strong>[NIF/CIF]</strong> y domicilio a efectos de notificaciones en <strong>[dirección]</strong>. Si opera
-        como particular o autónomo sin obligación de inscripción registral, sustituye este apartado únicamente por
-        los datos identificativos y de contacto exigidos por la normativa vigente. Contacto:{" "}
+        Aprobox es un proyecto operado por <strong>Eric Arrufat Marín</strong>, con NIF <strong>47928717M</strong>,
+        actuando como particular. Contacto:{" "}
         <a href="mailto:aprobox.app@gmail.com" className="text-primary hover:underline">
           aprobox.app@gmail.com
-        </a>
-        .
+        </a>{" "}
+        · 623 976 145.
       </p>
 
       <h2 className="text-base font-semibold text-ink">2. Objeto y ámbito de aplicación</h2>

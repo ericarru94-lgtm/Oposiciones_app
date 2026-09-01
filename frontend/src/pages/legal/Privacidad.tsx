@@ -10,11 +10,11 @@ export function Privacidad() {
 
       <h2 className="text-base font-semibold text-ink">1. Responsable del tratamiento</h2>
       <p>
-        <strong>[Nombre y apellidos / razón social del titular]</strong>, contacto:{" "}
+        <strong>Eric Arrufat Marín</strong> (NIF 47928717M), actuando como particular. Contacto:{" "}
         <a href="mailto:aprobox.app@gmail.com" className="text-primary hover:underline">
           aprobox.app@gmail.com
-        </a>
-        .
+        </a>{" "}
+        · 623 976 145.
       </p>
 
       <h2 className="text-base font-semibold text-ink">2. Qué datos recogemos</h2>

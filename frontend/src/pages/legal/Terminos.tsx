@@ -49,8 +49,8 @@ export function Terminos() {
 
       <h2 className="text-base font-semibold text-ink">6. Propiedad intelectual</h2>
       <p>
-        El software, el diseño y la marca Aprobox son propiedad de su titular. El contenido derivado de exámenes
-        oficiales se usa con fines educativos, citando su fuente cuando corresponde.
+        El software, el diseño y la marca Aprobox son propiedad de su titular, Eric Arrufat Marín. El contenido
+        derivado de exámenes oficiales se usa con fines educativos, citando su fuente cuando corresponde.
       </p>
 
       <h2 className="text-base font-semibold text-ink">7. Modificación de las condiciones</h2>
