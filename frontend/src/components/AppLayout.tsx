@@ -22,7 +22,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <header className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4 lg:max-w-5xl xl:max-w-6xl">
           <Link to="/home" className="inline-flex items-center gap-1.5 font-semibold text-ink">
             Aprobox
             <span aria-hidden className="h-2 w-2 rounded-full bg-success" />
@@ -60,7 +60,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">{children}</main>
+      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10 lg:max-w-5xl xl:max-w-6xl">{children}</main>
       <Footer />
     </div>
   );

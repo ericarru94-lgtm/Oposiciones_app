@@ -39,7 +39,7 @@ export function BloqueDesplegable({
         </span>
       </button>
       {abierto && (
-        <div className="grid grid-cols-1 gap-4 border-t border-line p-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 border-t border-line p-5 sm:grid-cols-2 xl:grid-cols-3">
           {temas.map((tema) => (
             <TemaCard key={tema.temaId} tema={tema} />
           ))}
