@@ -6,6 +6,7 @@ import type {
   Opcion,
   PreguntaAdmin,
   PreguntaParaResponder,
+  ProgresoComunidad,
   ProgresoHoy,
   ProgresoPorTema,
   ProgresoResumen,
@@ -108,6 +109,11 @@ export function obtenerProgresoPorTema(token: string) {
 
 export function obtenerEvolucion(token: string, dias = 14) {
   return apiFetch<{ serie: EvolucionDia[] }>(`/progreso/evolucion?dias=${dias}`, { token });
+}
+
+/** Comparativa anónima de racha y % de acierto con la media de los demás usuarios. */
+export function obtenerProgresoComunidad(token: string) {
+  return apiFetch<ProgresoComunidad>("/progreso/comunidad", { token });
 }
 
 // --- Herramienta de revisión editorial (admin) ---

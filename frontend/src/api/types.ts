@@ -126,3 +126,12 @@ export interface EvolucionDia {
   aciertos: number;
   precision: number | null;
 }
+
+/** Comparativa anónima con el resto de usuarios (racha y % de acierto): nunca identifica a nadie. */
+export interface ProgresoComunidad {
+  /** false si hay muy pocos usuarios con actividad para comparar sin acercarse a identificar a alguien. */
+  disponible: boolean;
+  usuariosComparados: number;
+  propia: { racha: number; precision: number | null };
+  media: { racha: number; precision: number | null } | null;
+}

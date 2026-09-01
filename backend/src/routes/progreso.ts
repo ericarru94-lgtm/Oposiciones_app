@@ -146,19 +146,14 @@ function claveDiaLocal(d: Date): string {
 }
 
 /**
- * Racha de días consecutivos con al menos un intento. Si hoy todavía no
- * hay actividad, la racha se cuenta hasta ayer (no se da por "rota" hasta
- * que el día termine sin actividad), igual que en apps tipo Duolingo.
+ * Racha de días consecutivos con al menos un intento, a partir del conjunto
+ * de días (clave `claveDiaLocal`) con actividad. Si hoy todavía no hay
+ * actividad, la racha se cuenta hasta ayer (no se da por "rota" hasta que
+ * el día termine sin actividad), igual que en apps tipo Duolingo. Función
+ * pura para poder reutilizarla tanto para un usuario (calcularRacha) como
+ * para todos a la vez (ver /comunidad, que evita N+1 consultas).
  */
-async function calcularRacha(usuarioId: string): Promise<{ dias: number; ultimaActividad: Date | null }> {
-  const intentos = await prisma.intento.findMany({
-    where: { usuarioId },
-    select: { createdAt: true },
-    orderBy: { createdAt: "desc" },
-  });
-  if (intentos.length === 0) return { dias: 0, ultimaActividad: null };
-
-  const diasConActividad = new Set(intentos.map((i) => claveDiaLocal(i.createdAt)));
+function calcularRachaDesdeDias(diasConActividad: Set<string>): number {
   const cursor = new Date();
   cursor.setHours(0, 0, 0, 0);
   if (!diasConActividad.has(claveDiaLocal(cursor))) {
@@ -170,8 +165,19 @@ async function calcularRacha(usuarioId: string): Promise<{ dias: number; ultimaA
     dias++;
     cursor.setDate(cursor.getDate() - 1);
   }
+  return dias;
+}
 
-  return { dias, ultimaActividad: intentos[0].createdAt };
+async function calcularRacha(usuarioId: string): Promise<{ dias: number; ultimaActividad: Date | null }> {
+  const intentos = await prisma.intento.findMany({
+    where: { usuarioId },
+    select: { createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (intentos.length === 0) return { dias: 0, ultimaActividad: null };
+
+  const diasConActividad = new Set(intentos.map((i) => claveDiaLocal(i.createdAt)));
+  return { dias: calcularRachaDesdeDias(diasConActividad), ultimaActividad: intentos[0].createdAt };
 }
 
 /** Resumen para el home y el panel de progreso: totales, precisión y racha. */
@@ -196,6 +202,71 @@ progresoRouter.get("/resumen", asyncHandler(async (req, res) => {
     preguntasEnSeguimiento,
     pendientesHoy,
     racha,
+  });
+}));
+
+/**
+ * Con menos usuarios que esto en la muestra, la "media" se acercaría
+ * demasiado a los datos de una sola persona (o los revelaría del todo con
+ * 1). Por debajo del umbral, /comunidad responde `disponible: false` y no
+ * manda ninguna media — ver también el aviso en el frontend.
+ */
+const MUESTRA_MINIMA_COMUNIDAD = 5;
+
+/**
+ * Comparativa anónima con el resto de usuarios: la racha propia y el % de
+ * acierto propio frente a la media de "los demás" (nunca incluye al
+ * propio usuario en su propia media, ni expone dato alguno por usuario,
+ * solo el agregado). Puramente motivador — no es un ranking ni identifica
+ * a nadie.
+ */
+progresoRouter.get("/comunidad", asyncHandler(async (req, res) => {
+  const usuarioId = req.auth!.usuarioId;
+
+  const [propioTotal, propioAciertos, propiaRacha, intentosAjenos] = await Promise.all([
+    prisma.intento.count({ where: { usuarioId } }),
+    prisma.intento.count({ where: { usuarioId, esCorrecta: true } }),
+    calcularRacha(usuarioId),
+    prisma.intento.findMany({
+      where: { usuarioId: { not: usuarioId } },
+      select: { usuarioId: true, createdAt: true, esCorrecta: true },
+    }),
+  ]);
+
+  const porUsuario = new Map<string, { total: number; aciertos: number; dias: Set<string> }>();
+  for (const intento of intentosAjenos) {
+    if (!intento.usuarioId) continue; // intentos anónimos (sesionAnonima, sin cuenta): fuera de la comparativa
+    const entrada = porUsuario.get(intento.usuarioId) ?? { total: 0, aciertos: 0, dias: new Set<string>() };
+    entrada.total++;
+    if (intento.esCorrecta) entrada.aciertos++;
+    entrada.dias.add(claveDiaLocal(intento.createdAt));
+    porUsuario.set(intento.usuarioId, entrada);
+  }
+
+  const otrosUsuarios = [...porUsuario.values()];
+  const disponible = otrosUsuarios.length >= MUESTRA_MINIMA_COMUNIDAD;
+
+  let media: { racha: number; precision: number | null } | null = null;
+  if (disponible) {
+    const rachas = otrosUsuarios.map((u) => calcularRachaDesdeDias(u.dias));
+    const conIntentos = otrosUsuarios.filter((u) => u.total > 0);
+    media = {
+      racha: rachas.reduce((a, b) => a + b, 0) / rachas.length,
+      precision:
+        conIntentos.length > 0
+          ? conIntentos.reduce((suma, u) => suma + u.aciertos / u.total, 0) / conIntentos.length
+          : null,
+    };
+  }
+
+  res.json({
+    disponible,
+    usuariosComparados: otrosUsuarios.length,
+    propia: {
+      racha: propiaRacha.dias,
+      precision: propioTotal > 0 ? propioAciertos / propioTotal : null,
+    },
+    media,
   });
 }));
 
