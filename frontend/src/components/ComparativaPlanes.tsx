@@ -2,17 +2,18 @@
  * Refleja únicamente diferenciación real entre planes que existe hoy en el
  * código (ver backend/src/lib/dailyLimit.ts y routes/preguntas.ts): el
  * plan gratuito solo puede empezar 2 tests al día (Practicar tema o
- * Repasar hoy, en total, sin importar el bloque), y el examen oficial
- * cronometrado es exclusivo de Premium. El simulacro libre y las
- * estadísticas por tema están disponibles para cualquier usuario
- * registrado, con o sin plan premium.
+ * Repasar hoy, en total, sin importar el bloque), el simulacro libre solo
+ * en su configuración básica (10 preguntas, 15 min), y el examen oficial
+ * cronometrado es exclusivo de Premium. Las estadísticas por tema están
+ * disponibles para cualquier usuario registrado, con o sin plan premium.
  */
 const CARACTERISTICAS: { texto: string; gratis: boolean; premium: boolean }[] = [
   { texto: "Banco de preguntas verificadas por tema", gratis: true, premium: true },
   { texto: "Repaso por repetición espaciada (SM-2)", gratis: true, premium: true },
-  { texto: "Simulacro libre de examen", gratis: true, premium: true },
+  { texto: "Simulacro libre de examen (configuración básica: 10 preg., 15 min)", gratis: true, premium: true },
   { texto: "Progreso y estadísticas por tema", gratis: true, premium: true },
   { texto: "Practicar tema y Repasar hoy sin límite diario", gratis: false, premium: true },
+  { texto: "Simulacro libre con más preguntas y más tiempo, a tu elección", gratis: false, premium: true },
   { texto: "Examen oficial cronometrado (60+50 preguntas, tiempo real)", gratis: false, premium: true },
 ];
 

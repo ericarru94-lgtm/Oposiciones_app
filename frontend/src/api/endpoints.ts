@@ -54,9 +54,16 @@ export function obtenerTemas() {
   return apiFetch<{ temas: Tema[] }>("/preguntas/temas");
 }
 
-/** Simulacro de examen: preguntas de todo el temario, repartidas proporcionalmente al peso de cada tema. */
-export function obtenerPreguntasSimulacro(numPreguntas: number) {
-  return apiFetch<{ preguntas: PreguntaParaResponder[] }>(`/preguntas/simulacro?numPreguntas=${numPreguntas}`);
+/**
+ * Simulacro de examen: preguntas de todo el temario, repartidas
+ * proporcionalmente al peso de cada tema. `token` es necesario para que el
+ * backend sepa si el usuario es premium (solo así permite un `numPreguntas`
+ * distinto de la configuración básica gratuita).
+ */
+export function obtenerPreguntasSimulacro(numPreguntas: number, token?: string | null) {
+  return apiFetch<{ preguntas: PreguntaParaResponder[] }>(`/preguntas/simulacro?numPreguntas=${numPreguntas}`, {
+    token,
+  });
 }
 
 export interface FaseExamenOficial {

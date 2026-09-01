@@ -44,6 +44,7 @@ async function main() {
   console.log("Reseteando la base de datos de E2E…");
   await prisma.intento.deleteMany();
   await prisma.progreso.deleteMany();
+  await prisma.sesionTest.deleteMany();
   await prisma.pregunta.deleteMany();
   await prisma.tema.deleteMany();
   await prisma.usuario.deleteMany();

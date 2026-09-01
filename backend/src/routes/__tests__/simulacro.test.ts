@@ -10,6 +10,8 @@ vi.mock("@clerk/express", () => import("../../test-utils/clerkMock"));
 
 import { crearApp } from "../../app";
 import { prisma } from "../../lib/prisma";
+import { mockUsuarioClerk } from "../../test-utils/clerkMock";
+import { SIMULACRO_LIBRE_PREGUNTAS_GRATIS } from "../preguntas";
 
 const app = crearApp();
 
@@ -18,6 +20,8 @@ const TEMA_PEQUENO = { bloque: "II" as const, numero: 998, nombre: "Tema de test
 
 let temaGrandeId: number;
 let temaPequenoId: number;
+let tokenPremium: string;
+let tokenGratis: string;
 
 async function limpiarFixtures() {
   await prisma.intento.deleteMany({ where: { preguntaId: { startsWith: "test-simulacro-" } } });
@@ -78,6 +82,15 @@ beforeAll(async () => {
       estado: "borrador",
     },
   });
+
+  tokenPremium = `clerk_test-simulacro-premium-${Date.now()}`;
+  mockUsuarioClerk(tokenPremium, `test-simulacro-premium-${Date.now()}@example.com`);
+  const mePremium = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${tokenPremium}`);
+  await prisma.usuario.update({ where: { id: mePremium.body.id }, data: { plan: "premium" } });
+
+  tokenGratis = `clerk_test-simulacro-gratis-${Date.now()}`;
+  mockUsuarioClerk(tokenGratis, `test-simulacro-gratis-${Date.now()}@example.com`);
+  await request(app).get("/api/auth/me").set("Authorization", `Bearer ${tokenGratis}`);
 });
 
 afterAll(async () => {
@@ -97,7 +110,9 @@ describe("GET /api/preguntas/simulacro", () => {
   });
 
   it("nunca incluye preguntas en borrador ni su respuesta correcta", async () => {
-    const res = await request(app).get("/api/preguntas/simulacro?numPreguntas=20");
+    const res = await request(app)
+      .get("/api/preguntas/simulacro?numPreguntas=20")
+      .set("Authorization", `Bearer ${tokenPremium}`);
     expect(res.status).toBe(200);
     const ids = res.body.preguntas.map((p: { id: string }) => p.id);
     expect(ids).not.toContain("test-simulacro-borrador");
@@ -112,13 +127,42 @@ describe("GET /api/preguntas/simulacro", () => {
   });
 
   it("rechaza numPreguntas fuera de rango (por encima del máximo)", async () => {
-    const res = await request(app).get("/api/preguntas/simulacro?numPreguntas=500");
+    const res = await request(app)
+      .get("/api/preguntas/simulacro?numPreguntas=500")
+      .set("Authorization", `Bearer ${tokenPremium}`);
     expect(res.status).toBe(400);
   });
 
-  it("usa 25 por defecto si no se especifica numPreguntas (acotado a las disponibles)", async () => {
+  it(`usa ${SIMULACRO_LIBRE_PREGUNTAS_GRATIS} por defecto si no se especifica numPreguntas (acotado a las disponibles)`, async () => {
     const res = await request(app).get("/api/preguntas/simulacro");
     expect(res.status).toBe(200);
-    expect(res.body.preguntas.length).toBeLessThanOrEqual(20);
+    expect(res.body.preguntas.length).toBeLessThanOrEqual(SIMULACRO_LIBRE_PREGUNTAS_GRATIS);
+  });
+});
+
+describe("GET /api/preguntas/simulacro — configuración limitada al plan gratuito", () => {
+  it(`sin autenticar, numPreguntas=${SIMULACRO_LIBRE_PREGUNTAS_GRATIS} (la básica) sí funciona`, async () => {
+    const res = await request(app).get(`/api/preguntas/simulacro?numPreguntas=${SIMULACRO_LIBRE_PREGUNTAS_GRATIS}`);
+    expect(res.status).toBe(200);
+  });
+
+  it("sin autenticar, pedir más preguntas que la configuración básica se rechaza con 403", async () => {
+    const res = await request(app).get("/api/preguntas/simulacro?numPreguntas=25");
+    expect(res.status).toBe(403);
+  });
+
+  it("un usuario autenticado del plan gratuito tampoco puede pedir más de la configuración básica", async () => {
+    const res = await request(app)
+      .get("/api/preguntas/simulacro?numPreguntas=25")
+      .set("Authorization", `Bearer ${tokenGratis}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("un usuario premium puede pedir cualquier configuración dentro del rango permitido", async () => {
+    const res = await request(app)
+      .get("/api/preguntas/simulacro?numPreguntas=50")
+      .set("Authorization", `Bearer ${tokenPremium}`);
+    expect(res.status).toBe(200);
+    expect(res.body.preguntas.length).toBeLessThanOrEqual(50);
   });
 });

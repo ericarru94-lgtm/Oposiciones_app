@@ -17,6 +17,13 @@ const MOTIVOS: Record<string, { icono: string; titulo: string; texto: string; vo
       "El simulacro con la estructura y el tiempo real del examen oficial solo está disponible en el plan premium. Hazte premium para practicarlo.",
     volverTexto: "Seguir practicando",
   },
+  "simulacro-configuracion": {
+    icono: "🎓",
+    titulo: "Más preguntas y más tiempo, con Premium",
+    texto:
+      "El simulacro libre es gratis para todos con su configuración básica (10 preguntas, 15 min). Elegir un número de preguntas o un tiempo distinto es exclusivo del plan premium.",
+    volverTexto: "Seguir con la configuración básica",
+  },
 };
 const MOTIVO_POR_DEFECTO = {
   icono: "⏳",

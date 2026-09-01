@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ApiError } from "../api/client";
 import { obtenerPreguntasSimulacro, obtenerTemas } from "../api/endpoints";
+import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
 import { PageTitle } from "../components/PageTitle";
@@ -14,20 +16,33 @@ type Paso =
 
 const OPCIONES_PREGUNTAS = [10, 25, 50, 75];
 const OPCIONES_TIEMPO = [15, 30, 45, 60];
+/** Configuración básica del simulacro libre: la única disponible sin premium (ver GET /preguntas/simulacro). */
+const PREGUNTAS_GRATIS = OPCIONES_PREGUNTAS[0];
+const TIEMPO_GRATIS = OPCIONES_TIEMPO[0];
 
 export function Simulacro() {
   const navigate = useNavigate();
+  const { usuario, getToken } = useSession();
+  const esPremium = usuario?.plan === "premium";
   const [paso, setPaso] = useState<Paso>({ fase: "config" });
   const [numPreguntas, setNumPreguntas] = useState(25);
   const [tiempoLimiteMin, setTiempoLimiteMin] = useState(30);
   const [error, setError] = useState<string | null>(null);
 
+  // Un usuario gratuito no puede cambiar la configuración básica, aunque
+  // el estado de arriba guarde otra cosa (p.ej. mientras se resuelve el
+  // plan al cargar la página): la petición y el cronómetro siempre usan
+  // este valor "efectivo", nunca el estado en bruto directamente.
+  const numPreguntasEfectivo = esPremium ? numPreguntas : PREGUNTAS_GRATIS;
+  const tiempoLimiteEfectivo = esPremium ? tiempoLimiteMin : TIEMPO_GRATIS;
+
   async function empezar() {
     setError(null);
-    setPaso({ fase: "cargando", numPreguntas, tiempoLimiteMin });
+    setPaso({ fase: "cargando", numPreguntas: numPreguntasEfectivo, tiempoLimiteMin: tiempoLimiteEfectivo });
     try {
+      const token = await getToken();
       const [{ preguntas }, { temas }] = await Promise.all([
-        obtenerPreguntasSimulacro(numPreguntas),
+        obtenerPreguntasSimulacro(numPreguntasEfectivo, token),
         obtenerTemas(),
       ]);
       if (preguntas.length === 0) {
@@ -35,11 +50,24 @@ export function Simulacro() {
         setPaso({ fase: "config" });
         return;
       }
-      setPaso({ fase: "test", preguntas, tiempoLimiteMin, temas });
+      setPaso({ fase: "test", preguntas, tiempoLimiteMin: tiempoLimiteEfectivo, temas });
     } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        navigate("/upgrade?motivo=simulacro-configuracion");
+        return;
+      }
       setError(err instanceof Error ? err.message : "No se pudo preparar el simulacro");
       setPaso({ fase: "config" });
     }
+  }
+
+  /** Pulsar una opción bloqueada (no premium) lleva a Upgrade en vez de aplicarla. */
+  function elegirOpcion(valor: number, opcionGratis: number, aplicar: (v: number) => void) {
+    if (!esPremium && valor !== opcionGratis) {
+      navigate("/upgrade?motivo=simulacro-configuracion");
+      return;
+    }
+    aplicar(valor);
   }
 
   if (paso.fase === "resultados") {
@@ -68,53 +96,85 @@ export function Simulacro() {
       <div className="mx-auto max-w-lg">
         <PageTitle icono="🎓">Simulacro de examen</PageTitle>
         <p className="mt-2 text-sm text-muted">
-          Preguntas de todo el temario, repartidas proporcionalmente al peso de cada tema, con tiempo límite como en
-          un examen real.
+          Dos formas de practicar en condiciones de examen: la estructura exacta del examen oficial, o tu propio
+          simulacro configurable sobre todo el temario.
         </p>
 
-        <Link
-          to="/simulacro/examen-oficial"
-          className="mt-6 flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 transition-colors hover:bg-primary/10"
-        >
-          <div>
-            <p className="text-sm font-semibold text-ink">🏛️ ¿Prefieres la estructura exacta del examen real?</p>
-            <p className="mt-0.5 text-xs text-muted">
-              Parte 1: 60 preg. (30 Bloque I + 30 psicotécnicas) en 90 min · Parte 2: 50 preg. de ofimática en 45 min
-            </p>
-          </div>
-          <span className="text-primary">→</span>
-        </Link>
+        {/* Misma tarjeta blanca con sombra que el bloque de abajo, con tratamiento
+            "premium" (borde y badge en ámbar) para que no se confunda visualmente
+            con una opción más del simulacro libre — un usuario del plan gratuito
+            llegó a completar el simulacro libre pensando que era el examen oficial. */}
+        <div className="relative overflow-hidden rounded-3xl border-2 border-accent bg-card p-6 shadow-sm">
+          <span className="absolute right-5 top-5 rounded-full bg-accent px-3 py-1 text-xs font-bold text-white">
+            Premium
+          </span>
+          <p className="text-sm font-semibold text-ink">🏛️ Examen oficial</p>
+          <p className="mt-1 text-xs text-muted">
+            La estructura exacta del primer ejercicio real: Parte 1, 60 preg. (30 Bloque I + 30 psicotécnicas) en 90
+            min · Parte 2, 50 preg. de ofimática en 45 min. Sin configurar nada, tal cual el examen.
+          </p>
+          <Link
+            to="/simulacro/examen-oficial"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:opacity-90"
+          >
+            Ir al examen oficial →
+          </Link>
+        </div>
 
-        <div className="mt-6 rounded-3xl bg-card p-8 shadow-sm">
+        <p className="mt-8 text-sm font-semibold text-ink">O configura tu propio simulacro libre</p>
+        <div className="mt-3 rounded-3xl bg-card p-8 shadow-sm">
           <label className="block text-sm font-semibold text-ink">📝 Número de preguntas</label>
           <div className="mt-3 grid grid-cols-4 gap-2">
-            {OPCIONES_PREGUNTAS.map((n) => (
-              <button
-                key={n}
-                onClick={() => setNumPreguntas(n)}
-                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
-                  numPreguntas === n ? "border-primary bg-primary/10 text-primary" : "border-line text-muted hover:border-primary/40"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
+            {OPCIONES_PREGUNTAS.map((n) => {
+              const bloqueada = !esPremium && n !== PREGUNTAS_GRATIS;
+              return (
+                <button
+                  key={n}
+                  onClick={() => elegirOpcion(n, PREGUNTAS_GRATIS, setNumPreguntas)}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
+                    numPreguntasEfectivo === n
+                      ? "border-primary bg-primary/10 text-primary"
+                      : bloqueada
+                        ? "border-line text-muted/60 hover:border-accent/40"
+                        : "border-line text-muted hover:border-primary/40"
+                  }`}
+                >
+                  {bloqueada && "🔒 "}
+                  {n}
+                </button>
+              );
+            })}
           </div>
 
           <label className="mt-7 block text-sm font-semibold text-ink">⏱ Tiempo límite</label>
           <div className="mt-3 grid grid-cols-4 gap-2">
-            {OPCIONES_TIEMPO.map((min) => (
-              <button
-                key={min}
-                onClick={() => setTiempoLimiteMin(min)}
-                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
-                  tiempoLimiteMin === min ? "border-primary bg-primary/10 text-primary" : "border-line text-muted hover:border-primary/40"
-                }`}
-              >
-                {min} min
-              </button>
-            ))}
+            {OPCIONES_TIEMPO.map((min) => {
+              const bloqueada = !esPremium && min !== TIEMPO_GRATIS;
+              return (
+                <button
+                  key={min}
+                  onClick={() => elegirOpcion(min, TIEMPO_GRATIS, setTiempoLimiteMin)}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
+                    tiempoLimiteEfectivo === min
+                      ? "border-primary bg-primary/10 text-primary"
+                      : bloqueada
+                        ? "border-line text-muted/60 hover:border-accent/40"
+                        : "border-line text-muted hover:border-primary/40"
+                  }`}
+                >
+                  {bloqueada && "🔒 "}
+                  {min} min
+                </button>
+              );
+            })}
           </div>
+
+          {!esPremium && (
+            <p className="mt-4 text-xs text-muted">
+              Plan gratuito: simulacro libre de {PREGUNTAS_GRATIS} preguntas y {TIEMPO_GRATIS} min. Hazte premium
+              para elegir más preguntas y más tiempo.
+            </p>
+          )}
 
           {error && <p className="mt-5 text-sm text-error">{error}</p>}
 

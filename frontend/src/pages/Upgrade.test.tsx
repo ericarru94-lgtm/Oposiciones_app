@@ -123,6 +123,14 @@ describe("Upgrade — copy contextual según el motivo", () => {
     expect(screen.queryByText(/límite diario gratuito/i)).not.toBeInTheDocument();
   });
 
+  it("con ?motivo=simulacro-configuracion, explica que la configuración del simulacro libre es premium", () => {
+    renderUpgrade("/upgrade?motivo=simulacro-configuracion");
+
+    expect(
+      screen.getByRole("heading", { name: "Más preguntas y más tiempo, con Premium" })
+    ).toBeInTheDocument();
+  });
+
   it("sin motivo, muestra el mensaje genérico del límite diario", () => {
     renderUpgrade("/upgrade");
 

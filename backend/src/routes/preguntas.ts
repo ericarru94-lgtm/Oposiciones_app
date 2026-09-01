@@ -97,21 +97,39 @@ preguntasRouter.get("/aleatorias", authOpcional, asyncHandler(async (req, res) =
 }));
 
 const simulacroQuerySchema = z.object({
-  numPreguntas: z.coerce.number().int().min(5).max(100).default(25),
+  numPreguntas: z.coerce.number().int().min(5).max(100).default(10),
 });
+
+/** El simulacro libre es gratis para todos; solo esta configuración (10 preguntas) lo es sin premium. */
+export const SIMULACRO_LIBRE_PREGUNTAS_GRATIS = 10;
 
 /**
  * Simulacro de examen: selecciona preguntas de todo el temario a la vez,
  * repartidas proporcionalmente al peso de cada tema (ver
  * lib/seleccionProporcional.ts), en vez de limitarse a un bloque o tema
  * concreto como /aleatorias.
+ *
+ * Gratis para cualquier usuario, pero solo con la configuración básica (10
+ * preguntas): elegir un número distinto exige premium, comprobado aquí y
+ * no solo ocultando las opciones en el frontend (ver ComparativaPlanes).
  */
-preguntasRouter.get("/simulacro", asyncHandler(async (req, res) => {
+preguntasRouter.get("/simulacro", authOpcional, asyncHandler(async (req, res) => {
   const parsed = simulacroQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
   const { numPreguntas } = parsed.data;
+
+  let esPremium = false;
+  if (req.auth?.usuarioId) {
+    const usuario = await prisma.usuario.findUnique({ where: { id: req.auth.usuarioId } });
+    esPremium = usuario?.plan === "premium";
+  }
+  if (!esPremium && numPreguntas !== SIMULACRO_LIBRE_PREGUNTAS_GRATIS) {
+    return res.status(403).json({
+      error: `El plan gratuito solo puede generar el simulacro libre con ${SIMULACRO_LIBRE_PREGUNTAS_GRATIS} preguntas. Hazte premium para elegir más preguntas.`,
+    });
+  }
 
   const disponibles = await prisma.pregunta.findMany({
     where: { estado: EstadoPregunta.verificada },
