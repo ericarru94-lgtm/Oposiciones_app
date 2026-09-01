@@ -107,6 +107,29 @@ describe("Upgrade — con sesión", () => {
   });
 });
 
+describe("Upgrade — copy contextual según el motivo", () => {
+  beforeEach(() => {
+    vi.mocked(useSession).mockReturnValue({
+      estaAutenticado: true,
+      cargando: false,
+      getToken: vi.fn(),
+    } as unknown as ReturnType<typeof useSession>);
+  });
+
+  it("con ?motivo=examen-oficial, explica que el examen oficial es exclusivo de premium", () => {
+    renderUpgrade("/upgrade?motivo=examen-oficial");
+
+    expect(screen.getByRole("heading", { name: "El examen oficial es exclusivo de Premium" })).toBeInTheDocument();
+    expect(screen.queryByText(/límite diario gratuito/i)).not.toBeInTheDocument();
+  });
+
+  it("sin motivo, muestra el mensaje genérico del límite diario", () => {
+    renderUpgrade("/upgrade");
+
+    expect(screen.getByRole("heading", { name: "Has llegado a tu límite diario gratuito" })).toBeInTheDocument();
+  });
+});
+
 describe("Upgrade — usuario ya premium", () => {
   it("redirige a Home en vez de ofrecer una segunda suscripción", async () => {
     vi.mocked(useSession).mockReturnValue({

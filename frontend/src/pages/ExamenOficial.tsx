@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { obtenerExamenOficial } from "../api/endpoints";
+import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { PageTitle } from "../components/PageTitle";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
@@ -36,16 +37,32 @@ function porcentaje(resultado: ResultadoSimulacro): number {
  */
 export function ExamenOficial() {
   const navigate = useNavigate();
+  const { usuario, cargando, getToken } = useSession();
   const [paso, setPaso] = useState<Paso>({ fase: "intro" });
   const [error, setError] = useState<string | null>(null);
+
+  // Exclusivo de premium: si el plan gratuito llega aquí (enlace directo,
+  // pestaña ya abierta al cancelar la suscripción...), lo mandamos a
+  // Upgrade antes de mostrar siquiera la pantalla de intro. El backend
+  // también lo rechaza con 403 (ver el catch de empezar más abajo) por si
+  // se salta esta pantalla y llama a la API directamente.
+  useEffect(() => {
+    if (cargando || usuario?.plan === "premium") return;
+    navigate("/upgrade?motivo=examen-oficial", { replace: true });
+  }, [cargando, usuario, navigate]);
 
   async function empezar() {
     setError(null);
     setPaso({ fase: "cargando" });
     try {
-      const { parte1, parte2 } = await obtenerExamenOficial();
+      const token = await getToken();
+      const { parte1, parte2 } = await obtenerExamenOficial(token);
       setPaso({ fase: "parte1", parte1, parte2 });
     } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        navigate("/upgrade?motivo=examen-oficial");
+        return;
+      }
       setError(
         err instanceof ApiError
           ? err.message

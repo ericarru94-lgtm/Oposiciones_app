@@ -165,7 +165,7 @@ describe("GET /api/progreso/hoy — solo propone verificadas como nuevas", () =>
     expect(idsNuevas).not.toContain(idAnulada);
   });
 
-  it("responde 429 (no 200 con repaso/nuevas vacíos) si el límite diario ya está agotado", async () => {
+  it("responde 429 (no 200 con repaso/nuevas vacíos) si el límite diario de tests ya está agotado", async () => {
     const clerkUserId = `clerk_test-estado-limite-${Date.now()}`;
     mockUsuarioClerk(clerkUserId, `test-estado-limite-${Date.now()}@example.com`);
     const token = clerkUserId;
@@ -173,15 +173,11 @@ describe("GET /api/progreso/hoy — solo propone verificadas como nuevas", () =>
     const me = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
     const usuarioId = me.body.id as string;
 
-    // FREE_PLAN_DAILY_LIMIT=30 en backend/.env.test: agotamos el límite
-    // directamente con Intentos (sin pasar por /responder, para no depender
-    // de su propia lógica de límite en este test de /progreso/hoy).
-    await prisma.intento.createMany({
-      data: Array.from({ length: 30 }, () => ({
-        usuarioId,
-        preguntaId: idVerificada,
-        esCorrecta: true,
-      })),
+    // FREE_PLAN_DAILY_TEST_SESSIONS=2 en backend/.env.test: agotamos el
+    // límite directamente con SesionTest (sin pasar por /aleatorias, para
+    // no depender de su propia lógica de límite en este test de /progreso/hoy).
+    await prisma.sesionTest.createMany({
+      data: Array.from({ length: 2 }, () => ({ usuarioId })),
     });
 
     const res = await request(app)

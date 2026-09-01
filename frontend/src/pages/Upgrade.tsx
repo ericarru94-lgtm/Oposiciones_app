@@ -8,6 +8,24 @@ import { ComparativaPlanes } from "../components/ComparativaPlanes";
 /** A dónde volver tras el login/registro de Clerk disparado desde "Suscribirme". */
 const DESTINO_TRAS_AUTH = "/upgrade?continuar=1";
 
+/** Copy contextual según qué gate te trajo a Upgrade (ver `motivo` en la URL). */
+const MOTIVOS: Record<string, { icono: string; titulo: string; texto: string; volverTexto: string }> = {
+  "examen-oficial": {
+    icono: "🏛️",
+    titulo: "El examen oficial es exclusivo de Premium",
+    texto:
+      "El simulacro con la estructura y el tiempo real del examen oficial solo está disponible en el plan premium. Hazte premium para practicarlo.",
+    volverTexto: "Seguir practicando",
+  },
+};
+const MOTIVO_POR_DEFECTO = {
+  icono: "⏳",
+  titulo: "Has llegado a tu límite diario gratuito",
+  texto:
+    "El plan gratuito incluye 2 tests al día (Practicar tema o Repasar hoy, en total). Hazte premium para practicar sin límites.",
+  volverTexto: "Volver mañana",
+};
+
 export function Upgrade() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,6 +33,7 @@ export function Upgrade() {
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const yaContinuado = useRef(false);
+  const { icono, titulo, texto, volverTexto } = MOTIVOS[searchParams.get("motivo") ?? ""] ?? MOTIVO_POR_DEFECTO;
 
   async function suscribirse() {
     setError(null);
@@ -62,14 +81,11 @@ export function Upgrade() {
     <div className="min-h-screen bg-canvas px-4 py-10">
       <div className="mx-auto max-w-md overflow-hidden rounded-3xl bg-card text-center shadow-sm">
         <div className="bg-primary px-8 pb-7 pt-9 text-white">
-          <p className="text-4xl">⏳</p>
-          <h1 className="mt-3 text-xl font-bold">Has llegado a tu límite diario gratuito</h1>
+          <p className="text-4xl">{icono}</p>
+          <h1 className="mt-3 text-xl font-bold">{titulo}</h1>
         </div>
         <div className="p-8">
-          <p className="text-sm text-muted">
-            El plan gratuito incluye un número limitado de preguntas al día. Hazte premium para practicar sin
-            límites.
-          </p>
+          <p className="text-sm text-muted">{texto}</p>
 
           {error && <p className="mt-4 text-sm text-error">{error}</p>}
 
@@ -97,7 +113,7 @@ export function Upgrade() {
             onClick={() => navigate(estaAutenticado ? "/home" : "/")}
             className="mt-3 w-full rounded-xl border border-line px-4 py-3 font-medium text-muted hover:bg-canvas"
           >
-            Volver mañana
+            {volverTexto}
           </button>
         </div>
       </div>

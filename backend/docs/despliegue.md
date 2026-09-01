@@ -107,7 +107,7 @@ Cópialas tal cual de tu `backend/.env` local, **salvo las marcadas
 | `STRIPE_WEBHOOK_SECRET` | Dashboard de Stripe | **Cambia**: no reutilices el de `stripe listen` en local. Créala al dar de alta el endpoint de webhook (ver más abajo). |
 | `FRONTEND_URL` | La URL que te da Vercel | **Cambia**: `https://tu-proyecto.vercel.app` (o tu dominio propio). Sin `https://` de más ni barra final. |
 | `ADMIN_EMAILS` | `backend/.env` | Los emails con acceso a `/admin/revision`. |
-| `FREE_PLAN_DAILY_LIMIT` | `backend/.env` | Opcional, por defecto 30 si se omite. |
+| `FREE_PLAN_DAILY_TEST_SESSIONS` | `backend/.env` | Opcional, por defecto 2 si se omite (tests empezados al día, no preguntas). |
 | `RESEND_API_KEY` | Dashboard de Resend | Ver `backend/docs/newsletter.md`. Sin ella el backend arranca igual — solo falla (con log) el envío de los emails de la newsletter. |
 | `RESEND_FROM_EMAIL` | `backend/.env` | Opcional, por defecto el dominio de pruebas de Resend (`Aprobox <onboarding@resend.dev>`). Cámbialo en cuanto tengas un dominio propio verificado en Resend. |
 

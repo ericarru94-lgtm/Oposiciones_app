@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { authOpcional } from "../middleware/auth";
+import { authOpcional, authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
-import { haAlcanzadoLimiteDiario } from "../lib/dailyLimit";
+import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../lib/dailyLimit";
 import { seleccionarProporcionalAlTemario } from "../lib/seleccionProporcional";
 import { ESTRUCTURA_EXAMEN_OFICIAL, seleccionarExamenOficial } from "../lib/examenOficial";
 import { siguienteEstadoSM2, calidadDesdeAcierto } from "../lib/sm2";
@@ -55,16 +55,33 @@ const aleatoriasQuerySchema = z.object({
 });
 
 /**
- * Mini-test sin registro: devuelve preguntas al azar sin la respuesta correcta.
- * No requiere autenticación ni cuenta contra el límite diario (solo consultar
- * cuenta al "responder", ver /:id/responder).
+ * Mini-test sin registro (sin `temaId`): devuelve preguntas al azar sin la
+ * respuesta correcta, sin autenticación ni límite. Con `temaId` (Practicar
+ * tema) y un usuario autenticado, cada llamada empieza un test y cuenta
+ * contra el límite diario de tests del plan gratuito (ver lib/dailyLimit.ts).
  */
-preguntasRouter.get("/aleatorias", asyncHandler(async (req, res) => {
+preguntasRouter.get("/aleatorias", authOpcional, asyncHandler(async (req, res) => {
   const parsed = aleatoriasQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
   const { limit, tipo, bloque, temaId, estado } = parsed.data;
+  const usuarioId = req.auth?.usuarioId;
+
+  if (temaId && usuarioId) {
+    const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+    const limite = await haAlcanzadoLimiteSesionesDiario({
+      usuarioId,
+      esPremium: usuario?.plan === "premium",
+    });
+    if (limite.alcanzado) {
+      return res.status(429).json({
+        error: "Has alcanzado el límite diario de tests del plan gratuito",
+        restantes: 0,
+      });
+    }
+    await registrarInicioSesionTest(usuarioId);
+  }
 
   const preguntas = await prisma.pregunta.findMany({
     where: {
@@ -111,8 +128,18 @@ preguntasRouter.get("/simulacro", asyncHandler(async (req, res) => {
  * por el usuario. Devuelve las dos fases por separado para que el
  * frontend las ejecute como dos simulacros consecutivos (mismo motor,
  * SimulacroRunner) con sus propios tiempos.
+ *
+ * Exclusivo del plan premium: a diferencia del simulacro libre, aquí se
+ * exige autenticación y se rechaza con 403 a quien no sea premium, para que
+ * el bloqueo no dependa solo de ocultar el botón en el frontend.
  */
-preguntasRouter.get("/examen-oficial", asyncHandler(async (_req, res) => {
+preguntasRouter.get("/examen-oficial", authRequerido, asyncHandler(async (req, res) => {
+  const usuario = await prisma.usuario.findUnique({ where: { id: req.auth!.usuarioId } });
+  if (!usuario) return res.status(401).json({ error: "Usuario no válido" });
+  if (usuario.plan !== "premium") {
+    return res.status(403).json({ error: "El examen oficial cronometrado es exclusivo del plan premium" });
+  }
+
   const disponibles = await prisma.pregunta.findMany({
     where: { estado: EstadoPregunta.verificada },
     select: {
@@ -157,8 +184,10 @@ const responderSchema = z.object({
 
 /**
  * Registra la respuesta a una pregunta (usuario autenticado o anónimo).
- * Aplica el límite diario del plan gratuito y, si hay usuario autenticado,
- * actualiza su progreso SM-2 para esa pregunta.
+ * El límite diario del plan gratuito ya se aplicó al empezar el test (ver
+ * GET /aleatorias y GET /progreso/hoy): una vez empezado, se responde con
+ * normalidad. Si hay usuario autenticado, además actualiza su progreso
+ * SM-2 para esa pregunta.
  */
 preguntasRouter.post("/:id/responder", authOpcional, asyncHandler(async (req, res) => {
   const parsed = responderSchema.safeParse(req.body);
@@ -180,23 +209,9 @@ preguntasRouter.post("/:id/responder", authOpcional, asyncHandler(async (req, re
     return res.status(410).json({ error: "Esta pregunta ha sido anulada" });
   }
 
-  let plan: "free" | "premium" = "free";
   if (usuarioId) {
     const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
     if (!usuario) return res.status(401).json({ error: "Usuario no válido" });
-    plan = usuario.plan;
-  }
-
-  const limite = await haAlcanzadoLimiteDiario({
-    usuarioId,
-    sesionAnonima,
-    esPremium: plan === "premium",
-  });
-  if (limite.alcanzado) {
-    return res.status(429).json({
-      error: "Has alcanzado el límite diario de preguntas del plan gratuito",
-      restantes: 0,
-    });
   }
 
   const esCorrecta = opcion === pregunta.respuestaCorrecta;
@@ -251,12 +266,6 @@ preguntasRouter.post("/:id/responder", authOpcional, asyncHandler(async (req, re
     });
   }
 
-  const restantes = await haAlcanzadoLimiteDiario({
-    usuarioId,
-    sesionAnonima,
-    esPremium: plan === "premium",
-  });
-
   res.json({
     esCorrecta,
     respuestaCorrecta: pregunta.respuestaCorrecta,
@@ -264,7 +273,6 @@ preguntasRouter.post("/:id/responder", authOpcional, asyncHandler(async (req, re
     explicacionGeneradaIA: pregunta.explicacionGeneradaIA,
     fuente: pregunta.fuente,
     fuenteUrl: pregunta.fuenteUrl,
-    limiteDiario: { restantes: restantes.restantes, usadas: restantes.usadas },
   });
 }));
 

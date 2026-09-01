@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma";
 import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { siguienteEstadoSM2 } from "../lib/sm2";
-import { haAlcanzadoLimiteDiario } from "../lib/dailyLimit";
+import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../lib/dailyLimit";
 
 export const progresoRouter = Router();
 progresoRouter.use(authRequerido);
@@ -14,9 +14,11 @@ const hoyQuerySchema = z.object({
 });
 
 /**
- * "Repasar hoy": preguntas cuya próxima revisión SM-2 ya ha vencido,
- * más preguntas nuevas (sin progreso todavía) hasta completar el límite
- * diario restante del plan gratuito.
+ * "Repasar hoy": preguntas cuya próxima revisión SM-2 ya ha vencido, más
+ * preguntas nuevas (sin progreso todavía) hasta `limit`. Cada llamada
+ * empieza un test y cuenta contra el límite diario de tests del plan
+ * gratuito (ver lib/dailyLimit.ts) — una vez empezado, se responde con
+ * normalidad, sin límite por número de preguntas.
  */
 progresoRouter.get("/hoy", asyncHandler(async (req, res) => {
   const parsed = hoyQuerySchema.safeParse(req.query);
@@ -27,7 +29,7 @@ progresoRouter.get("/hoy", asyncHandler(async (req, res) => {
   const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
-  const { alcanzado, restantes } = await haAlcanzadoLimiteDiario({
+  const { alcanzado } = await haAlcanzadoLimiteSesionesDiario({
     usuarioId,
     esPremium: usuario.plan === "premium",
   });
@@ -38,32 +40,31 @@ progresoRouter.get("/hoy", asyncHandler(async (req, res) => {
   // y lleve a /upgrade en vez de ese mensaje confuso.
   if (alcanzado) {
     return res.status(429).json({
-      error: "Has alcanzado el límite diario de preguntas del plan gratuito",
+      error: "Has alcanzado el límite diario de tests del plan gratuito",
       restantes: 0,
     });
   }
-  const tope = Math.min(limit, restantes);
+  await registrarInicioSesionTest(usuarioId);
 
   const pendientesRevision = await prisma.progreso.findMany({
     where: { usuarioId, proximaRevision: { lte: new Date() } },
     orderBy: { proximaRevision: "asc" },
-    take: tope,
+    take: limit,
     include: { pregunta: true },
   });
 
   const preguntasNuevas =
-    pendientesRevision.length < tope
+    pendientesRevision.length < limit
       ? await prisma.pregunta.findMany({
           where: {
             estado: "verificada",
             progresos: { none: { usuarioId } },
           },
-          take: tope - pendientesRevision.length,
+          take: limit - pendientesRevision.length,
         })
       : [];
 
   res.json({
-    limiteDiario: { restantes },
     repaso: pendientesRevision.map((p) => ({
       preguntaId: p.preguntaId,
       enunciado: p.pregunta.enunciado,

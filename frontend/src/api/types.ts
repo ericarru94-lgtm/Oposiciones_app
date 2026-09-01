@@ -41,7 +41,6 @@ export interface RespuestaFeedback {
   fuente: string | null;
   /** Enlace directo al BOE (ley/artículo) para `fuente`, cuando aplica. */
   fuenteUrl?: string | null;
-  limiteDiario: { restantes: number; usadas: number };
 }
 
 export interface Usuario {
@@ -80,7 +79,6 @@ export interface ResumenTemaAdmin extends Tema {
 }
 
 export interface ProgresoHoy {
-  limiteDiario: { restantes: number };
   repaso: Array<{
     preguntaId: string;
     enunciado: string;

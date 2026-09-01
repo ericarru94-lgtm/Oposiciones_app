@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ExamenOficial } from "./ExamenOficial";
 import { obtenerExamenOficial } from "../api/endpoints";
+import { useSession } from "../context/SessionContext";
 import { ApiError } from "../api/client";
 import type { PreguntaParaResponder } from "../api/types";
 import type { ResultadoSimulacro } from "../components/SimulacroRunner";
@@ -12,12 +13,18 @@ vi.mock("../api/endpoints", () => ({
   obtenerExamenOficial: vi.fn(),
 }));
 vi.mock("../context/SessionContext", () => ({
-  useSession: () => ({
-    usuario: { id: "u1", email: "a@a.com", plan: "gratis" },
+  useSession: vi.fn(),
+}));
+
+/** Por defecto, un usuario premium: los tests del propio flujo del examen no son los que prueban el gate. */
+function mockUsuario(plan: "gratis" | "premium") {
+  vi.mocked(useSession).mockReturnValue({
+    usuario: { id: "u1", email: "a@a.com", plan },
+    cargando: false,
     logout: vi.fn(),
     getToken: vi.fn().mockResolvedValue("token-test"),
-  }),
-}));
+  } as unknown as ReturnType<typeof useSession>);
+}
 
 // Stub de SimulacroRunner: en vez de reproducir el flujo real de preguntas
 // (ya cubierto por SimulacroRunner.test.tsx), expone un botón que dispara
@@ -70,14 +77,44 @@ function renderExamen() {
       <Routes>
         <Route path="/simulacro/examen-oficial" element={<ExamenOficial />} />
         <Route path="/progreso" element={<p>Pantalla de progreso</p>} />
+        <Route path="/upgrade" element={<p>Pantalla de upgrade</p>} />
       </Routes>
     </MemoryRouter>
   );
 }
 
-describe("ExamenOficial", () => {
+describe("ExamenOficial — exclusivo de premium", () => {
   beforeEach(() => {
     vi.mocked(obtenerExamenOficial).mockReset();
+  });
+
+  it("un usuario del plan gratuito es redirigido a /upgrade sin ver la pantalla del examen", async () => {
+    mockUsuario("gratis");
+    renderExamen();
+
+    await screen.findByText("Pantalla de upgrade");
+    expect(screen.queryByRole("button", { name: "Empezar Parte 1" })).not.toBeInTheDocument();
+    expect(obtenerExamenOficial).not.toHaveBeenCalled();
+  });
+
+  it("si el backend rechaza con 403 (usuario no premium pese a pasar el gate del frontend), redirige a /upgrade", async () => {
+    mockUsuario("premium");
+    vi.mocked(obtenerExamenOficial).mockRejectedValue(
+      new ApiError(403, { error: "El examen oficial cronometrado es exclusivo del plan premium" })
+    );
+    const user = userEvent.setup();
+    renderExamen();
+
+    await user.click(screen.getByRole("button", { name: "Empezar Parte 1" }));
+
+    await screen.findByText("Pantalla de upgrade");
+  });
+});
+
+describe("ExamenOficial — flujo (usuario premium)", () => {
+  beforeEach(() => {
+    vi.mocked(obtenerExamenOficial).mockReset();
+    mockUsuario("premium");
   });
 
   it("muestra la estructura fija (60 + 90min / 50 + 45min) antes de empezar", () => {

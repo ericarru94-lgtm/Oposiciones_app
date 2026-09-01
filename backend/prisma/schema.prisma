@@ -158,6 +158,7 @@ model Usuario {
   progresos          Progreso[]
   intentos           Intento[]
   pushSuscripciones  PushSuscripcion[]
+  sesionesTest       SesionTest[]
 }
 
 /// Suscripción push (Web Push API) de un usuario en un dispositivo/navegador
@@ -221,6 +222,21 @@ model Intento {
 
   @@index([usuarioId, createdAt])
   @@index([sesionAnonima, createdAt])
+}
+
+/// Marca de "se ha empezado un test" (Practicar tema o Repasar hoy), una fila
+/// por inicio de test. A diferencia de Intento (una fila por pregunta
+/// respondida), esto es lo que limita el plan gratuito: 2 tests empezados al
+/// día en total, sin importar cuántas preguntas tenga cada uno ni el bloque.
+/// El simulacro libre y el examen oficial no crean filas aquí — no cuentan
+/// contra este límite (ver lib/dailyLimit.ts).
+model SesionTest {
+  id        String   @id @default(cuid())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId String
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId, createdAt])
 }
 
 // --------------------------------------------------------------------------

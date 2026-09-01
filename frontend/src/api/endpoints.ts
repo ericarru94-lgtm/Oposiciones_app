@@ -64,9 +64,13 @@ export interface FaseExamenOficial {
   tiempoLimiteMin: number;
 }
 
-/** Estructura fija del primer ejercicio real: Parte 1 (60 preg., 30 Bloque I + 30 psicotécnicas) y Parte 2 (50 preg. Bloque II). */
-export function obtenerExamenOficial() {
-  return apiFetch<{ parte1: FaseExamenOficial; parte2: FaseExamenOficial }>("/preguntas/examen-oficial");
+/**
+ * Estructura fija del primer ejercicio real: Parte 1 (60 preg., 30 Bloque I
+ * + 30 psicotécnicas) y Parte 2 (50 preg. Bloque II). Exclusivo del plan
+ * premium: requiere `token` y el backend responde 403 si no lo es.
+ */
+export function obtenerExamenOficial(token: string | null) {
+  return apiFetch<{ parte1: FaseExamenOficial; parte2: FaseExamenOficial }>("/preguntas/examen-oficial", { token });
 }
 
 export function obtenerPreguntasAleatorias(params: {
@@ -74,13 +78,17 @@ export function obtenerPreguntasAleatorias(params: {
   tipo?: TipoPregunta;
   temaId?: number;
   bloque?: "I" | "II";
+  /** Necesario cuando hay `temaId` (Practicar tema): así el backend puede aplicar el límite diario de tests. */
+  token?: string | null;
 }) {
   const query = new URLSearchParams();
   if (params.limit) query.set("limit", String(params.limit));
   if (params.tipo) query.set("tipo", params.tipo);
   if (params.temaId) query.set("temaId", String(params.temaId));
   if (params.bloque) query.set("bloque", params.bloque);
-  return apiFetch<{ preguntas: PreguntaParaResponder[] }>(`/preguntas/aleatorias?${query.toString()}`);
+  return apiFetch<{ preguntas: PreguntaParaResponder[] }>(`/preguntas/aleatorias?${query.toString()}`, {
+    token: params.token,
+  });
 }
 
 export function responderPregunta(

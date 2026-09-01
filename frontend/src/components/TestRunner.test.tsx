@@ -35,7 +35,6 @@ describe("TestRunner", () => {
       respuestaCorrecta: "a",
       explicacion: "Porque el artículo 1 lo dice.",
       fuente: "Art. 1 CE",
-      limiteDiario: { restantes: 29, usadas: 1 },
     });
 
     const onFinalizar = vi.fn();
@@ -78,14 +77,12 @@ describe("TestRunner", () => {
         respuestaCorrecta: "b",
         explicacion: null,
         fuente: null,
-        limiteDiario: { restantes: 28, usadas: 2 },
       })
       .mockResolvedValueOnce({
         esCorrecta: true,
         respuestaCorrecta: "a",
         explicacion: null,
         fuente: null,
-        limiteDiario: { restantes: 27, usadas: 3 },
       });
 
     const onFinalizar = vi.fn();
@@ -130,7 +127,6 @@ describe("TestRunner", () => {
       explicacion: "La opción a es correcta porque...",
       explicacionGeneradaIA: true,
       fuente: null,
-      limiteDiario: { restantes: 29, usadas: 1 },
     });
 
     render(
@@ -151,7 +147,6 @@ describe("TestRunner", () => {
       explicacion: "Porque el artículo 1 lo dice.",
       explicacionGeneradaIA: false,
       fuente: "Art. 1 CE",
-      limiteDiario: { restantes: 29, usadas: 1 },
     });
 
     render(
@@ -194,7 +189,6 @@ describe("TestRunner", () => {
       respuestaCorrecta: "b",
       explicacion: "Sumando por editorial, Santillana tiene 25 ejemplares disponibles (El equipaje del viajero), el máximo.",
       fuente: null,
-      limiteDiario: { restantes: 29, usadas: 1 },
     });
 
     render(

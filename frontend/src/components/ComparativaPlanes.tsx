@@ -1,17 +1,19 @@
 /**
  * Refleja únicamente diferenciación real entre planes que existe hoy en el
  * código (ver backend/src/lib/dailyLimit.ts y routes/preguntas.ts): el
- * límite diario de preguntas es lo único que de verdad distingue Gratis de
- * Premium — el simulacro y las estadísticas por tema están disponibles
- * para cualquier usuario registrado, con o sin plan premium.
+ * plan gratuito solo puede empezar 2 tests al día (Practicar tema o
+ * Repasar hoy, en total, sin importar el bloque), y el examen oficial
+ * cronometrado es exclusivo de Premium. El simulacro libre y las
+ * estadísticas por tema están disponibles para cualquier usuario
+ * registrado, con o sin plan premium.
  */
 const CARACTERISTICAS: { texto: string; gratis: boolean; premium: boolean }[] = [
   { texto: "Banco de preguntas verificadas por tema", gratis: true, premium: true },
   { texto: "Repaso por repetición espaciada (SM-2)", gratis: true, premium: true },
-  { texto: "Simulacros de examen cronometrados", gratis: true, premium: true },
+  { texto: "Simulacro libre de examen", gratis: true, premium: true },
   { texto: "Progreso y estadísticas por tema", gratis: true, premium: true },
-  { texto: "Preguntas de práctica ilimitadas cada día", gratis: false, premium: true },
-  { texto: "Repasar hoy sin límite diario", gratis: false, premium: true },
+  { texto: "Practicar tema y Repasar hoy sin límite diario", gratis: false, premium: true },
+  { texto: "Examen oficial cronometrado (60+50 preguntas, tiempo real)", gratis: false, premium: true },
 ];
 
 function Marca({ incluido }: { incluido: boolean }) {
@@ -32,7 +34,9 @@ export function ComparativaPlanes() {
       <div className="rounded-2xl border border-line bg-card p-6">
         <p className="text-sm font-semibold text-ink">Gratis</p>
         <p className="mt-1 text-3xl font-bold text-ink">0€</p>
-        <p className="mt-1 text-sm text-muted">Para empezar a practicar sin compromiso.</p>
+        <p className="mt-1 text-sm text-muted">
+          Para empezar a practicar sin compromiso: 2 tests al día (Practicar tema o Repasar hoy, en total).
+        </p>
         <ul className="mt-5 space-y-3">
           {CARACTERISTICAS.map((c) => (
             <li key={c.texto} className="flex items-center gap-3 text-sm text-ink">

@@ -2,9 +2,10 @@
  * Tests de integración de GET /api/preguntas/examen-oficial: comprueba que
  * la estructura fija (30 Bloque I + 30 psicotécnicas en la Parte 1, 50
  * Bloque II en la Parte 2) se respeta exactamente, a diferencia del
- * simulacro libre (proporcional). fileParallelism está desactivado (ver
- * vitest.config.mts), así que estos fixtures no compiten con los de otros
- * archivos de test contra la misma base de datos.
+ * simulacro libre (proporcional), y que el endpoint es exclusivo del plan
+ * premium (401 sin autenticar, 403 en plan gratuito). fileParallelism está
+ * desactivado (ver vitest.config.mts), así que estos fixtures no compiten
+ * con los de otros archivos de test contra la misma base de datos.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
@@ -14,6 +15,7 @@ vi.mock("@clerk/express", () => import("../../test-utils/clerkMock"));
 import { crearApp } from "../../app";
 import { prisma } from "../../lib/prisma";
 import { ESTRUCTURA_EXAMEN_OFICIAL } from "../../lib/examenOficial";
+import { mockUsuarioClerk } from "../../test-utils/clerkMock";
 
 const app = crearApp();
 
@@ -22,6 +24,8 @@ const TEMA_BLOQUE_II = { bloque: "II" as const, numero: 997, nombre: "Tema de te
 
 let temaIId: number;
 let temaIIId: number;
+let tokenPremium: string;
+let tokenGratis: string;
 
 async function limpiarFixtures() {
   await prisma.intento.deleteMany({ where: { preguntaId: { startsWith: "test-examen-" } } });
@@ -93,6 +97,16 @@ beforeAll(async () => {
       estado: "borrador",
     },
   });
+
+  // Exclusivo de premium: un usuario premium y uno gratuito para probar el gate.
+  tokenPremium = `clerk_test-examen-premium-${Date.now()}`;
+  mockUsuarioClerk(tokenPremium, `test-examen-premium-${Date.now()}@example.com`);
+  const mePremium = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${tokenPremium}`);
+  await prisma.usuario.update({ where: { id: mePremium.body.id }, data: { plan: "premium" } });
+
+  tokenGratis = `clerk_test-examen-gratis-${Date.now()}`;
+  mockUsuarioClerk(tokenGratis, `test-examen-gratis-${Date.now()}@example.com`);
+  await request(app).get("/api/auth/me").set("Authorization", `Bearer ${tokenGratis}`);
 });
 
 afterAll(async () => {
@@ -100,9 +114,32 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
+describe("GET /api/preguntas/examen-oficial — exclusivo del plan premium", () => {
+  it("rechaza con 401 sin autenticar", async () => {
+    const res = await request(app).get("/api/preguntas/examen-oficial");
+    expect(res.status).toBe(401);
+  });
+
+  it("rechaza con 403 a un usuario autenticado del plan gratuito", async () => {
+    const res = await request(app)
+      .get("/api/preguntas/examen-oficial")
+      .set("Authorization", `Bearer ${tokenGratis}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("permite el acceso a un usuario premium", async () => {
+    const res = await request(app)
+      .get("/api/preguntas/examen-oficial")
+      .set("Authorization", `Bearer ${tokenPremium}`);
+    expect(res.status).toBe(200);
+  });
+});
+
 describe("GET /api/preguntas/examen-oficial", () => {
   it("devuelve la Parte 1 con exactamente 60 preguntas (30 Bloque I + 30 psicotécnicas) y la Parte 2 con exactamente 50", async () => {
-    const res = await request(app).get("/api/preguntas/examen-oficial");
+    const res = await request(app)
+      .get("/api/preguntas/examen-oficial")
+      .set("Authorization", `Bearer ${tokenPremium}`);
     expect(res.status).toBe(200);
 
     expect(res.body.parte1.preguntas).toHaveLength(
@@ -115,7 +152,9 @@ describe("GET /api/preguntas/examen-oficial", () => {
   });
 
   it("la Parte 1 contiene exactamente 30 preguntas del Bloque I (temaId de test) y exactamente 30 psicotécnicas", async () => {
-    const res = await request(app).get("/api/preguntas/examen-oficial");
+    const res = await request(app)
+      .get("/api/preguntas/examen-oficial")
+      .set("Authorization", `Bearer ${tokenPremium}`);
     const idsParte1: string[] = res.body.parte1.preguntas.map((p: { id: string }) => p.id);
 
     const deBloqueI = idsParte1.filter((id) => id.startsWith("test-examen-bloque1-"));
@@ -126,7 +165,9 @@ describe("GET /api/preguntas/examen-oficial", () => {
   });
 
   it("la Parte 2 son las 50 preguntas del Bloque II, ninguna del Bloque I ni psicotécnica", async () => {
-    const res = await request(app).get("/api/preguntas/examen-oficial");
+    const res = await request(app)
+      .get("/api/preguntas/examen-oficial")
+      .set("Authorization", `Bearer ${tokenPremium}`);
     const idsParte2: string[] = res.body.parte2.preguntas.map((p: { id: string }) => p.id);
 
     expect(idsParte2.every((id: string) => id.startsWith("test-examen-bloque2-"))).toBe(true);
@@ -134,7 +175,9 @@ describe("GET /api/preguntas/examen-oficial", () => {
   });
 
   it("nunca incluye la pregunta en borrador ni la respuesta correcta de ninguna pregunta", async () => {
-    const res = await request(app).get("/api/preguntas/examen-oficial");
+    const res = await request(app)
+      .get("/api/preguntas/examen-oficial")
+      .set("Authorization", `Bearer ${tokenPremium}`);
     const todasLasPreguntas = [...res.body.parte1.preguntas, ...res.body.parte2.preguntas];
 
     expect(todasLasPreguntas.map((p: { id: string }) => p.id)).not.toContain("test-examen-borrador");
@@ -144,7 +187,9 @@ describe("GET /api/preguntas/examen-oficial", () => {
   });
 
   it("no repite ninguna pregunta entre la Parte 1 y la Parte 2", async () => {
-    const res = await request(app).get("/api/preguntas/examen-oficial");
+    const res = await request(app)
+      .get("/api/preguntas/examen-oficial")
+      .set("Authorization", `Bearer ${tokenPremium}`);
     const idsParte1: string[] = res.body.parte1.preguntas.map((p: { id: string }) => p.id);
     const idsParte2: string[] = res.body.parte2.preguntas.map((p: { id: string }) => p.id);
     const interseccion = idsParte1.filter((id) => idsParte2.includes(id));

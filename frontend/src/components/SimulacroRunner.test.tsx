@@ -40,14 +40,12 @@ describe("SimulacroRunner", () => {
         respuestaCorrecta: "a",
         explicacion: null,
         fuente: null,
-        limiteDiario: { restantes: 29, usadas: 1 },
       })
       .mockResolvedValueOnce({
         esCorrecta: false,
         respuestaCorrecta: "b",
         explicacion: null,
         fuente: null,
-        limiteDiario: { restantes: 28, usadas: 2 },
       });
 
     const onFinalizar = vi.fn();
