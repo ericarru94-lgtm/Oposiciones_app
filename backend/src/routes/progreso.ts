@@ -69,6 +69,7 @@ progresoRouter.get("/hoy", asyncHandler(async (req, res) => {
       enunciado: p.pregunta.enunciado,
       opciones: p.pregunta.opciones,
       tipo: p.pregunta.tipo,
+      tablaDatos: p.pregunta.tablaDatos,
       esNueva: false,
     })),
     nuevas: preguntasNuevas.map((p) => ({
@@ -76,6 +77,7 @@ progresoRouter.get("/hoy", asyncHandler(async (req, res) => {
       enunciado: p.enunciado,
       opciones: p.opciones,
       tipo: p.tipo,
+      tablaDatos: p.tablaDatos,
       esNueva: true,
     })),
   });

@@ -163,6 +163,58 @@ describe("TestRunner", () => {
     expect(screen.queryByText(/Explicación generada automáticamente/)).not.toBeInTheDocument();
   });
 
+  it("pregunta con tablaDatos: muestra la tabla y es resoluble con la respuesta correcta", async () => {
+    // Datos reales de una de las 36 psicotécnicas revisadas (q0049, tabla
+    // "Préstamos"): comprueba que la tabla se renderiza y que, con los datos
+    // que contiene, la pregunta tiene una única respuesta correcta y coherente.
+    const preguntaConTabla: PreguntaParaResponder = {
+      id: "q0049",
+      enunciado: "Tabla Préstamos: ¿editorial con más ejemplares disponibles?",
+      opciones: ["Plaza & Janés.", "Santillana.", "Destino.", "Alfaguara."],
+      tipo: "psicotecnica",
+      temaId: null,
+      tablaDatos: {
+        titulo: "Préstamos de la biblioteca municipal (mes actual)",
+        columnas: ["Título", "Autor", "Editorial", "Ciudad", "Año", "Ejemplares disponibles", "Ejemplares prestados", "Préstamos realizados"],
+        filas: [
+          ["Un calor tan cercano", "Puértolas, Soledad", "Anagrama", "Barcelona", 1980, 8, 2, 40],
+          ["El amante lesbiano", "Marías, Javier", "Alfaguara", "Madrid", 1990, 6, 3, 35],
+          ["Entre visillos", "Martín Gaite, Carmen", "Destino", "Barcelona", 1957, 10, 4, 50],
+          ["Hija de la fortuna", "Puértolas, Soledad", "Plaza & Janés", "Barcelona", 1999, 12, 9, 45],
+          ["El equipaje del viajero", "Martín Gaite, Carmen", "Santillana", "Madrid", 1996, 25, 5, 90],
+          ["Aranmanoth", "Matute, Ana María", "Destino", "Barcelona", 2000, 4, 3, 30],
+          ["La temporada de caza", "Sampedro, José Luis", "Alfaguara", "Madrid", 1995, 8, 4, 10],
+        ],
+      },
+    };
+
+    const user = userEvent.setup();
+    vi.mocked(responderPregunta).mockResolvedValueOnce({
+      esCorrecta: true,
+      respuestaCorrecta: "b",
+      explicacion: "Sumando por editorial, Santillana tiene 25 ejemplares disponibles (El equipaje del viajero), el máximo.",
+      fuente: null,
+      limiteDiario: { restantes: 29, usadas: 1 },
+    });
+
+    render(
+      <TestRunner titulo="Test" preguntas={[preguntaConTabla]} onFinalizar={vi.fn()} onLimiteAlcanzado={vi.fn()} />
+    );
+
+    // La tabla se ve antes de responder, con su título y todas las columnas.
+    expect(screen.getByText("Préstamos de la biblioteca municipal (mes actual)")).toBeInTheDocument();
+    expect(screen.getByText("Ejemplares disponibles")).toBeInTheDocument();
+    expect(screen.getByText("Santillana")).toBeInTheDocument();
+    expect(screen.getByText("Hija de la fortuna")).toBeInTheDocument();
+
+    // Con los datos de la tabla, "Santillana" (opción b) es la única
+    // editorial con más ejemplares disponibles (25, ninguna otra suma más).
+    await user.click(screen.getByTestId("opcion-b"));
+
+    await waitFor(() => expect(screen.getByTestId("feedback")).toBeInTheDocument());
+    expect(screen.getByText(/¡Correcto!/)).toBeInTheDocument();
+  });
+
   it("sin preguntas muestra un estado vacío y permite volver", async () => {
     const user = userEvent.setup();
     const onFinalizar = vi.fn();

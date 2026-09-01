@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authRequerido, requiereAdmin } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
-import { Bloque, EstadoPregunta, Opcion } from "@prisma/client";
+import { Bloque, EstadoPregunta, Opcion, Prisma } from "@prisma/client";
 
 export const adminRouter = Router();
 adminRouter.use(authRequerido, asyncHandler(requiereAdmin));
@@ -81,6 +81,14 @@ const edicionSchema = z.object({
   explicacion: z.string().nullable().optional(),
   fuente: z.string().nullable().optional(),
   fuenteUrl: z.string().nullable().optional(),
+  tablaDatos: z
+    .object({
+      titulo: z.string(),
+      columnas: z.array(z.string()),
+      filas: z.array(z.array(z.union([z.string(), z.number()]))),
+    })
+    .nullable()
+    .optional(),
   estado: z.nativeEnum(EstadoPregunta).optional(),
 });
 
@@ -104,6 +112,8 @@ adminRouter.patch("/preguntas/:id", asyncHandler(async (req, res) => {
     where: { id: req.params.id },
     data: {
       ...cambios,
+      // Prisma exige Prisma.JsonNull (no `null` a secas) para vaciar un campo Json.
+      tablaDatos: cambios.tablaDatos === null ? Prisma.JsonNull : cambios.tablaDatos,
       fechaVerificacion:
         cambios.estado === undefined ? undefined : cambios.estado === EstadoPregunta.verificada ? new Date() : null,
     },

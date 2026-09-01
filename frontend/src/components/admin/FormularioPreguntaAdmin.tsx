@@ -71,6 +71,36 @@ export function FormularioPreguntaAdmin({ pregunta, onCompletado, onSaltar }: Pr
         className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
       />
 
+      {pregunta.tablaDatos && (
+        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+          <p className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500">
+            {pregunta.tablaDatos.titulo} (no editable aquí — editar en el dataset)
+          </p>
+          <table className="min-w-full text-left text-xs">
+            <thead>
+              <tr>
+                {pregunta.tablaDatos.columnas.map((c) => (
+                  <th key={c} className="whitespace-nowrap px-3 py-1.5 font-semibold text-slate-500">
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pregunta.tablaDatos.filas.map((fila, i) => (
+                <tr key={i} className="border-t border-slate-100">
+                  {fila.map((celda, j) => (
+                    <td key={j} className="whitespace-nowrap px-3 py-1.5 text-slate-700">
+                      {celda}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className="mt-4 space-y-2">
         {opciones.map((texto, i) => {
           const opcion = OPCIONES[i];

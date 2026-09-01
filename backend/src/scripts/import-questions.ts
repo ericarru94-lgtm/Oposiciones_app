@@ -27,6 +27,7 @@ interface PreguntaJSON {
   explicacion_generada_ia?: boolean;
   fuente: string | null;
   fuente_url?: string | null;
+  tabla_datos?: { titulo: string; columnas: string[]; filas: (string | number)[][] } | null;
   origen: string;
   convocatoria: string | null;
   estado: string;
@@ -104,7 +105,18 @@ async function main() {
     const temaId = p.tema ? temaIdPorClave.get(`${p.tema.bloque}-${p.tema.numero}`) : null;
 
     const existente = await prisma.pregunta.findUnique({ where: { id: p.id } });
-    if (existente && existente.estado !== "borrador") {
+
+    // Excepción deliberada y acotada a la protección de abajo: una pregunta
+    // psicotécnica "anulada" por falta de tabla de datos (nunca revisada a
+    // mano en /admin/revision, solo clasificada así en el import original)
+    // se readmite con reescritura completa cuando el dataset le añade la
+    // tabla que le faltaba y la reclasifica. Fuera de este caso concreto
+    // (anulada -> ya no anulada, y solo cuando aparece tabla_datos nueva),
+    // el resto de preguntas ya revisadas se protege como siempre.
+    const reviveAnulada =
+      existente?.estado === "anulada" && !existente.tablaDatos && !!p.tabla_datos && p.estado !== "anulada";
+
+    if (existente && existente.estado !== "borrador" && !reviveAnulada) {
       // No tocamos estado/enunciado/opciones/respuestaCorrecta de una
       // pregunta ya revisada por un admin (ver más abajo). Pero sí
       // completamos explicación/fuente si hoy están vacías en la fila y el
@@ -171,6 +183,7 @@ async function main() {
       explicacionGeneradaIA: p.explicacion_generada_ia ?? false,
       fuente: p.fuente,
       fuenteUrl: p.fuente_url ?? null,
+      tablaDatos: p.tabla_datos ?? undefined,
       origen: p.origen as OrigenPregunta,
       convocatoria: p.convocatoria,
       estado: p.estado as EstadoPregunta,

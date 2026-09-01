@@ -80,6 +80,10 @@ model Pregunta {
   /// normativos (planes, protocolos) se dejan sin enlazar. Ver
   /// backend/scripts/generar-enlaces-boe.js.
   fuenteUrl              String?
+  /// Tabla o serie de datos que necesita el enunciado (preguntas
+  /// psicotécnicas de tipo "lectura de tablas"): { titulo, columnas: string[],
+  /// filas: (string|number)[][] }. Null en el resto de preguntas.
+  tablaDatos             Json?
   origen                 OrigenPregunta
   convocatoria           String?
   estado                 EstadoPregunta @default(borrador)

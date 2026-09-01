@@ -15,6 +15,13 @@ export interface Tema {
   resumenGeneradoIA?: boolean;
 }
 
+/** Tabla o serie de datos que necesita el enunciado de algunas preguntas psicotécnicas ("lectura de tablas"). */
+export interface TablaDatos {
+  titulo: string;
+  columnas: string[];
+  filas: (string | number)[][];
+}
+
 /** Pregunta tal como se sirve al cliente antes de responder: sin la respuesta correcta. */
 export interface PreguntaParaResponder {
   id: string;
@@ -22,6 +29,7 @@ export interface PreguntaParaResponder {
   opciones: string[];
   tipo: TipoPregunta;
   temaId: number | null;
+  tablaDatos?: TablaDatos | null;
 }
 
 export interface RespuestaFeedback {
@@ -59,6 +67,7 @@ export interface PreguntaAdmin {
   explicacion: string | null;
   fuente: string | null;
   fuenteUrl: string | null;
+  tablaDatos: TablaDatos | null;
   origen: "examen_oficial" | "generada_ia";
   convocatoria: string | null;
   estado: EstadoPregunta;
@@ -72,8 +81,22 @@ export interface ResumenTemaAdmin extends Tema {
 
 export interface ProgresoHoy {
   limiteDiario: { restantes: number };
-  repaso: Array<{ preguntaId: string; enunciado: string; opciones: string[]; tipo: TipoPregunta; esNueva: false }>;
-  nuevas: Array<{ preguntaId: string; enunciado: string; opciones: string[]; tipo: TipoPregunta; esNueva: true }>;
+  repaso: Array<{
+    preguntaId: string;
+    enunciado: string;
+    opciones: string[];
+    tipo: TipoPregunta;
+    tablaDatos?: TablaDatos | null;
+    esNueva: false;
+  }>;
+  nuevas: Array<{
+    preguntaId: string;
+    enunciado: string;
+    opciones: string[];
+    tipo: TipoPregunta;
+    tablaDatos?: TablaDatos | null;
+    esNueva: true;
+  }>;
 }
 
 export interface ProgresoResumen {

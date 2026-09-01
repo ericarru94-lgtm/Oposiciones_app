@@ -11,6 +11,7 @@ import type {
   ProgresoResumen,
   ResumenTemaAdmin,
   RespuestaFeedback,
+  TablaDatos,
   Tema,
   TipoPregunta,
   Usuario,
@@ -137,6 +138,7 @@ export interface CambiosPregunta {
   explicacion?: string | null;
   fuente?: string | null;
   fuenteUrl?: string | null;
+  tablaDatos?: TablaDatos | null;
   estado?: EstadoPregunta;
 }
 

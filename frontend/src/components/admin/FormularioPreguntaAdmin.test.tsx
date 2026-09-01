@@ -24,6 +24,7 @@ const preguntaBase: PreguntaAdmin = {
   explicacion: null,
   fuente: null,
   fuenteUrl: null,
+  tablaDatos: null,
   origen: "examen_oficial",
   convocatoria: "2025",
   estado: "borrador",
@@ -49,6 +50,27 @@ describe("FormularioPreguntaAdmin", () => {
     );
     expect(screen.getByRole("button", { name: "Verificar" })).toBeDisabled();
     expect(screen.getByText(/Selecciona la respuesta correcta/)).toBeInTheDocument();
+  });
+
+  it("muestra la tabla de datos de una pregunta psicotécnica cuando existe", () => {
+    render(
+      <FormularioPreguntaAdmin
+        pregunta={{
+          ...preguntaBase,
+          tema: null,
+          tipo: "psicotecnica",
+          tablaDatos: {
+            titulo: "Préstamos de la biblioteca municipal (mes actual)",
+            columnas: ["Título", "Editorial", "Ejemplares disponibles"],
+            filas: [["Hija de la fortuna", "Plaza & Janés", 12]],
+          },
+        }}
+        onCompletado={vi.fn()}
+        onSaltar={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/Préstamos de la biblioteca municipal/)).toBeInTheDocument();
+    expect(screen.getByText("Hija de la fortuna")).toBeInTheDocument();
   });
 
   it("permite editar el enunciado y verificar, enviando los cambios al backend", async () => {

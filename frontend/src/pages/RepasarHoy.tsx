@@ -18,6 +18,7 @@ export function RepasarHoy() {
       opciones: p.opciones,
       tipo: p.tipo,
       temaId: null,
+      tablaDatos: p.tablaDatos,
     }));
   }
 

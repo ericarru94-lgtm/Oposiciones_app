@@ -2,7 +2,38 @@ import { useMemo, useState } from "react";
 import { ApiError } from "../api/client";
 import { responderPregunta } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
-import type { Opcion, PreguntaParaResponder, RespuestaFeedback } from "../api/types";
+import type { Opcion, PreguntaParaResponder, RespuestaFeedback, TablaDatos } from "../api/types";
+
+/** Tabla de datos que necesitan algunas preguntas psicotécnicas (lectura de tablas) para poder resolverse. */
+function TablaDatosPregunta({ tabla }: { tabla: TablaDatos }) {
+  return (
+    <div className="mt-5 overflow-x-auto rounded-2xl border border-line">
+      <p className="border-b border-line bg-canvas px-4 py-2 text-sm font-semibold text-ink">{tabla.titulo}</p>
+      <table className="min-w-full text-left text-sm">
+        <thead>
+          <tr className="bg-canvas/60">
+            {tabla.columnas.map((columna) => (
+              <th key={columna} className="whitespace-nowrap px-4 py-2 font-semibold text-muted">
+                {columna}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {tabla.filas.map((fila, i) => (
+            <tr key={i} className="border-t border-line">
+              {fila.map((celda, j) => (
+                <td key={j} className="whitespace-nowrap px-4 py-2 text-ink">
+                  {celda}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export interface ResumenTest {
   totalPreguntas: number;
@@ -174,6 +205,7 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
       {/* Foco absoluto de la pantalla: la pregunta y sus opciones. */}
       <div className="rounded-3xl bg-card p-8 shadow-sm">
         <p className="text-xl font-semibold leading-relaxed text-ink">{pregunta.enunciado}</p>
+        {pregunta.tablaDatos && <TablaDatosPregunta tabla={pregunta.tablaDatos} />}
 
         <div className="mt-8 space-y-3">
           {pregunta.opciones.map((texto, i) => {

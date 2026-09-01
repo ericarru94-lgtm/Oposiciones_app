@@ -27,6 +27,7 @@ function ocultarRespuesta(p: {
   opciones: unknown;
   tipo: string;
   temaId: number | null;
+  tablaDatos?: unknown;
 }) {
   return {
     id: p.id,
@@ -34,6 +35,7 @@ function ocultarRespuesta(p: {
     opciones: p.opciones,
     tipo: p.tipo,
     temaId: p.temaId,
+    tablaDatos: p.tablaDatos ?? null,
   };
 }
 
@@ -70,7 +72,7 @@ preguntasRouter.get("/aleatorias", asyncHandler(async (req, res) => {
       ...(tipo ? { tipo } : {}),
       ...(temaId ? { temaId } : bloque ? { tema: { bloque } } : {}),
     },
-    select: { id: true, enunciado: true, opciones: true, tipo: true, temaId: true },
+    select: { id: true, enunciado: true, opciones: true, tipo: true, temaId: true, tablaDatos: true },
   });
 
   const seleccion = barajar(preguntas).slice(0, limit);
@@ -96,7 +98,7 @@ preguntasRouter.get("/simulacro", asyncHandler(async (req, res) => {
 
   const disponibles = await prisma.pregunta.findMany({
     where: { estado: EstadoPregunta.verificada },
-    select: { id: true, enunciado: true, opciones: true, tipo: true, temaId: true },
+    select: { id: true, enunciado: true, opciones: true, tipo: true, temaId: true, tablaDatos: true },
   });
 
   const seleccion = seleccionarProporcionalAlTemario(disponibles, numPreguntas);
@@ -119,6 +121,7 @@ preguntasRouter.get("/examen-oficial", asyncHandler(async (_req, res) => {
       opciones: true,
       tipo: true,
       temaId: true,
+      tablaDatos: true,
       tema: { select: { bloque: true } },
     },
   });
