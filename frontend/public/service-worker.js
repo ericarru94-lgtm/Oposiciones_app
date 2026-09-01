@@ -18,7 +18,14 @@
  * Subir CACHE_VERSION invalida toda la caché anterior en el siguiente
  * despliegue (el activate de abajo borra las cachés con nombre distinto).
  */
-const CACHE_VERSION = "v1";
+// v2: forzado tras el bug donde un usuario del plan gratuito completó el
+// examen oficial — la caché stale-while-revalidate podía servir de
+// inmediato una pestaña/PWA que llevaba abierta desde antes del gate de
+// premium, sin la comprobación nueva. La lógica de gate en sí vive en el
+// backend (rechaza con 403 con o sin este cambio); esto es defensa en
+// profundidad para que las pestañas ya abiertas recojan el shell nuevo en
+// su próxima navegación en vez de quedarse indefinidamente en el antiguo.
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `aprobox-shell-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
 
