@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { NewsletterForm } from "../components/NewsletterForm";
 import { ComparativaPlanes } from "../components/ComparativaPlanes";
+import { AproboxIcon } from "../components/AproboxIcon";
 
 const BENEFICIOS = [
   {
@@ -40,7 +41,8 @@ export function Landing() {
 
       {/* Hero: bloque de color propio, con degradado hacia el fondo de la app para marcar el primer tramo del recorrido visual. */}
       <section className="bg-linear-to-b from-primary to-primary-hover px-6 pb-24 pt-20 text-center">
-        <h1 className="text-4xl font-bold text-white sm:text-5xl">Aprobox</h1>
+        <AproboxIcon size={72} className="mx-auto rounded-2xl shadow-lg shadow-black/20 ring-1 ring-white/20" />
+        <h1 className="mt-5 text-4xl font-bold text-white sm:text-5xl">Aprobox</h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-white/85">
           Prepara la oposición de Auxiliar Administrativo del Estado con preguntas verificadas y un plan de repaso
           que se adapta a ti.
