@@ -136,6 +136,17 @@ preguntasRouter.get("/simulacro", asyncHandler(async (req, res) => {
 preguntasRouter.get("/examen-oficial", authRequerido, asyncHandler(async (req, res) => {
   const usuario = await prisma.usuario.findUnique({ where: { id: req.auth!.usuarioId } });
   if (!usuario) return res.status(401).json({ error: "Usuario no válido" });
+
+  // TODO(temporal, quitar tras diagnosticar el bug de acceso gratuito al
+  // examen oficial): registra, por cada petición real, exactamente qué
+  // instancia de backend la atendió y qué vio en BD justo antes de decidir
+  // — para poder confirmar en los logs de Render si el request de un
+  // usuario concreto pasa por aquí y qué instancia responde.
+  const decision = usuario.plan === "premium" ? "PERMITIDO" : "BLOQUEADO_403";
+  console.log(
+    `[GATE-EXAMEN-OFICIAL] ${new Date().toISOString()} email=${usuario.email} usuarioId=${usuario.id} plan="${usuario.plan}" decision=${decision} instancia=${process.env.RENDER_INSTANCE_ID ?? "local"} servicio=${process.env.RENDER_SERVICE_NAME ?? "local"} commit=${(process.env.RENDER_GIT_COMMIT ?? "local").slice(0, 7)}`
+  );
+
   if (usuario.plan !== "premium") {
     return res.status(403).json({ error: "El examen oficial cronometrado es exclusivo del plan premium" });
   }

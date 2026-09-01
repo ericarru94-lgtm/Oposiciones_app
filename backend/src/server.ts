@@ -20,6 +20,13 @@ const app = crearApp();
 const PORT = Number(process.env.PORT ?? 3001);
 app.listen(PORT, () => {
   console.log(`Backend escuchando en http://localhost:${PORT}`);
+  // TODO(temporal, quitar tras diagnosticar el bug de acceso gratuito al
+  // examen oficial): identifica esta instancia en los logs de Render para
+  // poder cruzarla con la que aparece como "Live" en el dashboard y con
+  // las líneas [GATE-EXAMEN-OFICIAL] de routes/preguntas.ts.
+  console.log(
+    `[BOOT] instancia=${process.env.RENDER_INSTANCE_ID ?? "local"} servicio=${process.env.RENDER_SERVICE_NAME ?? "local"} commit=${(process.env.RENDER_GIT_COMMIT ?? "local").slice(0, 7)} arrancada=${new Date().toISOString()}`
+  );
 });
 
 /**
