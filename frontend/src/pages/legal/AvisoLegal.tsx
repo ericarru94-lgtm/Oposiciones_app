@@ -2,7 +2,12 @@ import { PaginaEstatica } from "../../components/PaginaEstatica";
 
 export function AvisoLegal() {
   return (
-    <PaginaEstatica icono="⚖️" titulo="Aviso legal">
+    <PaginaEstatica
+      icono="⚖️"
+      titulo="Aviso legal"
+      ruta="/aviso-legal"
+      descripcion="Aviso legal de Aprobox: identificación del titular, condiciones de acceso y propiedad intelectual de la plataforma de preparación de la oposición de Auxiliar Administrativo del Estado."
+    >
       <p className="text-xs text-muted">
         Última actualización: agosto de 2026. Este documento es una plantilla de partida — revísala con
         asesoramiento legal antes de considerarla definitiva.

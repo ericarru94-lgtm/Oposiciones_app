@@ -2,7 +2,12 @@ import { PaginaEstatica } from "../components/PaginaEstatica";
 
 export function Contacto() {
   return (
-    <PaginaEstatica icono="✉️" titulo="Contacto">
+    <PaginaEstatica
+      icono="✉️"
+      titulo="Contacto"
+      ruta="/contacto"
+      descripcion="¿Dudas sobre tu preparación para la oposición de Auxiliar Administrativo del Estado? Contacta con el equipo de Aprobox por teléfono o email."
+    >
       <p>
         ¿Tienes dudas, sugerencias o has encontrado una pregunta con un error? Escríbenos o llámanos — te
         respondemos lo antes posible.

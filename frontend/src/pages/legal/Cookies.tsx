@@ -2,7 +2,12 @@ import { PaginaEstatica } from "../../components/PaginaEstatica";
 
 export function Cookies() {
   return (
-    <PaginaEstatica icono="🍪" titulo="Política de cookies">
+    <PaginaEstatica
+      icono="🍪"
+      titulo="Política de cookies"
+      ruta="/cookies"
+      descripcion="Qué cookies usa Aprobox, con qué finalidad y cómo puedes gestionarlas o desactivarlas desde tu navegador."
+    >
       <p className="text-xs text-muted">
         Última actualización: agosto de 2026. Este documento es una plantilla de partida — revísala con
         asesoramiento legal antes de considerarla definitiva.

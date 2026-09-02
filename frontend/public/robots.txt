@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /home
+Disallow: /perfil
+Disallow: /progreso
+Disallow: /simulacro
+Disallow: /practicar/
+Disallow: /temas/
+Disallow: /repasar-hoy
+Disallow: /admin/
+Disallow: /newsletter/
+
+Sitemap: https://aprobox.es/sitemap.xml

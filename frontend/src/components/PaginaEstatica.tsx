@@ -2,9 +2,33 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { PageTitle } from "./PageTitle";
 import { Footer } from "./Footer";
+import { useSeo } from "../hooks/useSeo";
+
+const DESCRIPCION_POR_DEFECTO =
+  "Aprobox, la plataforma de preparación para la oposición de Auxiliar Administrativo del Estado.";
+
+interface PaginaEstaticaProps {
+  icono: string;
+  titulo: string;
+  /** Ruta pública (con "/" inicial) para el canonical/og:url de esta página, p.ej. "/contacto". */
+  ruta: string;
+  descripcion?: string;
+  /** true en páginas transaccionales/de un solo uso (confirmar/baja de newsletter) que no deben indexarse. */
+  noIndexar?: boolean;
+  children: ReactNode;
+}
 
 /** Layout compartido por las páginas legales y de contacto: accesible sin sesión. */
-export function PaginaEstatica({ icono, titulo, children }: { icono: string; titulo: string; children: ReactNode }) {
+export function PaginaEstatica({
+  icono,
+  titulo,
+  ruta,
+  descripcion = DESCRIPCION_POR_DEFECTO,
+  noIndexar = false,
+  children,
+}: PaginaEstaticaProps) {
+  useSeo({ titulo, descripcion, ruta, noIndexar });
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <header className="border-b border-line bg-card">

@@ -2,7 +2,12 @@ import { PaginaEstatica } from "../../components/PaginaEstatica";
 
 export function Terminos() {
   return (
-    <PaginaEstatica icono="📄" titulo="Términos y condiciones">
+    <PaginaEstatica
+      icono="📄"
+      titulo="Términos y condiciones"
+      ruta="/terminos"
+      descripcion="Términos y condiciones de uso de Aprobox: planes gratuito y premium, suscripción, cancelación y responsabilidades del usuario."
+    >
       <p className="text-xs text-muted">
         Última actualización: agosto de 2026. Este documento es una plantilla de partida — revísala con
         asesoramiento legal antes de considerarla definitiva.

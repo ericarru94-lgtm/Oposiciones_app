@@ -11,18 +11,35 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Aprobox" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Aprobox</title>
+    <!--
+      Valores por defecto para "/" y para cualquier crawler que no ejecute
+      JS (p.ej. la vista previa de enlaces de redes sociales): el resto de
+      páginas públicas los sobrescribe en tiempo de ejecución vía
+      src/hooks/useSeo.ts (no hay SSR/prerender en este proyecto). Ver
+      backend/docs/seo.md.
+    -->
+    <title>Test oposiciones Auxiliar Administrativo del Estado | Aprobox</title>
     <meta
       name="description"
-      content="Aprobox — prepara tu oposición de Auxiliar Administrativo del Estado: mini-test sin registro, repaso por repetición espaciada y banco de preguntas verificado."
+      content="Prepara la oposición de Auxiliar Administrativo del Estado con tests y un simulacro de examen oficial verificados, repaso por repetición espaciada y seguimiento de tu progreso por tema. Empieza gratis."
     />
+    <link rel="canonical" href="https://aprobox.es/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Aprobox" />
-    <meta property="og:title" content="Aprobox" />
+    <meta property="og:url" content="https://aprobox.es/" />
+    <meta property="og:title" content="Test oposiciones Auxiliar Administrativo del Estado | Aprobox" />
     <meta
       property="og:description"
-      content="Prepara tu oposición de Auxiliar Administrativo del Estado: mini-test sin registro, repaso por repetición espaciada y banco de preguntas verificado."
+      content="Prepara la oposición de Auxiliar Administrativo del Estado con tests y un simulacro de examen oficial verificados, repaso por repetición espaciada y seguimiento de tu progreso por tema. Empieza gratis."
     />
+    <meta property="og:image" content="https://aprobox.es/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Test oposiciones Auxiliar Administrativo del Estado | Aprobox" />
+    <meta
+      name="twitter:description"
+      content="Prepara la oposición de Auxiliar Administrativo del Estado con tests y un simulacro de examen oficial verificados, repaso por repetición espaciada y seguimiento de tu progreso por tema. Empieza gratis."
+    />
+    <meta name="twitter:image" content="https://aprobox.es/og-image.png" />
   </head>
   <body>
     <div id="root"></div>

@@ -25,7 +25,13 @@ export function NewsletterConfirmar() {
   }, [token]);
 
   return (
-    <PaginaEstatica icono="📬" titulo="Confirmar suscripción">
+    <PaginaEstatica
+      icono="📬"
+      titulo="Confirmar suscripción"
+      ruta="/newsletter/confirmar"
+      descripcion="Confirma tu suscripción a la newsletter de Aprobox."
+      noIndexar
+    >
       {estado === "cargando" && <p>Confirmando tu suscripción…</p>}
       {estado === "ok" && <p>✅ ¡Listo! Tu suscripción a la newsletter de Aprobox está confirmada.</p>}
       {estado === "error" && <p>❌ {mensajeError}</p>}

@@ -2,7 +2,12 @@ import { PaginaEstatica } from "../../components/PaginaEstatica";
 
 export function Privacidad() {
   return (
-    <PaginaEstatica icono="🔒" titulo="Política de privacidad">
+    <PaginaEstatica
+      icono="🔒"
+      titulo="Política de privacidad"
+      ruta="/privacidad"
+      descripcion="Cómo trata Aprobox tus datos personales: qué recogemos, con qué finalidad y qué derechos tienes como usuario de la plataforma de preparación de oposiciones."
+    >
       <p className="text-xs text-muted">
         Última actualización: agosto de 2026. Este documento es una plantilla de partida — revísala con
         asesoramiento legal antes de considerarla definitiva.

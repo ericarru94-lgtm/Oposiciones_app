@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import { crearCheckoutSession } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { ComparativaPlanes } from "../components/ComparativaPlanes";
+import { useSeo } from "../hooks/useSeo";
 
 /** A dónde volver tras el login/registro de Clerk disparado desde "Suscribirme". */
 const DESTINO_TRAS_AUTH = "/upgrade?continuar=1";
@@ -41,6 +42,13 @@ export function Upgrade() {
   const [error, setError] = useState<string | null>(null);
   const yaContinuado = useRef(false);
   const { icono, titulo, texto, volverTexto } = MOTIVOS[searchParams.get("motivo") ?? ""] ?? MOTIVO_POR_DEFECTO;
+
+  useSeo({
+    titulo: "Hazte premium — Simulacro de examen oficial y tests ilimitados",
+    descripcion:
+      "Practica el simulacro con la estructura exacta del examen oficial de Auxiliar Administrativo del Estado y accede a tests ilimitados con el plan premium de Aprobox.",
+    ruta: "/upgrade",
+  });
 
   async function suscribirse() {
     setError(null);

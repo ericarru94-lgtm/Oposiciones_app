@@ -25,7 +25,13 @@ export function NewsletterBaja() {
   }, [token]);
 
   return (
-    <PaginaEstatica icono="📭" titulo="Baja de la newsletter">
+    <PaginaEstatica
+      icono="📭"
+      titulo="Baja de la newsletter"
+      ruta="/newsletter/baja"
+      descripcion="Gestiona tu baja de la newsletter de Aprobox."
+      noIndexar
+    >
       {estado === "cargando" && <p>Procesando tu baja…</p>}
       {estado === "ok" && <p>Te hemos dado de baja de la newsletter de Aprobox. No recibirás más emails.</p>}
       {estado === "error" && <p>❌ {mensajeError}</p>}

@@ -3,6 +3,8 @@ import { Footer } from "../components/Footer";
 import { NewsletterForm } from "../components/NewsletterForm";
 import { ComparativaPlanes } from "../components/ComparativaPlanes";
 import { AproboxIcon } from "../components/AproboxIcon";
+import { useSeo } from "../hooks/useSeo";
+import { OrganizationJsonLd } from "../components/OrganizationJsonLd";
 
 const BENEFICIOS = [
   {
@@ -24,8 +26,16 @@ const BENEFICIOS = [
 
 /** Pantalla pública en "/" para visitantes sin sesión iniciada. */
 export function Landing() {
+  useSeo({
+    titulo: "Test oposiciones Auxiliar Administrativo del Estado",
+    descripcion:
+      "Prepara la oposición de Auxiliar Administrativo del Estado con tests y un simulacro de examen oficial verificados, repaso por repetición espaciada y seguimiento de tu progreso por tema. Empieza gratis.",
+    ruta: "/",
+  });
+
   return (
     <div className="min-h-screen bg-canvas">
+      <OrganizationJsonLd />
       <header className="border-b border-white/10 bg-primary">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <span className="inline-flex items-center gap-1.5 font-semibold text-white">
