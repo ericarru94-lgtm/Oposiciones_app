@@ -47,8 +47,16 @@ export function Upgrade() {
     setProcesando(true);
     try {
       const token = await getToken();
-      const { url } = await crearCheckoutSession(token as string);
-      window.location.href = url;
+      const respuesta = await crearCheckoutSession(token as string);
+      if ("yaActivo" in respuesta) {
+        // El backend detectó una suscripción activa preexistente para este
+        // email (p.ej. tras el bug de cuenta duplicada al migrar Clerk) y
+        // la adoptó sin cobrar de nuevo. Recarga a Home para que la sesión
+        // recoja el plan premium ya activo.
+        window.location.href = "/home?checkout=success";
+        return;
+      }
+      window.location.href = respuesta.url;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo iniciar el pago. Inténtalo de nuevo.");
       setProcesando(false);

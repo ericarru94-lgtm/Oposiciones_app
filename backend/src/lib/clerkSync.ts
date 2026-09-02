@@ -7,10 +7,17 @@ import type { Usuario } from "@prisma/client";
  * Encuentra la fila de `Usuario` asociada a un usuario de Clerk ya
  * autenticado, creándola la primera vez que inicia sesión. El email se
  * obtiene siempre de Clerk (nunca lo manda el cliente); si ya existía una
- * fila con ese email (p.ej. de antes de migrar a Clerk), se enlaza en vez
- * de duplicarla. También reevalúa `esAdmin` en cada login, igual que hacía
- * `sincronizarEsAdmin` con el flujo de JWT: añadir un email a ADMIN_EMAILS
- * concede el acceso la próxima vez que esa persona inicie sesión.
+ * fila con ese email (p.ej. de antes de migrar a Clerk, o de la instancia
+ * de Clerk Development antes de pasar a Production — un mismo usuario
+ * recibe un clerkUserId nuevo al migrar), se enlaza en vez de duplicarla.
+ * La comparación es insensible a mayúsculas/minúsculas (`mode:
+ * "insensitive"`, sin necesitar la extensión citext en Postgres): si no lo
+ * fuera, una fila previa con el email en distinta capitalización a la que
+ * devuelve Clerk quedaría huérfana (con su plan premium y su
+ * stripeCustomerId) y esto crearía un duplicado en plan gratuito. También
+ * reevalúa `esAdmin` en cada login, igual que hacía `sincronizarEsAdmin`
+ * con el flujo de JWT: añadir un email a ADMIN_EMAILS concede el acceso la
+ * próxima vez que esa persona inicie sesión.
  */
 export async function obtenerOCrearUsuarioDesdeClerk(clerkUserId: string): Promise<Usuario> {
   const existente = await prisma.usuario.findUnique({ where: { clerkUserId } });
@@ -30,15 +37,26 @@ export async function obtenerOCrearUsuarioDesdeClerk(clerkUserId: string): Promi
     throw new Error(`El usuario de Clerk ${clerkUserId} no tiene ningún email asociado`);
   }
 
+  const previaPorEmail = await prisma.usuario.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
+  if (previaPorEmail) {
+    return prisma.usuario.update({
+      where: { id: previaPorEmail.id },
+      data: {
+        clerkUserId,
+        esAdmin: previaPorEmail.esAdmin || esEmailAdmin(previaPorEmail.email),
+      },
+    });
+  }
+
   try {
-    return await prisma.usuario.upsert({
-      where: { email },
-      create: { email, clerkUserId, esAdmin: esEmailAdmin(email) },
-      update: { clerkUserId },
+    return await prisma.usuario.create({
+      data: { email, clerkUserId, esAdmin: esEmailAdmin(email) },
     });
   } catch (err) {
-    // Carrera: otra petición concurrente del mismo usuario nuevo ganó y ya
-    // creó la fila entre el findUnique de arriba y este upsert.
+    // Carrera: otra petición concurrente del mismo clerkUserId ganó y ya
+    // creó la fila entre las comprobaciones de arriba y este create.
     const usuario = await prisma.usuario.findUnique({ where: { clerkUserId } });
     if (usuario) return usuario;
     throw err;

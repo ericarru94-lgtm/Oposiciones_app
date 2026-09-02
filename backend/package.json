@@ -17,6 +17,7 @@
     "import:questions": "tsx src/scripts/import-questions.ts",
     "stripe:setup-producto": "tsx src/scripts/setup-stripe-product.ts",
     "enviar-recordatorios": "dotenv -e .env -- tsx src/scripts/enviar-recordatorios-diarios.ts",
+    "fusionar-duplicado": "tsx src/scripts/fusionar-usuario-duplicado.ts",
     "pretest": "dotenv -e .env.test -- prisma migrate deploy",
     "test": "dotenv -e .env.test -- vitest run",
     "test:watch": "dotenv -e .env.test -- vitest",

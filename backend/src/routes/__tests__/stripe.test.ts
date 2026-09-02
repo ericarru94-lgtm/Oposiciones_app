@@ -10,10 +10,10 @@ import request from "supertest";
 
 const { stripeMock } = vi.hoisted(() => ({
   stripeMock: {
-    customers: { create: vi.fn() },
+    customers: { create: vi.fn(), list: vi.fn() },
     checkout: { sessions: { create: vi.fn() } },
     billingPortal: { sessions: { create: vi.fn() } },
-    subscriptions: { retrieve: vi.fn() },
+    subscriptions: { retrieve: vi.fn(), list: vi.fn() },
     webhooks: { constructEvent: vi.fn() },
   },
 }));
@@ -59,6 +59,7 @@ describe("POST /api/stripe/crear-checkout-session", () => {
   });
 
   it("crea un Customer nuevo si el usuario no tenía uno, y lo guarda", async () => {
+    stripeMock.customers.list.mockResolvedValueOnce({ data: [] });
     stripeMock.customers.create.mockResolvedValueOnce({ id: "cus_nuevo" });
     stripeMock.checkout.sessions.create.mockResolvedValueOnce({ url: "https://checkout.stripe.com/pay/cs_test_1" });
 
@@ -106,6 +107,7 @@ describe("POST /api/stripe/crear-checkout-session", () => {
     // nuevo que llega a /upgrade y se registra con Clerk desde ahí).
     const clerkUserIdNuevo = "clerk_test_stripe_usuario_nuevo";
     mockUsuarioClerk(clerkUserIdNuevo, "test-stripe-usuario-nuevo@example.com");
+    stripeMock.customers.list.mockResolvedValueOnce({ data: [] });
     stripeMock.customers.create.mockResolvedValueOnce({ id: "cus_recien_creado" });
     stripeMock.checkout.sessions.create.mockResolvedValueOnce({ url: "https://checkout.stripe.com/pay/cs_test_nuevo" });
 
@@ -122,6 +124,56 @@ describe("POST /api/stripe/crear-checkout-session", () => {
     const usuario = await prisma.usuario.findUnique({ where: { email: "test-stripe-usuario-nuevo@example.com" } });
     expect(usuario?.clerkUserId).toBe(clerkUserIdNuevo);
     expect(usuario?.stripeCustomerId).toBe("cus_recien_creado");
+  });
+
+  it("si el usuario no tiene stripeCustomerId pero su email ya tiene una suscripción activa en Stripe, la adopta en vez de cobrar de nuevo", async () => {
+    // Simula la fila de Usuario "duplicada" tras el bug de migración de
+    // Clerk (ver backend/docs/clerk.md): sin stripeCustomerId propio, pero
+    // el email ya tiene una suscripción activa en Stripe de antes.
+    await prisma.usuario.update({ where: { id: usuarioId }, data: { stripeCustomerId: null, plan: "free" } });
+    stripeMock.customers.list.mockResolvedValueOnce({ data: [{ id: "cus_preexistente" }] });
+    stripeMock.subscriptions.list.mockResolvedValueOnce({
+      data: [{ id: "sub_preexistente", customer: "cus_preexistente", status: "active", items: { data: [{ current_period_end: Math.floor(Date.now() / 1000) + 1000 }] } }],
+    });
+
+    const res = await request(app)
+      .post("/api/stripe/crear-checkout-session")
+      .set("Authorization", `Bearer ${tokenUsuario}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ yaActivo: true });
+    expect(stripeMock.customers.create).not.toHaveBeenCalled();
+    expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled();
+
+    const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+    expect(usuario?.stripeCustomerId).toBe("cus_preexistente");
+    expect(usuario?.plan).toBe("premium");
+  });
+
+  it("si esa suscripción activa ya está enlazada a OTRA fila de Usuario, responde 409 en vez de fallar o duplicar el cobro", async () => {
+    const otraFila = await prisma.usuario.create({
+      data: { email: "test-stripe-otra-cuenta@example.com", stripeCustomerId: "cus_de_otra_cuenta", plan: "premium" },
+    });
+    await prisma.usuario.update({ where: { id: usuarioId }, data: { stripeCustomerId: null, plan: "free" } });
+    stripeMock.customers.list.mockResolvedValueOnce({ data: [{ id: "cus_de_otra_cuenta" }] });
+    stripeMock.subscriptions.list.mockResolvedValueOnce({
+      data: [{ id: "sub_de_otra_cuenta", customer: "cus_de_otra_cuenta", status: "active", items: { data: [] } }],
+    });
+
+    try {
+      const res = await request(app)
+        .post("/api/stripe/crear-checkout-session")
+        .set("Authorization", `Bearer ${tokenUsuario}`);
+
+      expect(res.status).toBe(409);
+      expect(stripeMock.customers.create).not.toHaveBeenCalled();
+      expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled();
+
+      const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+      expect(usuario?.stripeCustomerId).toBeNull();
+    } finally {
+      await prisma.usuario.delete({ where: { id: otraFila.id } });
+    }
   });
 
   it("responde 500 si STRIPE_PRICE_ID no está configurado", async () => {

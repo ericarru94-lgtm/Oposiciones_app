@@ -34,9 +34,44 @@ partir de la sesión de Clerk, pero siguen dejando exactamente el mismo
    su email acaba de entrar en `ADMIN_EMAILS`, activa `esAdmin` de paso —
    igual que hacía antes `sincronizarEsAdmin` en cada login).
 2. Si no existe, pide el email a Clerk (`clerkClient.users.getUser`) y
-   hace un `upsert` por email: si ya había una fila con ese email (p.ej.
-   de antes de migrar a Clerk), la enlaza en vez de duplicarla; si no,
-   crea una fila nueva con `esAdmin` ya calculado.
+   busca por email de forma insensible a mayúsculas (`mode: "insensitive"`,
+   sin necesitar la extensión `citext`): si ya había una fila con ese email
+   (p.ej. de antes de migrar a Clerk, o de la instancia de Clerk
+   Development antes de pasar a Production), la enlaza en vez de
+   duplicarla; si no, crea una fila nueva con `esAdmin` ya calculado.
+
+## Migrar la instancia de Clerk de Development a Production
+
+Clerk trata Development y Production como dos poblaciones de usuarios
+totalmente separadas: al pasar a producción, cada persona recibe un
+`clerkUserId` **nuevo y distinto** al que tenía en development, aunque
+inicie sesión con el mismo email. El paso 2 de arriba está pensado
+precisamente para que esto no rompa nada: en el primer login contra la
+instancia de producción, se busca la fila de `Usuario` existente por
+email (insensible a mayúsculas) y se le actualiza el `clerkUserId`,
+conservando intacto su `plan`, `stripeCustomerId` y todo lo demás.
+
+Si aun así aparece un usuario con una fila duplicada en plan gratuito
+(por ejemplo, porque inició sesión en producción antes de que este fix
+insensible a mayúsculas estuviera desplegado, o porque el email que
+Clerk tiene registrado no es exactamente el mismo string que el de la
+fila antigua), hay un script de diagnóstico/reparación:
+
+```
+DATABASE_URL="<connection string de producción>" npm run fusionar-duplicado -- <email>
+```
+
+Sin `--aplicar` solo diagnostica (lista las filas encontradas, cuál
+parece la "original" por tener `stripeCustomerId`, y si la duplicada
+tiene progreso que se perdería). Con `--aplicar` traslada el
+`clerkUserId` nuevo a la fila original y borra la duplicada — se niega a
+hacerlo si la duplicada tiene datos, salvo que se añada también
+`--forzar`. Ver la cabecera de
+`backend/src/scripts/fusionar-usuario-duplicado.ts` para el detalle. El
+plan free de Render no da Shell, así que esto se ejecuta desde tu propio
+equipo apuntando al **External Database URL** de la Postgres de Render
+(Dashboard → tu base de datos → Connect), nunca pegando esa URL en
+ningún archivo que se commitee.
 
 ## Por qué `clerkMiddleware()` se monta condicionalmente
 

@@ -65,6 +65,32 @@ describe("GET /api/auth/me", () => {
     const actualizada = await prisma.usuario.findUnique({ where: { id: previa.id } });
     expect(actualizada?.clerkUserId).toBe(clerkUserId);
   });
+
+  it("vincula por email aunque difiera la capitalización (p.ej. migración Clerk dev -> producción)", async () => {
+    const previa = await prisma.usuario.create({
+      data: {
+        email: "test-clerk-Premium@Example.com",
+        plan: "premium",
+        stripeCustomerId: "cus_test-clerk-premium",
+      },
+    });
+
+    // Clerk en producción asigna un clerkUserId nuevo y distinto al de
+    // development para la misma persona, y puede devolver el email
+    // normalizado en minúsculas aunque la fila previa lo tuviera en otro case.
+    const clerkUserIdNuevo = "clerk_test-clerk-premium-prod";
+    mockUsuarioClerk(clerkUserIdNuevo, "test-clerk-premium@example.com");
+
+    const res = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${clerkUserIdNuevo}`);
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(previa.id);
+    expect(res.body.plan).toBe("premium");
+
+    const actualizada = await prisma.usuario.findUnique({ where: { id: previa.id } });
+    expect(actualizada?.clerkUserId).toBe(clerkUserIdNuevo);
+    expect(actualizada?.plan).toBe("premium");
+    expect(actualizada?.stripeCustomerId).toBe("cus_test-clerk-premium");
+  });
 });
 
 describe("POST /api/auth/reclamar-sesion-anonima", () => {

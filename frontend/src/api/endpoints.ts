@@ -173,9 +173,19 @@ export function actualizarPreguntaAdmin(token: string, id: string, cambios: Camb
 
 // --- Stripe ---
 
-/** Crea una Checkout Session de Stripe; redirigir el navegador a `url` (window.location.href). */
+/**
+ * Crea una Checkout Session de Stripe; redirigir el navegador a `url`
+ * (window.location.href). Si el email ya tenía una suscripción activa en
+ * Stripe bajo otra cuenta (p.ej. una cuenta duplicada por el bug de
+ * clerkUserId tras migrar Clerk — ver backend/docs/clerk.md), el backend
+ * la adopta en la cuenta actual en vez de cobrar una segunda vez y
+ * responde `{ yaActivo: true }` sin `url`.
+ */
 export function crearCheckoutSession(token: string) {
-  return apiFetch<{ url: string }>("/stripe/crear-checkout-session", { method: "POST", token });
+  return apiFetch<{ url: string } | { yaActivo: true }>("/stripe/crear-checkout-session", {
+    method: "POST",
+    token,
+  });
 }
 
 /** Crea una sesión del Billing Portal de Stripe (gestionar/cancelar la suscripción); redirigir a `url`. */

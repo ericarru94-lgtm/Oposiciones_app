@@ -81,6 +81,16 @@ describe("Upgrade — con sesión", () => {
     await waitFor(() => expect(window.location.href).toBe("https://checkout.stripe.com/pay/cs_test_1"));
   });
 
+  it("si el backend responde yaActivo (suscripción preexistente adoptada), recarga a Home sin pasar por Stripe", async () => {
+    const user = userEvent.setup();
+    vi.mocked(crearCheckoutSession).mockResolvedValueOnce({ yaActivo: true });
+    renderUpgrade();
+
+    await user.click(screen.getByRole("button", { name: "Suscribirme" }));
+
+    await waitFor(() => expect(window.location.href).toBe("/home?checkout=success"));
+  });
+
   it("muestra un error si el backend rechaza el checkout", async () => {
     const user = userEvent.setup();
     vi.mocked(crearCheckoutSession).mockRejectedValueOnce(new Error("fallo cualquiera"));

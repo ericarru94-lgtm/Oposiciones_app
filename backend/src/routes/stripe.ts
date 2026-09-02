@@ -3,6 +3,9 @@ import { prisma } from "../lib/prisma";
 import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { obtenerStripe } from "../lib/stripe";
+import { sincronizarSuscripcionDesdeStripe } from "../lib/sincronizarSuscripcion";
+
+const ESTADOS_ACTIVOS = new Set(["active", "trialing"]);
 
 export const stripeRouter = Router();
 
@@ -30,6 +33,38 @@ stripeRouter.post(
 
     let stripeCustomerId = usuario.stripeCustomerId;
     if (!stripeCustomerId) {
+      // Este email puede tener ya un Customer de Stripe con una suscripción
+      // activa asociado a OTRA fila de Usuario — típicamente por el bug de
+      // usuario duplicado tras migrar Clerk de Development a Production
+      // (ver backend/docs/clerk.md): el usuario ya pagó, pero su sesión
+      // actual apunta a una fila nueva sin stripeCustomerId. Crear aquí una
+      // Checkout Session normal le cobraría una segunda suscripción por
+      // error, así que primero se busca esa suscripción activa y, si
+      // existe, se adopta en vez de iniciar un cobro nuevo.
+      const clientesExistentes = await stripe.customers.list({ email: usuario.email, limit: 10 });
+      for (const cliente of clientesExistentes.data) {
+        const suscripciones = await stripe.subscriptions.list({ customer: cliente.id, status: "all", limit: 10 });
+        const activa = suscripciones.data.find((s) => ESTADOS_ACTIVOS.has(s.status));
+        if (!activa) continue;
+
+        // stripeCustomerId es único: si ya está enlazado a OTRA fila de
+        // Usuario (típicamente la cuenta original antes de una cuenta
+        // duplicada por el bug de clerkUserId tras migrar Clerk — ver
+        // backend/docs/clerk.md), no se puede enlazar aquí sin fusionar
+        // las cuentas primero (backend/src/scripts/fusionar-usuario-duplicado.ts).
+        const otraFilaConEsteCustomer = await prisma.usuario.findUnique({ where: { stripeCustomerId: cliente.id } });
+        if (otraFilaConEsteCustomer && otraFilaConEsteCustomer.id !== usuario.id) {
+          return res.status(409).json({
+            error:
+              "Ya existe una suscripción premium activa para este email en otra cuenta. Contacta con soporte para fusionar las cuentas antes de suscribirte de nuevo.",
+          });
+        }
+
+        await prisma.usuario.update({ where: { id: usuario.id }, data: { stripeCustomerId: cliente.id } });
+        await sincronizarSuscripcionDesdeStripe(activa);
+        return res.json({ yaActivo: true });
+      }
+
       const customer = await stripe.customers.create({
         email: usuario.email,
         metadata: { usuarioId: usuario.id },
