@@ -263,3 +263,50 @@ vuelta a /upgrade -> checkout automático".
 No hay (ni puede haber, en este entorno) un test E2E que ejercite Clerk de
 verdad — la misma limitación de red que impide probar el Checkout real de
 Stripe punta a punta (ver `backend/docs/stripe.md`).
+
+## Troubleshooting: frontend colgado en "Cargando…"
+
+Si la web se queda indefinidamente en "Cargando…" en vez de mostrar la
+landing o el panel, la causa casi siempre es que `ClerkProvider` nunca
+resuelve (`isLoaded` de Clerk no llega a `true`) — `cargando` en
+`SessionContext.tsx` depende de eso, y de `cargando` dependen `Inicio.tsx`,
+`RutaProtegida.tsx` y `RutaAdmin.tsx` (las tres pantallas que muestran
+`<PantallaCargando/>`, en `frontend/src/components/PantallaCargando.tsx` —
+tras ~8s sin resolverse muestra un aviso con botón "Recargar" en vez de
+dejar un spinner infinito, para que el síntoma sea detectable desde la UI
+sin abrir DevTools).
+
+Esto **no es un bug de este repo**: no hay código propio en el camino de
+arranque de Clerk más allá de pasarle `publishableKey` en `main.tsx`, y no
+hay ninguna cabecera CSP (ni en `vercel.json` ni en `index.html`) que
+pudiera bloquear sus scripts. Cuando pasa, suele coincidir con un cambio
+reciente en el Dashboard de Clerk o en las variables de entorno de Vercel.
+Para diagnosticarlo, abre DevTools → Consola y Network en el dominio
+afectado y mira qué falla en las peticiones hacia Clerk (su Frontend API,
+normalmente algo como `clerk.<tu-dominio>` si tienes dominio personalizado,
+o `<slug>.clerk.accounts.dev` si no):
+
+- **Error de CORS / dominio no autorizado** ("blocked by CORS policy" o
+  similar apuntando al Frontend API de Clerk): la instancia de Production
+  de Clerk exige que cada dominio desde el que se sirve el frontend esté
+  dado de alta explícitamente — a diferencia de Development, que es
+  permisivo. Revisa Clerk Dashboard → **Domains** y confirma que están
+  `aprobox.es` y, si sigue en uso, el dominio antiguo de Vercel.
+- **Petición que nunca responde (queda "pending") o `DNS_PROBE_FINISHED_NXDOMAIN`**
+  hacia un subdominio tipo `clerk.aprobox.es`: significa que la instancia
+  de producción está configurada con un dominio personalizado para Clerk y
+  el DNS (registros CNAME que pide Clerk Dashboard → Domains) todavía no
+  ha propagado o no se ha completado. La app se queda colgada porque el
+  SDK está esperando a un host que no resuelve.
+- **"The publishableKey passed to Clerk is invalid" en consola** (suele
+  venir con pantalla en blanco, no con el spinner colgado): `VITE_CLERK_PUBLISHABLE_KEY`
+  en Vercel no es la clave de Production (debe empezar por `pk_live_`) o
+  está vacía/mal copiada tras el último deploy.
+
+Ninguna de estas tres causas se arregla tocando código de este repo — son
+configuración de Clerk Dashboard (Domains) o de las variables de entorno
+de Vercel. Cambiar las credenciales de un proveedor OAuth (p.ej. pasar
+Google de las credenciales compartidas de Clerk a un Client ID/Secret
+propio) no debería por sí solo causar esto, pero si coincidió con pasar la
+instancia a Production o con activar un dominio personalizado para Clerk,
+revisa esos dos puntos primero.
