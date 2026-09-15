@@ -11,6 +11,30 @@ import { newsletterRouter } from "./routes/newsletter";
 import { pushRouter } from "./routes/push";
 
 /**
+ * A partir de FRONTEND_URL (p.ej. "https://aprobox.es"), añade también la
+ * variante con/sin "www." — sin esto, un visitante que llegue por
+ * "https://www.aprobox.es" (dominio distinto a efectos de CORS aunque
+ * apunte al mismo sitio) tiene todas sus peticiones a la API bloqueadas
+ * por el navegador, con un error genérico en el frontend que no dice CORS
+ * en ningún sitio (visto en producción: la newsletter y otras peticiones
+ * fallaban solo para quien entraba por "www.", nunca para quien entraba
+ * sin él). Lo ideal es fijar un único dominio canónico en Vercel (redirigir
+ * "www" al que no lo lleva, o viceversa) — esto es una red de seguridad
+ * mientras tanto, no un sustituto de esa redirección.
+ */
+function conVariantesWww(url: string): string[] {
+  try {
+    const { protocol, hostname, host } = new URL(url);
+    const resto = host.slice(hostname.length); // ":puerto", si lo hay
+    return hostname.startsWith("www.")
+      ? [url, `${protocol}//${hostname.slice(4)}${resto}`]
+      : [url, `${protocol}//www.${hostname}${resto}`];
+  } catch {
+    return [url];
+  }
+}
+
+/**
  * Orígenes desde los que el navegador puede llamar a esta API. En
  * desarrollo/E2E son puertos fijos de este repo (`npm run dev` y el modo
  * `--mode e2e`, ver `frontend/vite.config.ts` y `frontend/playwright.config.ts`);
@@ -18,9 +42,11 @@ import { pushRouter } from "./routes/push";
  * (la misma variable que ya usan las URLs de éxito/cancelación de Stripe en
  * `routes/stripe.ts`) — ver `backend/docs/despliegue.md`.
  */
-const origenesPermitidos = ["http://localhost:5173", "http://localhost:5174", process.env.FRONTEND_URL].filter(
-  (origen): origen is string => Boolean(origen)
-);
+const origenesPermitidos = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  ...(process.env.FRONTEND_URL ? conVariantesWww(process.env.FRONTEND_URL) : []),
+];
 
 /**
  * App de Express sin `listen()`, para poder importarla tanto desde
