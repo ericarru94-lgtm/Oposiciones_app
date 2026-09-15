@@ -63,7 +63,10 @@ describe("ResumenTema", () => {
     const boton = await screen.findByRole("button", { name: /Descargar PDF/i });
     await user.click(boton);
 
-    expect(generarPdfResumen).toHaveBeenCalledTimes(1);
+    // generarPdfResumen se importa dinámicamente (ver ResumenTema.tsx) para
+    // no cargar jsPDF/html2canvas hasta que hace falta de verdad: la llamada
+    // llega un tick después del click.
+    await waitFor(() => expect(generarPdfResumen).toHaveBeenCalledTimes(1));
     expect(generarPdfResumen).toHaveBeenCalledWith(temaConResumen);
   });
 

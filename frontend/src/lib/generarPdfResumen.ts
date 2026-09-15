@@ -1,40 +1,9 @@
 import { jsPDF } from "jspdf";
+import { parsearResumen } from "./parsearResumen";
 import type { Tema } from "../api/types";
 
-/**
- * Parsea el mismo formato ligero que EsquemaResumen (texto plano con
- * "## " para encabezados y "- " para puntos de lista) en una lista de
- * bloques tipados, reutilizable tanto para pintar en pantalla como para
- * generar el PDF sin duplicar la lógica de parseo.
- */
-type BloqueResumen = { tipo: "titulo"; texto: string } | { tipo: "lista"; items: string[] } | { tipo: "parrafo"; texto: string };
-
-export function parsearResumen(texto: string): BloqueResumen[] {
-  const bloques: BloqueResumen[] = [];
-  let listaActual: string[] = [];
-
-  function cerrarLista() {
-    if (listaActual.length === 0) return;
-    bloques.push({ tipo: "lista", items: listaActual });
-    listaActual = [];
-  }
-
-  for (const linea of texto.split("\n")) {
-    if (linea.startsWith("## ")) {
-      cerrarLista();
-      bloques.push({ tipo: "titulo", texto: linea.slice(3) });
-    } else if (linea.startsWith("- ")) {
-      listaActual.push(linea.slice(2));
-    } else if (linea.trim() === "") {
-      cerrarLista();
-    } else {
-      cerrarLista();
-      bloques.push({ tipo: "parrafo", texto: linea });
-    }
-  }
-  cerrarLista();
-  return bloques;
-}
+/** Re-exportado por comodidad: quien ya genera el PDF también puede necesitar parsear. */
+export { parsearResumen };
 
 const COLOR_PRIMARY = "#4338ca";
 const COLOR_ACCENT = "#f59e0b";

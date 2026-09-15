@@ -4,13 +4,30 @@ import { obtenerTemas } from "../api/endpoints";
 import { AppLayout } from "../components/AppLayout";
 import { PageTitle } from "../components/PageTitle";
 import { EsquemaResumen } from "../components/EsquemaResumen";
-import { generarPdfResumen } from "../lib/generarPdfResumen";
 import type { Tema } from "../api/types";
 
 export function ResumenTema() {
   const { temaId } = useParams<{ temaId: string }>();
   const navigate = useNavigate();
   const [tema, setTema] = useState<Tema | null | undefined>(undefined);
+  const [generandoPdf, setGenerandoPdf] = useState(false);
+
+  /**
+   * jsPDF arrastra consigo html2canvas y dompurify aunque no se use su
+   * método `.html()` — entre los tres suman más de 350kB minificados. Con
+   * un import estático, ese peso viajaba en el chunk principal para
+   * cualquiera que visitara la app, aunque nunca pulsara "Descargar PDF".
+   * El import dinámico solo lo descarga la primera vez que se pulsa.
+   */
+  async function descargarPdf(temaActual: Tema) {
+    setGenerandoPdf(true);
+    try {
+      const { generarPdfResumen } = await import("../lib/generarPdfResumen");
+      generarPdfResumen(temaActual);
+    } finally {
+      setGenerandoPdf(false);
+    }
+  }
 
   useEffect(() => {
     let cancelado = false;
@@ -62,10 +79,11 @@ export function ResumenTema() {
         )}
         {tema?.resumen && (
           <button
-            onClick={() => generarPdfResumen(tema)}
-            className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas"
+            onClick={() => descargarPdf(tema)}
+            disabled={generandoPdf}
+            className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-60"
           >
-            📄 Descargar PDF
+            {generandoPdf ? "Generando…" : "📄 Descargar PDF"}
           </button>
         )}
         <Link

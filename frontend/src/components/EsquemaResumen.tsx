@@ -1,12 +1,14 @@
-import { parsearResumen } from "../lib/generarPdfResumen";
+import { parsearResumen } from "../lib/parsearResumen";
 
 /**
  * Renderiza el resumen/esquema de un tema (texto plano con una convención
  * ligera: "## " para encabezados de sección y "- " para puntos de la
  * lista) sin depender de una librería de markdown — el formato que
  * generamos es lo bastante simple como para no necesitarla. El parseo lo
- * comparte con la generación del PDF (lib/generarPdfResumen.ts) para no
- * mantener dos lectores del mismo formato.
+ * comparte con la generación del PDF (lib/generarPdfResumen.ts, que
+ * reexporta este mismo parsearResumen) para no mantener dos lectores del
+ * mismo formato — pero importado desde este módulo sin jsPDF, para que
+ * pintar el resumen en pantalla no arrastre la librería de PDF al bundle.
  */
 export function EsquemaResumen({ texto }: { texto: string }) {
   const bloques = parsearResumen(texto).map((bloque, i) => {
