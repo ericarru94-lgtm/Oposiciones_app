@@ -18,6 +18,15 @@ email de la newsletter sin él):
    `${FRONTEND_URL}/newsletter/confirmar?token=<tokenConfirmacion>`.
 2. **Bienvenida** (al confirmar): enlace de vuelta a la app.
 
+### Rate limiting
+
+`POST /suscribir` está limitado a 5 peticiones por IP cada 15 minutos
+(`limitarNewsletter` en `backend/src/middleware/rateLimit.ts`) — pensado
+para frenar un script dando de alta muchos emails distintos (gasta la
+cuota de Resend y llena la tabla de suscriptores), no a una persona
+suscribiéndose una vez y reintentando si falla. Se desactiva del todo en
+test (`NODE_ENV=test`), donde no hay tráfico real que limitar.
+
 ### Qué pasa sin RESEND_API_KEY, o si Resend falla
 
 `POST /suscribir` sigue guardando el consentimiento con total

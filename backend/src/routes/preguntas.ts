@@ -7,6 +7,7 @@ import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../l
 import { seleccionarProporcionalAlTemario } from "../lib/seleccionProporcional";
 import { ESTRUCTURA_EXAMEN_OFICIAL, seleccionarExamenOficial } from "../lib/examenOficial";
 import { siguienteEstadoSM2, calidadDesdeAcierto } from "../lib/sm2";
+import { limitarRespuestasAnonimas } from "../middleware/rateLimit";
 import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
 
 export const preguntasRouter = Router();
@@ -208,7 +209,7 @@ const responderSchema = z.object({
  * normalidad. Si hay usuario autenticado, además actualiza su progreso
  * SM-2 para esa pregunta.
  */
-preguntasRouter.post("/:id/responder", authOpcional, asyncHandler(async (req, res) => {
+preguntasRouter.post("/:id/responder", authOpcional, limitarRespuestasAnonimas, asyncHandler(async (req, res) => {
   const parsed = responderSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });

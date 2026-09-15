@@ -56,6 +56,14 @@ const origenesPermitidos = [
 export function crearApp() {
   const app = express();
 
+  // Render pone esta app detrás de su propio proxy: sin esto, `req.ip` (y
+  // por tanto el límite por IP de express-rate-limit, ver
+  // middleware/rateLimit.ts) vería siempre la IP del proxy, la misma para
+  // todo el mundo. "1" en vez de `true`: confía solo en el primer salto
+  // (el proxy de Render), no en cualquier X-Forwarded-For que mande el
+  // propio cliente.
+  app.set("trust proxy", 1);
+
   // Log mínimo de cada petición (método, ruta, estado, duración, origin).
   // Sin esto, una petición que falla "limpio" (CORS, 4xx manejado) no deja
   // ningún rastro en los logs de Render — imprescindible para depurar en

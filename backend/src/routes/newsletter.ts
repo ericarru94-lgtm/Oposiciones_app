@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { asyncHandler } from "../lib/asyncHandler";
 import { obtenerResend, RESEND_FROM_EMAIL } from "../lib/resend";
 import { plantillaBienvenida, plantillaConfirmacion } from "../lib/emailTemplates";
+import { limitarNewsletter } from "../middleware/rateLimit";
 
 export const newsletterRouter = Router();
 
@@ -65,7 +66,7 @@ const suscribirSchema = z.object({
  * o Resend falla, el alta se guarda igual y el envío solo queda registrado
  * en el log del servidor (ver enviarEmail más arriba).
  */
-newsletterRouter.post("/suscribir", asyncHandler(async (req, res) => {
+newsletterRouter.post("/suscribir", limitarNewsletter, asyncHandler(async (req, res) => {
   const parsed = suscribirSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
