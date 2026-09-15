@@ -30,6 +30,20 @@ const origenesPermitidos = ["http://localhost:5173", "http://localhost:5174", pr
 export function crearApp() {
   const app = express();
 
+  // Log mínimo de cada petición (método, ruta, estado, duración, origin).
+  // Sin esto, una petición que falla "limpio" (CORS, 4xx manejado) no deja
+  // ningún rastro en los logs de Render — imprescindible para depurar en
+  // producción sin acceso a la base de datos ni a DevTools del usuario.
+  app.use((req, res, next) => {
+    const inicio = Date.now();
+    res.on("finish", () => {
+      console.log(
+        `${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - inicio}ms origin=${req.headers.origin ?? "-"}`
+      );
+    });
+    next();
+  });
+
   app.use(cors({ origin: origenesPermitidos }));
 
   // El webhook de Stripe necesita el body crudo (sin JSON-parsear) para
