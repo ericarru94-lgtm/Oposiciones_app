@@ -35,21 +35,33 @@ export function Perfil() {
   const navigate = useNavigate();
   const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
   const [rachaDias, setRachaDias] = useState<number | null>(null);
+  const [errorLogros, setErrorLogros] = useState<string | null>(null);
   const [procesandoPortal, setProcesandoPortal] = useState(false);
   const [errorPortal, setErrorPortal] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelado = false;
     (async () => {
-      const token = await getToken();
-      if (!token) return;
-      const [{ temas }, resumen] = await Promise.all([
-        obtenerProgresoPorTema(token),
-        obtenerResumenProgreso(token),
-      ]);
-      if (cancelado) return;
-      setTemas(temas);
-      setRachaDias(resumen.racha.dias);
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const [{ temas }, resumen] = await Promise.all([
+          obtenerProgresoPorTema(token),
+          obtenerResumenProgreso(token),
+        ]);
+        if (cancelado) return;
+        setTemas(temas);
+        setRachaDias(resumen.racha.dias);
+      } catch (err) {
+        // Sin este catch, un fallo aquí (red, CORS, backend caído) dejaba
+        // temas/rachaDias en null para siempre — "Cargando…" infinito en vez
+        // de un error visible.
+        if (!cancelado) {
+          setErrorLogros(
+            err instanceof ApiError ? err.message : "No se pudieron cargar tus logros. Inténtalo de nuevo más tarde."
+          );
+        }
+      }
     })();
     return () => {
       cancelado = true;
@@ -147,7 +159,8 @@ export function Perfil() {
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">🏅 Logros</h2>
 
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Constancia</h3>
-        {rachaDias === null && <p className="text-sm text-muted">Cargando…</p>}
+        {errorLogros && <p className="text-sm text-error">{errorLogros}</p>}
+        {!errorLogros && rachaDias === null && <p className="text-sm text-muted">Cargando…</p>}
         {rachaDias !== null && insigniasRacha.length === 0 && (
           <p className="text-sm text-muted">
             Aún no tienes insignias de racha. Practica varios días seguidos para conseguir la primera.
@@ -168,7 +181,7 @@ export function Perfil() {
         )}
 
         <h3 className="mb-3 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">Dominio de temas</h3>
-        {temas === null && <p className="text-sm text-muted">Cargando…</p>}
+        {!errorLogros && temas === null && <p className="text-sm text-muted">Cargando…</p>}
         {temas !== null && temasDominados.length === 0 && (
           <p className="text-sm text-muted">
             Aún no tienes temas dominados. Practica un tema hasta completarlo con ≥90% de acierto para conseguir tu
