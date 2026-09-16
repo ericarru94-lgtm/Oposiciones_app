@@ -1,3 +1,4 @@
+import "./instrument";
 import cron from "node-cron";
 import { crearApp } from "./app";
 import { pushConfigurado } from "./lib/webPush";

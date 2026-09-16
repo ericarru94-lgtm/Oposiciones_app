@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import * as Sentry from "@sentry/node";
 import { clerkMiddleware } from "@clerk/express";
 import { authRouter } from "./routes/auth";
 import { preguntasRouter } from "./routes/preguntas";
@@ -105,6 +106,14 @@ export function crearApp() {
   app.use("/api/stripe", stripeRouter);
   app.use("/api/newsletter", newsletterRouter);
   app.use("/api/push", pushRouter);
+
+  // Reenvía a Sentry cualquier error no controlado que llegue hasta aquí
+  // (ver src/instrument.ts, que inicializa el SDK antes de todo lo demás).
+  // Sin SENTRY_DSN configurada esto es un no-op: el error handler de abajo
+  // sigue respondiendo el 500 igual, solo que sin mandarlo a Sentry.
+  if (process.env.SENTRY_DSN) {
+    Sentry.setupExpressErrorHandler(app);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
