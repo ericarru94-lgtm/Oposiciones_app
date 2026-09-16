@@ -134,13 +134,44 @@ preguntas ya revisadas), N reordenadas (opciones reordenadas sin cambiar
 contenido en preguntas ya revisadas), W omitidas sin cambios`.
 
 Esta segunda excepción es la que hace que la aleatorización de la
-posición de la respuesta correcta (mezclada una sola vez sobre el propio
-dataset JSON) llegue también a las bases de datos que ya tenían esas
-preguntas importadas como verificadas — incluida producción, donde
+posición de la respuesta correcta (mezclada sobre el propio dataset
+JSON) llegue también a las bases de datos que ya tenían esas preguntas
+importadas como verificadas — incluida producción, donde
 `import-questions.js` se ejecuta automáticamente en cada arranque (ver
 sección 4) y es el único cauce por el que el dataset llega a la base de
 datos real, al no haber Shell en el plan free para correr un script
 suelto a mano.
+
+### Aleatorización de la posición de la respuesta correcta
+
+`scripts/aleatorizar-respuestas.ts` (`npm run aleatorizar-respuestas`)
+redistribuye a qué letra (A/B/C/D) le toca ser la correcta en cada
+pregunta `"verificada"` del dataset, y reordena sus `opciones` en
+consecuencia — nunca cambia el enunciado, los textos de opción ni cuál
+de ellos es el correcto, solo el orden. No es un shuffle ingenuo por
+pregunta (con ~1000 preguntas eso puede seguir dejando una letra
+sobrerrepresentada por puro azar): primero reparte un cupo casi idéntico
+de correctas entre las cuatro letras y luego asigna al azar qué pregunta
+recibe cada una, así el resultado queda equilibrado (~25% cada letra) Y
+es impredecible (las 3 opciones incorrectas de cada pregunta también se
+reordenan al azar entre sí).
+
+Ya se hizo una vez (30 de agosto de 2026, commit `2fdbea5`) sobre las
+395 preguntas que había entonces. El sesgo volvió a aparecer porque los
+más de 600 preguntas añadidas después (Bloque I y Bloque II completos,
+psicotécnicas) se redactaron con la respuesta correcta puesta casi
+siempre en la posición A, y nunca pasaron por ese reordenamiento — para
+cuando un usuario lo notó (16/09/2026), el recuento real era 433 "a"
+frente a ~190 de cada una de las otras tres, sobre 994 preguntas
+verificadas. Al volver a correr el script sobre el dataset completo
+quedó en 248/249/249/248.
+
+**Si se añaden preguntas nuevas en el futuro**, conviene volver a
+correr `npm run aleatorizar-respuestas` (seguido de
+`npm run import:questions` para llevarlo a la base de datos local) antes
+de darlas por verificadas — o, mejor aún, escribirlas ya con la posición
+de la respuesta correcta variada desde el principio, para no depender de
+acordarse de este paso.
 
 ## 4. Cómo llega el dataset a producción (Render), sin tocar test/E2E
 

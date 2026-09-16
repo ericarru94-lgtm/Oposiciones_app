@@ -15,6 +15,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "import:questions": "tsx src/scripts/import-questions.ts",
+    "aleatorizar-respuestas": "tsx src/scripts/aleatorizar-respuestas.ts",
     "stripe:setup-producto": "tsx src/scripts/setup-stripe-product.ts",
     "enviar-recordatorios": "dotenv -e .env -- tsx src/scripts/enviar-recordatorios-diarios.ts",
     "fusionar-duplicado": "tsx src/scripts/fusionar-usuario-duplicado.ts",
