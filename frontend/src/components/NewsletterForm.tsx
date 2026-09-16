@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ApiError } from "../api/client";
 import { suscribirseNewsletter } from "../api/endpoints";
+import { registrarEvento } from "../lib/analytics";
 
 /**
  * Alta a la newsletter. El checkbox de consentimiento nunca empieza
@@ -21,6 +22,7 @@ export function NewsletterForm({ className = "" }: { className?: string }) {
     setError(null);
     try {
       const { estado } = await suscribirseNewsletter(email, true);
+      if (estado !== "confirmado") registrarEvento("newsletter_alta");
       setResultado(estado === "confirmado" ? "ya_suscrito" : "ok");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo completar la suscripción. Inténtalo de nuevo.");

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { obtenerEvolucion, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
+import { registrarEvento } from "../lib/analytics";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { AvisoRecordatorioPush } from "../components/AvisoRecordatorioPush";
@@ -17,6 +18,14 @@ export function Home() {
   const [resumen, setResumen] = useState<ProgresoResumen | null>(null);
   const [evolucion, setEvolucion] = useState<EvolucionDia[] | null>(null);
   const pagoCompletado = searchParams.get("checkout") === "success";
+
+  // Solo al montar: si se dispara en un efecto con `pagoCompletado` como
+  // dependencia, cerrar el aviso (que solo quita el parámetro de la URL,
+  // ver más abajo) no debe volver a contar la conversión.
+  useEffect(() => {
+    if (pagoCompletado) registrarEvento("suscripcion_premium");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelado = false;

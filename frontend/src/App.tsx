@@ -1,9 +1,11 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, useEffect, useRef } from "react";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { SessionProvider } from "./context/SessionContext";
 import { RutaProtegida } from "./components/RutaProtegida";
 import { RutaAdmin } from "./components/RutaAdmin";
 import { PantallaCargando } from "./components/PantallaCargando";
+import { AvisoCookies } from "./components/AvisoCookies";
+import { registrarVistaPagina } from "./lib/analytics";
 import { Inicio } from "./pages/Inicio";
 
 /**
@@ -40,10 +42,30 @@ const NewsletterConfirmar = lazy(() =>
 );
 const NewsletterBaja = lazy(() => import("./pages/NewsletterBaja").then((m) => ({ default: m.NewsletterBaja })));
 
+/**
+ * Manda una vista de página a Analytics en cada cambio de ruta DENTRO de
+ * la SPA — la primera ya la manda gtag.js solo en su propio `config`
+ * (ver lib/analytics.ts), así que aquí se ignora a propósito el primer
+ * montaje para no contarla dos veces.
+ */
+function SeguimientoAnalytics() {
+  const location = useLocation();
+  const esPrimeraVez = useRef(true);
+  useEffect(() => {
+    if (esPrimeraVez.current) {
+      esPrimeraVez.current = false;
+      return;
+    }
+    registrarVistaPagina(location.pathname + location.search);
+  }, [location.pathname, location.search]);
+  return null;
+}
+
 export function App() {
   return (
     <SessionProvider>
       <BrowserRouter>
+        <SeguimientoAnalytics />
         <Suspense fallback={<PantallaCargando />}>
           <Routes>
             <Route path="/" element={<Inicio />} />
@@ -132,6 +154,7 @@ export function App() {
             />
           </Routes>
         </Suspense>
+        <AvisoCookies />
       </BrowserRouter>
     </SessionProvider>
   );

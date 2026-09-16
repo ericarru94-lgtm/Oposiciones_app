@@ -69,8 +69,16 @@ export function Privacidad() {
         <li>
           <strong>Stripe</strong>, como pasarela de pago, si te suscribes al plan premium.
         </li>
+        <li>
+          <strong>Google Analytics</strong>, con fines de analítica agregada (visitas, registros, altas premium),
+          solo si aceptas el aviso de cookies — ver{" "}
+          <a href="/cookies" className="text-primary hover:underline">
+            Política de cookies
+          </a>
+          .
+        </li>
       </ul>
-      <p>Ambos actúan como encargados del tratamiento y no usan tus datos para fines propios ajenos al Servicio.</p>
+      <p>Los tres actúan como encargados del tratamiento y no usan tus datos para fines propios ajenos al Servicio.</p>
 
       <h2 className="text-base font-semibold text-ink">7. Tus derechos</h2>
       <p>

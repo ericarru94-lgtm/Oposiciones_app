@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { actualizarOnboarding, obtenerUsuarioActual, reclamarSesionAnonima } from "../api/endpoints";
 import { apiFetch } from "../api/client";
+import { registrarEvento } from "../lib/analytics";
 import type { Usuario } from "../api/types";
 
 const CLAVE_SESION_ANONIMA = "oposiciones:sesionAnonima";
@@ -90,6 +91,13 @@ function useSincronizarTrasLogin(params: {
   const { estaAutenticado, getToken, sesionAnonima, nivelInicialPendiente, marcarOnboardingCompleto } = params;
   useEffect(() => {
     if (!estaAutenticado) return;
+    // Primer login de verdad en este navegador (todavía no había onboarding
+    // marcado como completo): lo más parecido a un alta nueva que se puede
+    // detectar solo con el cliente, así que es el momento de mandar el
+    // evento de conversión "sign_up" a Analytics.
+    if (localStorage.getItem(CLAVE_ONBOARDING_COMPLETO) !== "1") {
+      registrarEvento("sign_up");
+    }
     marcarOnboardingCompleto();
 
     const yaReclamada = localStorage.getItem(CLAVE_SESION_RECLAMADA) === sesionAnonima;

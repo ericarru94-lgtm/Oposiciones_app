@@ -171,6 +171,7 @@ desde `/` dentro de la app.
 |---|---|---|
 | `VITE_API_URL` | La URL que te da Render | `https://tu-servicio.onrender.com/api` (con el `/api` al final). |
 | `VITE_CLERK_PUBLISHABLE_KEY` | `frontend/.env` | La misma clave publicable que en local, a menos que uses una instancia de Clerk separada para producción. |
+| `VITE_GA_MEASUREMENT_ID` | `frontend/.env` | El Measurement ID (`G-XXXXXXXXXX`) de tu propiedad de Google Analytics 4. Sin ella, no se muestra el banner de cookies ni se carga Analytics (ver `backend/docs/analytics.md`). |
 
 No hace falta ninguna variable de Stripe en el frontend: el botón
 "Suscribirme" solo llama a `/api/stripe/crear-checkout-session` y
