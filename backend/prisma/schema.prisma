@@ -95,12 +95,30 @@ model Pregunta {
 
   progresos Progreso[]
   intentos  Intento[]
+  favoritas PreguntaFavorita[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([tipo, estado])
   @@index([temaId])
+}
+
+/// Preguntas que un usuario ha marcado para repasar aparte (⭐ en
+/// TestRunner), independiente del algoritmo SM-2 de repetición espaciada:
+/// mientras SM-2 decide CUÁNDO te toca repasar algo, esto es una lista que
+/// el propio usuario decide a mano, para volver a una pregunta concreta
+/// cuando quiera (p.ej. "esta me cuesta especialmente").
+model PreguntaFavorita {
+  id         String   @id @default(cuid())
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuarioId  String
+  pregunta   Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+  preguntaId String
+  createdAt  DateTime @default(now())
+
+  @@unique([usuarioId, preguntaId])
+  @@index([usuarioId])
 }
 
 // --------------------------------------------------------------------------
@@ -159,6 +177,7 @@ model Usuario {
   intentos           Intento[]
   pushSuscripciones  PushSuscripcion[]
   sesionesTest       SesionTest[]
+  preguntasFavoritas PreguntaFavorita[]
 }
 
 /// Suscripción push (Web Push API) de un usuario en un dispositivo/navegador

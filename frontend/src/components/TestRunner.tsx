@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "../api/client";
-import { responderPregunta } from "../api/endpoints";
+import { desmarcarFavorita, marcarFavorita, obtenerIdsFavoritos, responderPregunta } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import type { Opcion, PreguntaParaResponder, RespuestaFeedback, TablaDatos } from "../api/types";
 
@@ -67,7 +67,7 @@ interface TestRunnerProps {
  * `sesionAnonima` a /responder, lo que ya resuelve el SessionContext.
  */
 export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }: TestRunnerProps) {
-  const { getToken, sesionAnonima } = useSession();
+  const { getToken, sesionAnonima, estaAutenticado } = useSession();
   const [indice, setIndice] = useState(0);
   const [feedback, setFeedback] = useState<RespuestaFeedback | null>(null);
   const [opcionElegida, setOpcionElegida] = useState<Opcion | null>(null);
@@ -76,6 +76,26 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
   const [resultados, setResultados] = useState<boolean[]>([]);
   const [horaInicioPregunta] = useState(() => Date.now());
   const [horaInicioTest] = useState(() => Date.now());
+  const [favoritas, setFavoritas] = useState<Set<string> | null>(null);
+
+  // Se pide una sola vez al montar (no depende de qué preguntas traiga
+  // este test en concreto: /aleatorias, /progreso/hoy, /simulacro... todas
+  // usan el mismo id de pregunta) para saber qué estrella pintar rellena.
+  // Sin sesión (onboarding anónimo) no hay favoritos que cargar.
+  useEffect(() => {
+    if (!estaAutenticado) return;
+    let cancelado = false;
+    (async () => {
+      const token = await getToken();
+      if (!token) return;
+      const { ids } = await obtenerIdsFavoritos(token);
+      if (!cancelado) setFavoritas(new Set(ids));
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estaAutenticado]);
 
   const pregunta = preguntas[indice];
   const terminado = indice >= preguntas.length;
@@ -186,6 +206,34 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
     setIndice((i) => i + 1);
   }
 
+  /** Solo disponible con sesión (favoritas es una lista por usuario, no por dispositivo). */
+  async function alternarFavorita() {
+    if (!favoritas) return;
+    const yaEsFavorita = favoritas.has(pregunta.id);
+    // Optimista: la lista de favoritas es secundaria a la propia respuesta
+    // del test, no vale la pena bloquear la estrella a esperar la red.
+    setFavoritas((actual) => {
+      const nuevo = new Set(actual);
+      if (yaEsFavorita) nuevo.delete(pregunta.id);
+      else nuevo.add(pregunta.id);
+      return nuevo;
+    });
+    try {
+      const token = await getToken();
+      if (!token) return;
+      if (yaEsFavorita) await desmarcarFavorita(pregunta.id, token);
+      else await marcarFavorita(pregunta.id, token);
+    } catch {
+      // Revierte si falló la llamada, para no dejar la estrella mintiendo.
+      setFavoritas((actual) => {
+        const nuevo = new Set(actual);
+        if (yaEsFavorita) nuevo.add(pregunta.id);
+        else nuevo.delete(pregunta.id);
+        return nuevo;
+      });
+    }
+  }
+
   return (
     <div className="mx-auto max-w-lg">
       {/* Progreso: discreto a propósito, para que no compita con la pregunta. */}
@@ -204,7 +252,23 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
 
       {/* Foco absoluto de la pantalla: la pregunta y sus opciones. */}
       <div className="rounded-3xl bg-card p-8 shadow-sm">
-        <p className="text-xl font-semibold leading-relaxed text-ink">{pregunta.enunciado}</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xl font-semibold leading-relaxed text-ink">{pregunta.enunciado}</p>
+          {favoritas && (
+            <button
+              type="button"
+              data-testid="alternar-favorita"
+              onClick={alternarFavorita}
+              aria-label={favoritas.has(pregunta.id) ? "Quitar de favoritas" : "Marcar como favorita"}
+              aria-pressed={favoritas.has(pregunta.id)}
+              className={`shrink-0 text-2xl leading-none transition-transform hover:scale-110 ${
+                favoritas.has(pregunta.id) ? "text-accent" : "text-line hover:text-accent/60"
+              }`}
+            >
+              {favoritas.has(pregunta.id) ? "★" : "☆"}
+            </button>
+          )}
+        </div>
         {pregunta.tablaDatos && <TablaDatosPregunta tabla={pregunta.tablaDatos} />}
 
         <div className="mt-8 space-y-3">

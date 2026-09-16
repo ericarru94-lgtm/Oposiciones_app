@@ -35,7 +35,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Link
               to="/progreso"
               className={claseEnlace(
-                seccionActiva(pathname, ["/progreso", "/practicar", "/temas", "/simulacro", "/repasar-hoy"])
+                seccionActiva(pathname, [
+                  "/progreso",
+                  "/practicar",
+                  "/temas",
+                  "/simulacro",
+                  "/repasar-hoy",
+                  "/favoritas",
+                ])
               )}
             >
               Tests

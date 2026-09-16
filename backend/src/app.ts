@@ -11,6 +11,7 @@ import { stripeRouter } from "./routes/stripe";
 import { stripeWebhookHandler } from "./routes/stripeWebhook";
 import { newsletterRouter } from "./routes/newsletter";
 import { pushRouter } from "./routes/push";
+import { favoritosRouter } from "./routes/favoritos";
 
 /**
  * A partir de FRONTEND_URL (p.ej. "https://aprobox.es"), añade también la
@@ -114,6 +115,7 @@ export function crearApp() {
   app.use("/api/stripe", stripeRouter);
   app.use("/api/newsletter", newsletterRouter);
   app.use("/api/push", pushRouter);
+  app.use("/api/favoritos", favoritosRouter);
 
   // Reenvía a Sentry cualquier error no controlado que llegue hasta aquí
   // (ver src/instrument.ts, que inicializa el SDK antes de todo lo demás).

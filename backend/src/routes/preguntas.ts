@@ -12,7 +12,7 @@ import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
 
 export const preguntasRouter = Router();
 
-function barajar<T>(arr: T[]): T[] {
+export function barajar<T>(arr: T[]): T[] {
   const copia = [...arr];
   for (let i = copia.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -22,7 +22,7 @@ function barajar<T>(arr: T[]): T[] {
 }
 
 /** Pregunta sin la respuesta correcta, para no filtrarla al cliente antes de responder. */
-function ocultarRespuesta(p: {
+export function ocultarRespuesta(p: {
   id: string;
   enunciado: string;
   opciones: unknown;

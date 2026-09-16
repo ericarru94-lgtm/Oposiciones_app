@@ -123,6 +123,26 @@ export function obtenerRepasoHoy(token: string, limit = 20) {
   return apiFetch<ProgresoHoy>(`/progreso/hoy?limit=${limit}`, { token });
 }
 
+// --- Favoritos ---
+
+/** Solo los ids de las preguntas favoritas del usuario, para saber qué estrella pintar rellena en TestRunner. */
+export function obtenerIdsFavoritos(token: string) {
+  return apiFetch<{ ids: string[] }>("/favoritos/ids", { token });
+}
+
+/** Las preguntas favoritas completas, listas para practicar (mismo formato que /preguntas/aleatorias). */
+export function obtenerPreguntasFavoritas(token: string) {
+  return apiFetch<{ preguntas: PreguntaParaResponder[] }>("/favoritos", { token });
+}
+
+export function marcarFavorita(preguntaId: string, token: string) {
+  return apiFetch<void>(`/favoritos/${preguntaId}`, { method: "POST", token });
+}
+
+export function desmarcarFavorita(preguntaId: string, token: string) {
+  return apiFetch<void>(`/favoritos/${preguntaId}`, { method: "DELETE", token });
+}
+
 export function obtenerResumenProgreso(token: string) {
   return apiFetch<ProgresoResumen>("/progreso/resumen", { token });
 }

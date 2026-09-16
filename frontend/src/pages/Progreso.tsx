@@ -70,6 +70,19 @@ export function Progreso() {
         <span className="shrink-0 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold">Empezar →</span>
       </Link>
 
+      <Link
+        to="/favoritas"
+        className="mb-8 flex items-center justify-between rounded-2xl border border-line bg-card p-6 transition-colors hover:border-accent/40"
+      >
+        <div>
+          <p className="text-lg font-bold text-ink">⭐ Favoritas</p>
+          <p className="mt-1 text-sm text-muted">Repasa solo las preguntas que has marcado con la estrella.</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-accent/10 px-4 py-2 text-sm font-semibold text-accent">
+          Practicar →
+        </span>
+      </Link>
+
       {resumen && (
         <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatTile icono="📝" label="Preguntas respondidas" valor={resumen.totalIntentos} />

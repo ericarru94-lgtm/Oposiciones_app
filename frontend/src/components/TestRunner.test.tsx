@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TestRunner } from "./TestRunner";
 import { ApiError } from "../api/client";
-import { responderPregunta } from "../api/endpoints";
+import { desmarcarFavorita, marcarFavorita, obtenerIdsFavoritos, responderPregunta } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import type { PreguntaParaResponder } from "../api/types";
 
@@ -12,6 +12,9 @@ vi.mock("../context/SessionContext", () => ({
 }));
 vi.mock("../api/endpoints", () => ({
   responderPregunta: vi.fn(),
+  obtenerIdsFavoritos: vi.fn(),
+  marcarFavorita: vi.fn(),
+  desmarcarFavorita: vi.fn(),
 }));
 
 const preguntas: PreguntaParaResponder[] = [
@@ -23,8 +26,12 @@ beforeEach(() => {
   vi.mocked(useSession).mockReturnValue({
     getToken: vi.fn().mockResolvedValue(null),
     sesionAnonima: "sesion-test",
+    estaAutenticado: false,
   } as unknown as ReturnType<typeof useSession>);
   vi.mocked(responderPregunta).mockReset();
+  vi.mocked(obtenerIdsFavoritos).mockReset();
+  vi.mocked(marcarFavorita).mockReset();
+  vi.mocked(desmarcarFavorita).mockReset();
 });
 
 describe("TestRunner", () => {
@@ -217,5 +224,81 @@ describe("TestRunner", () => {
     expect(screen.getByText(/No hay preguntas disponibles/)).toBeInTheDocument();
     await user.click(screen.getByTestId("volver-vacio"));
     expect(onFinalizar).toHaveBeenCalledWith({ totalPreguntas: 0, aciertos: 0, fallos: 0, duracionMs: 0 });
+  });
+});
+
+describe("TestRunner — estrella de favoritas (solo con sesión)", () => {
+  beforeEach(() => {
+    vi.mocked(useSession).mockReturnValue({
+      getToken: vi.fn().mockResolvedValue("token-test"),
+      sesionAnonima: "sesion-test",
+      estaAutenticado: true,
+    } as unknown as ReturnType<typeof useSession>);
+  });
+
+  it("sin sesión (onboarding anónimo) no muestra la estrella ni pide favoritos", async () => {
+    vi.mocked(useSession).mockReturnValue({
+      getToken: vi.fn().mockResolvedValue(null),
+      sesionAnonima: "sesion-test",
+      estaAutenticado: false,
+    } as unknown as ReturnType<typeof useSession>);
+
+    render(<TestRunner titulo="Test" preguntas={[preguntas[0]]} onFinalizar={vi.fn()} onLimiteAlcanzado={vi.fn()} />);
+
+    expect(screen.queryByTestId("alternar-favorita")).not.toBeInTheDocument();
+    expect(obtenerIdsFavoritos).not.toHaveBeenCalled();
+  });
+
+  it("pinta la estrella rellena si la pregunta ya estaba entre los favoritos", async () => {
+    vi.mocked(obtenerIdsFavoritos).mockResolvedValueOnce({ ids: ["p1"] });
+
+    render(<TestRunner titulo="Test" preguntas={[preguntas[0]]} onFinalizar={vi.fn()} onLimiteAlcanzado={vi.fn()} />);
+
+    const estrella = await screen.findByTestId("alternar-favorita");
+    expect(estrella).toHaveTextContent("★");
+    expect(estrella).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("marca como favorita al pulsar la estrella vacía", async () => {
+    const user = userEvent.setup();
+    vi.mocked(obtenerIdsFavoritos).mockResolvedValueOnce({ ids: [] });
+    vi.mocked(marcarFavorita).mockResolvedValueOnce(undefined);
+
+    render(<TestRunner titulo="Test" preguntas={[preguntas[0]]} onFinalizar={vi.fn()} onLimiteAlcanzado={vi.fn()} />);
+
+    const estrella = await screen.findByTestId("alternar-favorita");
+    expect(estrella).toHaveTextContent("☆");
+
+    await user.click(estrella);
+    expect(estrella).toHaveTextContent("★");
+    await waitFor(() => expect(marcarFavorita).toHaveBeenCalledWith("p1", "token-test"));
+  });
+
+  it("si marcarFavorita falla, revierte la estrella a vacía", async () => {
+    const user = userEvent.setup();
+    vi.mocked(obtenerIdsFavoritos).mockResolvedValueOnce({ ids: [] });
+    vi.mocked(marcarFavorita).mockRejectedValueOnce(new Error("boom"));
+
+    render(<TestRunner titulo="Test" preguntas={[preguntas[0]]} onFinalizar={vi.fn()} onLimiteAlcanzado={vi.fn()} />);
+
+    const estrella = await screen.findByTestId("alternar-favorita");
+    await user.click(estrella);
+
+    await waitFor(() => expect(estrella).toHaveTextContent("☆"));
+  });
+
+  it("desmarca al pulsar una estrella ya rellena", async () => {
+    const user = userEvent.setup();
+    vi.mocked(obtenerIdsFavoritos).mockResolvedValueOnce({ ids: ["p1"] });
+    vi.mocked(desmarcarFavorita).mockResolvedValueOnce(undefined);
+
+    render(<TestRunner titulo="Test" preguntas={[preguntas[0]]} onFinalizar={vi.fn()} onLimiteAlcanzado={vi.fn()} />);
+
+    const estrella = await screen.findByTestId("alternar-favorita");
+    expect(estrella).toHaveTextContent("★");
+
+    await user.click(estrella);
+    expect(estrella).toHaveTextContent("☆");
+    await waitFor(() => expect(desmarcarFavorita).toHaveBeenCalledWith("p1", "token-test"));
   });
 });

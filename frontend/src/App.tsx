@@ -24,6 +24,7 @@ const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login
 const Registro = lazy(() => import("./pages/Registro").then((m) => ({ default: m.Registro })));
 const Home = lazy(() => import("./pages/Home").then((m) => ({ default: m.Home })));
 const RepasarHoy = lazy(() => import("./pages/RepasarHoy").then((m) => ({ default: m.RepasarHoy })));
+const Favoritas = lazy(() => import("./pages/Favoritas").then((m) => ({ default: m.Favoritas })));
 const PracticarTema = lazy(() => import("./pages/PracticarTema").then((m) => ({ default: m.PracticarTema })));
 const ResumenTema = lazy(() => import("./pages/ResumenTema").then((m) => ({ default: m.ResumenTema })));
 const Progreso = lazy(() => import("./pages/Progreso").then((m) => ({ default: m.Progreso })));
@@ -101,6 +102,14 @@ export function App() {
               element={
                 <RutaProtegida>
                   <RepasarHoy />
+                </RutaProtegida>
+              }
+            />
+            <Route
+              path="/favoritas"
+              element={
+                <RutaProtegida>
+                  <Favoritas />
                 </RutaProtegida>
               }
             />
