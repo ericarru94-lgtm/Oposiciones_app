@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import * as Sentry from "@sentry/node";
 import { clerkMiddleware } from "@clerk/express";
 import { authRouter } from "./routes/auth";
@@ -64,6 +65,13 @@ export function crearApp() {
   // (el proxy de Render), no en cualquier X-Forwarded-For que mande el
   // propio cliente.
   app.set("trust proxy", 1);
+
+  // Cabeceras de seguridad estándar (X-Content-Type-Options, HSTS, etc.).
+  // `crossOriginResourcePolicy: "cross-origin"` porque el frontend
+  // (aprobox.es/Vercel) y este backend (Render) son orígenes distintos: el
+  // valor por defecto de helmet ("same-origin") bloquearía sus propias
+  // peticiones fetch a esta API.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
   // Log mínimo de cada petición (método, ruta, estado, duración, origin).
   // Sin esto, una petición que falla "limpio" (CORS, 4xx manejado) no deja

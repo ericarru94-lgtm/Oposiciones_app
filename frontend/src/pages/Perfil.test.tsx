@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { Perfil } from "./Perfil";
-import { crearPortalSession, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
+import { crearPortalSession, eliminarCuenta, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import type { ProgresoPorTema, ProgresoResumen } from "../api/types";
 
@@ -14,6 +14,7 @@ vi.mock("../api/endpoints", () => ({
   obtenerProgresoPorTema: vi.fn(),
   obtenerResumenProgreso: vi.fn(),
   crearPortalSession: vi.fn(),
+  eliminarCuenta: vi.fn(),
 }));
 
 const resumenSinRacha: ProgresoResumen = {
@@ -52,6 +53,7 @@ beforeEach(() => {
   vi.mocked(obtenerProgresoPorTema).mockResolvedValue({ temas: [temaSinPracticar] });
   vi.mocked(obtenerResumenProgreso).mockResolvedValue(resumenSinRacha);
   vi.mocked(crearPortalSession).mockReset();
+  vi.mocked(eliminarCuenta).mockReset();
   vi.stubGlobal("location", { ...window.location, href: "" });
 });
 
@@ -177,5 +179,58 @@ describe("Perfil — premium con cancelación programada", () => {
     renderPerfil();
     expect(await screen.findByText(/Suscripción cancelada/)).toBeInTheDocument();
     expect(screen.getByText(/31\/12\/2026/)).toBeInTheDocument();
+  });
+});
+
+describe("Perfil — eliminar cuenta", () => {
+  const logout = vi.fn();
+
+  beforeEach(() => {
+    logout.mockReset();
+    vi.mocked(useSession).mockReturnValue({
+      usuario: { plan: "free", email: "gratis@example.com" },
+      perfilExterno: { nombreCompleto: null, email: "gratis@example.com", imagenUrl: null },
+      getToken: vi.fn().mockResolvedValue("token"),
+      logout,
+    } as unknown as ReturnType<typeof useSession>);
+  });
+
+  it("no llama al borrado si no se ha escrito la palabra de confirmación exacta", async () => {
+    const user = userEvent.setup();
+    renderPerfil();
+
+    await user.click(await screen.findByRole("button", { name: "Eliminar mi cuenta" }));
+    const input = screen.getByLabelText(/Escribe/);
+    const botonConfirmar = screen.getByRole("button", { name: "Sí, eliminar mi cuenta para siempre" });
+    expect(botonConfirmar).toBeDisabled();
+
+    await user.type(input, "eliminar");
+    expect(botonConfirmar).toBeDisabled();
+  });
+
+  it("borra la cuenta, cierra sesión y vuelve a la landing tras escribir ELIMINAR y confirmar", async () => {
+    const user = userEvent.setup();
+    vi.mocked(eliminarCuenta).mockResolvedValueOnce(undefined);
+    renderPerfil();
+
+    await user.click(await screen.findByRole("button", { name: "Eliminar mi cuenta" }));
+    await user.type(screen.getByLabelText(/Escribe/), "ELIMINAR");
+    await user.click(screen.getByRole("button", { name: "Sí, eliminar mi cuenta para siempre" }));
+
+    await waitFor(() => expect(eliminarCuenta).toHaveBeenCalledWith("token"));
+    await waitFor(() => expect(logout).toHaveBeenCalled());
+  });
+
+  it("muestra un error y no cierra sesión si el borrado falla", async () => {
+    const user = userEvent.setup();
+    vi.mocked(eliminarCuenta).mockRejectedValueOnce(new Error("boom"));
+    renderPerfil();
+
+    await user.click(await screen.findByRole("button", { name: "Eliminar mi cuenta" }));
+    await user.type(screen.getByLabelText(/Escribe/), "ELIMINAR");
+    await user.click(screen.getByRole("button", { name: "Sí, eliminar mi cuenta para siempre" }));
+
+    expect(await screen.findByText("No se pudo eliminar la cuenta. Inténtalo de nuevo.")).toBeInTheDocument();
+    expect(logout).not.toHaveBeenCalled();
   });
 });

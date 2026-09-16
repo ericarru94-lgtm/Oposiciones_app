@@ -30,6 +30,7 @@ export const clerkClient = {
         primaryEmailAddressId: "email_mock",
       };
     }),
+    deleteUser: vi.fn(async () => ({})),
   },
 };
 

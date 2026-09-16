@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
-import { crearPortalSession, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
+import { crearPortalSession, eliminarCuenta, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { PageTitle } from "../components/PageTitle";
@@ -30,14 +30,20 @@ const HITOS_RACHA = [
 ] as const;
 
 /** Combina datos de identidad (Clerk: nombre, email, foto) con datos propios (plan, cuenta, logros). */
+const FRASE_CONFIRMACION_BORRADO = "ELIMINAR";
+
 export function Perfil() {
-  const { usuario, perfilExterno, getToken } = useSession();
+  const { usuario, perfilExterno, getToken, logout } = useSession();
   const navigate = useNavigate();
   const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
   const [rachaDias, setRachaDias] = useState<number | null>(null);
   const [errorLogros, setErrorLogros] = useState<string | null>(null);
   const [procesandoPortal, setProcesandoPortal] = useState(false);
   const [errorPortal, setErrorPortal] = useState<string | null>(null);
+  const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] = useState(false);
+  const [textoConfirmacionBorrado, setTextoConfirmacionBorrado] = useState("");
+  const [procesandoBorrado, setProcesandoBorrado] = useState(false);
+  const [errorBorrado, setErrorBorrado] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -84,6 +90,20 @@ export function Perfil() {
     } catch (err) {
       setErrorPortal(err instanceof ApiError ? err.message : "No se pudo abrir la gestión de la suscripción.");
       setProcesandoPortal(false);
+    }
+  }
+
+  async function confirmarEliminarCuenta() {
+    setErrorBorrado(null);
+    setProcesandoBorrado(true);
+    try {
+      const token = await getToken();
+      await eliminarCuenta(token as string);
+      logout();
+      navigate("/");
+    } catch (err) {
+      setErrorBorrado(err instanceof ApiError ? err.message : "No se pudo eliminar la cuenta. Inténtalo de nuevo.");
+      setProcesandoBorrado(false);
     }
   }
 
@@ -203,6 +223,58 @@ export function Perfil() {
       </div>
 
       <NewsletterForm className="mt-6" />
+
+      <div className="mt-6 rounded-2xl border border-error/30 bg-card p-6">
+        <h2 className="text-sm font-semibold text-error">Eliminar cuenta</h2>
+        <p className="mt-2 text-sm text-muted">
+          Borra permanentemente tu progreso, intentos y sesiones de test
+          {esPremium ? ", y cancela tu suscripción de inmediato" : ""}. Esta acción no se puede deshacer.
+        </p>
+
+        {!mostrarConfirmacionBorrado ? (
+          <button
+            onClick={() => setMostrarConfirmacionBorrado(true)}
+            className="mt-4 rounded-lg border border-error/40 px-3 py-1.5 text-sm font-medium text-error hover:bg-error/5"
+          >
+            Eliminar mi cuenta
+          </button>
+        ) : (
+          <div className="mt-4 space-y-3 rounded-xl bg-error/5 p-4">
+            <label htmlFor="confirmacion-borrado" className="block text-sm text-ink">
+              Escribe <strong>{FRASE_CONFIRMACION_BORRADO}</strong> para confirmar que quieres borrar tu cuenta.
+            </label>
+            <input
+              id="confirmacion-borrado"
+              type="text"
+              value={textoConfirmacionBorrado}
+              onChange={(e) => setTextoConfirmacionBorrado(e.target.value)}
+              className="w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink"
+              autoComplete="off"
+            />
+            {errorBorrado && <p className="text-sm text-error">{errorBorrado}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={confirmarEliminarCuenta}
+                disabled={textoConfirmacionBorrado !== FRASE_CONFIRMACION_BORRADO || procesandoBorrado}
+                className="rounded-lg bg-error px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {procesandoBorrado ? "Eliminando…" : "Sí, eliminar mi cuenta para siempre"}
+              </button>
+              <button
+                onClick={() => {
+                  setMostrarConfirmacionBorrado(false);
+                  setTextoConfirmacionBorrado("");
+                  setErrorBorrado(null);
+                }}
+                disabled={procesandoBorrado}
+                className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-muted hover:text-ink"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </AppLayout>
   );
 }

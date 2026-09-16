@@ -41,6 +41,15 @@ export function reclamarSesionAnonima(token: string, sesionAnonima: string) {
 }
 
 /**
+ * Borrado de cuenta autoservicio: cancela la suscripción de Stripe si la
+ * hay, borra el historial (progreso, intentos, sesiones de test) y la
+ * cuenta en sí, tanto en la base de datos como en Clerk. Irreversible.
+ */
+export function eliminarCuenta(token: string) {
+  return apiFetch<void>("/auth/cuenta", { method: "DELETE", token });
+}
+
+/**
  * Solo existe en el backend cuando `AUTH_TEST_BYPASS_SECRET` está definido
  * (exclusivo del entorno E2E — ver backend/docs/clerk.md): permite iniciar
  * sesión sin pasar por Clerk cuando no hay `VITE_CLERK_PUBLISHABLE_KEY`

@@ -79,8 +79,9 @@ export function Privacidad() {
         <a href="mailto:aprobox.app@gmail.com" className="text-primary hover:underline">
           aprobox.app@gmail.com
         </a>
-        . También puedes eliminar preguntas respondidas o tu cuenta directamente desde la app cuando esa
-        funcionalidad esté disponible, o solicitándolo por email. Para la newsletter en concreto: el alta exige
+        . También puedes eliminar tu cuenta directamente desde la app (Perfil → "Eliminar cuenta"), que borra tu
+        progreso, intentos y sesiones de test y cancela de inmediato la suscripción si la tuvieras, o solicitarlo
+        por email. Para la newsletter en concreto: el alta exige
         doble confirmación (marcar la casilla de consentimiento y, después, confirmar desde el enlace del email que
         te enviamos) y puedes darte de baja en cualquier momento con el enlace que incluye cada envío.
       </p>
