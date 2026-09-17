@@ -1,6 +1,7 @@
 import { clerkClient } from "@clerk/express";
 import { prisma } from "./prisma";
 import { esEmailAdmin } from "./adminEmails";
+import { notificarNuevoRegistro } from "./notificacionesAdmin";
 import type { Usuario } from "@prisma/client";
 
 /**
@@ -51,9 +52,11 @@ export async function obtenerOCrearUsuarioDesdeClerk(clerkUserId: string): Promi
   }
 
   try {
-    return await prisma.usuario.create({
+    const nuevo = await prisma.usuario.create({
       data: { email, clerkUserId, esAdmin: esEmailAdmin(email) },
     });
+    void notificarNuevoRegistro(nuevo.email);
+    return nuevo;
   } catch (err) {
     // Carrera: otra petición concurrente del mismo clerkUserId ganó y ya
     // creó la fila entre las comprobaciones de arriba y este create.

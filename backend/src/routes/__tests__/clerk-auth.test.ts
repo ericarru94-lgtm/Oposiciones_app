@@ -4,16 +4,26 @@
  * preexistentes por email, reclamo de intentos anónimos tras el
  * onboarding, y el bypass exclusivo de E2E. Ver backend/docs/clerk.md.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 
 vi.mock("@clerk/express", () => import("../../test-utils/clerkMock"));
+
+const { resendMock } = vi.hoisted(() => ({
+  resendMock: { emails: { send: vi.fn().mockResolvedValue({ data: { id: "email_test" }, error: null }) } },
+}));
+vi.mock("../../lib/resend", () => ({
+  obtenerResend: () => resendMock,
+  RESEND_FROM_EMAIL: "Aprobox <onboarding@resend.dev>",
+}));
 
 import { crearApp } from "../../app";
 import { prisma } from "../../lib/prisma";
 import { mockUsuarioClerk } from "../../test-utils/clerkMock";
 
 const app = crearApp();
+
+beforeEach(() => resendMock.emails.send.mockClear());
 
 async function limpiarFixtures() {
   await prisma.intento.deleteMany({ where: { preguntaId: { startsWith: "test-clerk-" } } });
@@ -50,6 +60,20 @@ describe("GET /api/auth/me", () => {
     expect(filas).toBe(1);
   });
 
+  it("avisa por email al admin solo en el registro genuino, no en logins posteriores", async () => {
+    const clerkUserId = "clerk_test-clerk-aviso-registro";
+    mockUsuarioClerk(clerkUserId, "test-clerk-aviso-registro@example.com");
+
+    await request(app).get("/api/auth/me").set("Authorization", `Bearer ${clerkUserId}`);
+    expect(resendMock.emails.send).toHaveBeenCalledTimes(1);
+    const envio = resendMock.emails.send.mock.calls[0][0];
+    expect(envio.to).toBe("admin-test@example.com");
+    expect(envio.subject).toContain("test-clerk-aviso-registro@example.com");
+
+    await request(app).get("/api/auth/me").set("Authorization", `Bearer ${clerkUserId}`);
+    expect(resendMock.emails.send).toHaveBeenCalledTimes(1);
+  });
+
   it("vincula por email una fila de Usuario ya existente (previa a Clerk) en vez de duplicarla", async () => {
     const previa = await prisma.usuario.create({
       data: { email: "test-clerk-preexistente@example.com" },
@@ -64,6 +88,7 @@ describe("GET /api/auth/me", () => {
 
     const actualizada = await prisma.usuario.findUnique({ where: { id: previa.id } });
     expect(actualizada?.clerkUserId).toBe(clerkUserId);
+    expect(resendMock.emails.send).not.toHaveBeenCalled();
   });
 
   it("vincula por email aunque difiera la capitalización (p.ej. migración Clerk dev -> producción)", async () => {
