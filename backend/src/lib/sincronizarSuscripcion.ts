@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { prisma } from "./prisma";
+import { notificarNuevaSuscripcionPremium } from "./notificacionesAdmin";
 
 /** Solo estos dos estados de Stripe dan acceso premium (bypass del límite diario). */
 const ESTADOS_PREMIUM = new Set(["active", "trialing"]);
@@ -42,4 +43,10 @@ export async function sincronizarSuscripcionDesdeStripe(subscription: Stripe.Sub
       cancelaAlFinalizarPeriodo: esPremium && subscription.cancel_at_period_end,
     },
   });
+
+  // Solo en la transición free -> premium, no en cada evento del webhook
+  // mientras ya era premium (si no, un aviso por cada renovación mensual).
+  if (esPremium && usuario.plan !== "premium") {
+    void notificarNuevaSuscripcionPremium(usuario.email);
+  }
 }

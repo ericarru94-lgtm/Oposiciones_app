@@ -23,11 +23,21 @@ vi.mock("../../lib/stripe", () => ({
 }));
 vi.mock("@clerk/express", () => import("../../test-utils/clerkMock"));
 
+const { resendMock } = vi.hoisted(() => ({
+  resendMock: { emails: { send: vi.fn().mockResolvedValue({ data: { id: "email_test" }, error: null }) } },
+}));
+vi.mock("../../lib/resend", () => ({
+  obtenerResend: () => resendMock,
+  RESEND_FROM_EMAIL: "Aprobox <onboarding@resend.dev>",
+}));
+
 import { crearApp } from "../../app";
 import { prisma } from "../../lib/prisma";
 import { mockUsuarioClerk } from "../../test-utils/clerkMock";
 
 const app = crearApp();
+
+beforeEach(() => resendMock.emails.send.mockClear());
 
 async function limpiarFixtures() {
   await prisma.usuario.deleteMany({ where: { email: { startsWith: "test-stripe-" } } });
@@ -240,8 +250,11 @@ describe("POST /api/stripe/webhook", () => {
     expect(res.status).toBe(400);
   });
 
-  it("checkout.session.completed activa la suscripción (plan=premium)", async () => {
-    await prisma.usuario.update({ where: { id: usuarioId }, data: { stripeCustomerId: "cus_existente" } });
+  it("checkout.session.completed activa la suscripción (plan=premium) y avisa por email de la nueva suscripción", async () => {
+    await prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { stripeCustomerId: "cus_existente", plan: "free" },
+    });
 
     const finPeriodo = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
     stripeMock.webhooks.constructEvent.mockReturnValueOnce({
@@ -260,6 +273,9 @@ describe("POST /api/stripe/webhook", () => {
 
     const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
     expect(usuario?.plan).toBe("premium");
+    expect(resendMock.emails.send).toHaveBeenCalledTimes(1);
+    const envio = resendMock.emails.send.mock.calls[0][0];
+    expect(envio.subject).toContain(usuario!.email);
     expect(usuario?.stripeSubscriptionId).toBe("sub_123");
     expect(usuario?.stripeSubscriptionStatus).toBe("active");
     expect(usuario?.premiumHasta?.getTime()).toBe(finPeriodo * 1000);
@@ -344,6 +360,8 @@ describe("POST /api/stripe/webhook", () => {
     expect(usuario?.plan).toBe("premium");
     expect(usuario?.cancelaAlFinalizarPeriodo).toBe(true);
     expect(usuario?.premiumHasta?.getTime()).toBe(finPeriodo * 1000);
+    // Ya era premium antes de este evento: no es una alta nueva, no se avisa otra vez.
+    expect(resendMock.emails.send).not.toHaveBeenCalled();
   });
 
   it("un evento de un customer desconocido no rompe nada (200, sin cambios)", async () => {

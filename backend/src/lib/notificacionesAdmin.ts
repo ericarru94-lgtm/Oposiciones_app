@@ -30,3 +30,25 @@ export async function notificarNuevoRegistro(email: string) {
     console.error("[notificacionesAdmin] No se pudo enviar el aviso de registro:", err);
   }
 }
+
+/**
+ * Avisa por email al pasar a premium por primera vez (o al resuscribirse
+ * tras haber caído a free) — llamarlo solo en esa transición, no en cada
+ * sincronización del webhook mientras ya era premium (renovaciones,
+ * cambios de `cancel_at_period_end`, etc.), o mandaría un aviso por cada
+ * evento de Stripe en vez de uno por alta real.
+ */
+export async function notificarNuevaSuscripcionPremium(email: string) {
+  if (!EMAIL_NOTIFICACIONES) return;
+  try {
+    const { error } = await obtenerResend().emails.send({
+      from: RESEND_FROM_EMAIL,
+      to: EMAIL_NOTIFICACIONES,
+      subject: `Nueva suscripción premium en Aprobox: ${email}`,
+      text: `Un usuario se acaba de hacer premium en Aprobox: ${email}`,
+    });
+    if (error) console.error("[notificacionesAdmin] Resend rechazó el aviso de suscripción premium:", error);
+  } catch (err) {
+    console.error("[notificacionesAdmin] No se pudo enviar el aviso de suscripción premium:", err);
+  }
+}
