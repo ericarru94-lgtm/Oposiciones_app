@@ -5,14 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * así que cada test que necesite un valor distinto (o ninguno) hace
  * `vi.resetModules()` + un `import()` dinámico tras `vi.stubEnv`.
  */
-async function importarConId(id: string | undefined, adsId?: string) {
+async function importarConId(id: string | undefined, adsId?: string, signupSendTo?: string) {
   vi.resetModules();
   // Explícito incluso para "sin ID": frontend/.env (cargado por Vite en
-  // los tests) puede traer un VITE_GA_MEASUREMENT_ID/VITE_GOOGLE_ADS_ID
-  // reales para desarrollo, y sin este stub esos valores ambiente se
-  // colarían en el test.
+  // los tests) puede traer un VITE_GA_MEASUREMENT_ID/VITE_GOOGLE_ADS_ID/
+  // VITE_GOOGLE_ADS_SIGNUP_SEND_TO reales para desarrollo, y sin este stub
+  // esos valores ambiente se colarían en el test.
   vi.stubEnv("VITE_GA_MEASUREMENT_ID", id ?? "");
   vi.stubEnv("VITE_GOOGLE_ADS_ID", adsId ?? "");
+  vi.stubEnv("VITE_GOOGLE_ADS_SIGNUP_SEND_TO", signupSendTo ?? "");
   return import("./analytics");
 }
 
@@ -98,6 +99,30 @@ describe("con VITE_GA_MEASUREMENT_ID configurada", () => {
         ["event", "page_view", { page_path: "/upgrade?checkout=cancelado" }],
         ["event", "suscripcion_premium", { valor: 4.99 }],
       ])
+    );
+  });
+
+  it("registrarConversionRegistro() no hace nada sin VITE_GOOGLE_ADS_SIGNUP_SEND_TO configurada", async () => {
+    const { inicializarAnalytics, registrarConversionRegistro } = await importarConId("G-TEST123");
+    inicializarAnalytics();
+
+    registrarConversionRegistro();
+
+    expect(window.dataLayer).not.toEqual(expect.arrayContaining([["event", "conversion", expect.anything()]]));
+  });
+
+  it("con VITE_GOOGLE_ADS_SIGNUP_SEND_TO configurada, registrarConversionRegistro() manda la conversión de Ads", async () => {
+    const { inicializarAnalytics, registrarConversionRegistro } = await importarConId(
+      "G-TEST123",
+      "AW-TEST456",
+      "AW-TEST456/abcDEF123"
+    );
+    inicializarAnalytics();
+
+    registrarConversionRegistro();
+
+    expect(window.dataLayer).toEqual(
+      expect.arrayContaining([["event", "conversion", { send_to: "AW-TEST456/abcDEF123" }]])
     );
   });
 

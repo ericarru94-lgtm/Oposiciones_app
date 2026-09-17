@@ -26,6 +26,7 @@
  */
 const MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
 const ADS_ID = import.meta.env.VITE_GOOGLE_ADS_ID as string | undefined;
+const ADS_SIGNUP_SEND_TO = import.meta.env.VITE_GOOGLE_ADS_SIGNUP_SEND_TO as string | undefined;
 
 declare global {
   interface Window {
@@ -95,4 +96,16 @@ export function registrarVistaPagina(ruta: string) {
 export function registrarEvento(nombre: string, parametros?: Record<string, unknown>) {
   if (!inicializado || !window.gtag) return;
   window.gtag("event", nombre, parametros);
+}
+
+/**
+ * Registra la conversión de Google Ads "Sign-up" (acción creada en Goals >
+ * Conversions). Es un evento aparte de `registrarEvento("sign_up")`: ese va
+ * a GA4 como evento de comportamiento, este es el snippet exacto que pide
+ * Google Ads para su propia acción de conversión (`send_to` con el ID de
+ * cuenta + etiqueta de esa acción concreta).
+ */
+export function registrarConversionRegistro() {
+  if (!inicializado || !window.gtag || !ADS_SIGNUP_SEND_TO) return;
+  window.gtag("event", "conversion", { send_to: ADS_SIGNUP_SEND_TO });
 }
