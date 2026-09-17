@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * `MEASUREMENT_ID` se lee una sola vez al importar el módulo, así que
- * cada test que necesite un valor distinto (o ninguno) hace
+ * `MEASUREMENT_ID`/`ADS_ID` se leen una sola vez al importar el módulo,
+ * así que cada test que necesite un valor distinto (o ninguno) hace
  * `vi.resetModules()` + un `import()` dinámico tras `vi.stubEnv`.
  */
-async function importarConId(id: string | undefined) {
+async function importarConId(id: string | undefined, adsId?: string) {
   vi.resetModules();
   // Explícito incluso para "sin ID": frontend/.env (cargado por Vite en
-  // los tests) puede traer un VITE_GA_MEASUREMENT_ID real para desarrollo,
-  // y sin este stub ese valor ambiente se colaría en el test.
+  // los tests) puede traer un VITE_GA_MEASUREMENT_ID/VITE_GOOGLE_ADS_ID
+  // reales para desarrollo, y sin este stub esos valores ambiente se
+  // colarían en el test.
   vi.stubEnv("VITE_GA_MEASUREMENT_ID", id ?? "");
+  vi.stubEnv("VITE_GOOGLE_ADS_ID", adsId ?? "");
   return import("./analytics");
 }
 
@@ -28,12 +30,11 @@ afterEach(() => {
 
 describe("sin VITE_GA_MEASUREMENT_ID configurada", () => {
   it("analyticsConfigurado() es false y el resto de funciones son un no-op", async () => {
-    const { analyticsConfigurado, cargarAnalytics, registrarEvento, registrarVistaPagina } = await importarConId(
-      undefined
-    );
+    const { analyticsConfigurado, inicializarAnalytics, registrarEvento, registrarVistaPagina } =
+      await importarConId(undefined);
     expect(analyticsConfigurado()).toBe(false);
 
-    cargarAnalytics();
+    inicializarAnalytics();
     registrarEvento("sign_up");
     registrarVistaPagina("/home");
 
@@ -43,22 +44,40 @@ describe("sin VITE_GA_MEASUREMENT_ID configurada", () => {
 });
 
 describe("con VITE_GA_MEASUREMENT_ID configurada", () => {
-  it("cargarAnalytics() inyecta el script una sola vez y llama a gtag('config', ...)", async () => {
-    const { cargarAnalytics } = await importarConId("G-TEST123");
+  it("inicializarAnalytics() inyecta el script una sola vez, con consentimiento denegado por defecto", async () => {
+    const { inicializarAnalytics } = await importarConId("G-TEST123");
 
-    cargarAnalytics();
-    cargarAnalytics(); // segunda llamada: no debe duplicar el script ni la config
+    inicializarAnalytics();
+    inicializarAnalytics(); // segunda llamada: no debe duplicar el script ni la config
 
     const scripts = document.querySelectorAll('script[src*="googletagmanager"]');
     expect(scripts.length).toBe(1);
     expect(scripts[0].getAttribute("src")).toBe("https://www.googletagmanager.com/gtag/js?id=G-TEST123");
     expect(window.dataLayer).toEqual([
+      [
+        "consent",
+        "default",
+        {
+          ad_storage: "denied",
+          analytics_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+        },
+      ],
       ["js", expect.any(Date)],
       ["config", "G-TEST123"],
     ]);
   });
 
-  it("registrarEvento/registrarVistaPagina no hacen nada antes de cargarAnalytics()", async () => {
+  it("con VITE_GOOGLE_ADS_ID configurada, también llama a gtag('config', ...) para Ads", async () => {
+    const { inicializarAnalytics } = await importarConId("G-TEST123", "AW-TEST456");
+
+    inicializarAnalytics();
+
+    expect(window.dataLayer).toEqual(expect.arrayContaining([["config", "AW-TEST456"]]));
+  });
+
+  it("registrarEvento/registrarVistaPagina no hacen nada antes de inicializarAnalytics()", async () => {
     const { registrarEvento, registrarVistaPagina } = await importarConId("G-TEST123");
 
     registrarEvento("sign_up");
@@ -67,9 +86,9 @@ describe("con VITE_GA_MEASUREMENT_ID configurada", () => {
     expect(window.dataLayer).toBeUndefined();
   });
 
-  it("tras cargarAnalytics(), registrarEvento y registrarVistaPagina empujan al dataLayer", async () => {
-    const { cargarAnalytics, registrarEvento, registrarVistaPagina } = await importarConId("G-TEST123");
-    cargarAnalytics();
+  it("tras inicializarAnalytics(), registrarEvento y registrarVistaPagina empujan al dataLayer", async () => {
+    const { inicializarAnalytics, registrarEvento, registrarVistaPagina } = await importarConId("G-TEST123");
+    inicializarAnalytics();
 
     registrarVistaPagina("/upgrade?checkout=cancelado");
     registrarEvento("suscripcion_premium", { valor: 4.99 });
@@ -78,6 +97,28 @@ describe("con VITE_GA_MEASUREMENT_ID configurada", () => {
       expect.arrayContaining([
         ["event", "page_view", { page_path: "/upgrade?checkout=cancelado" }],
         ["event", "suscripcion_premium", { valor: 4.99 }],
+      ])
+    );
+  });
+
+  it("actualizarConsentimiento() actualiza el estado de consent tras la decisión del usuario", async () => {
+    const { inicializarAnalytics, actualizarConsentimiento } = await importarConId("G-TEST123");
+    inicializarAnalytics();
+
+    actualizarConsentimiento(true);
+
+    expect(window.dataLayer).toEqual(
+      expect.arrayContaining([
+        [
+          "consent",
+          "update",
+          {
+            ad_storage: "granted",
+            analytics_storage: "granted",
+            ad_user_data: "granted",
+            ad_personalization: "granted",
+          },
+        ],
       ])
     );
   });

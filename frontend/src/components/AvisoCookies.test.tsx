@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AvisoCookies } from "./AvisoCookies";
-import { analyticsConfigurado, cargarAnalytics } from "../lib/analytics";
+import { actualizarConsentimiento, analyticsConfigurado } from "../lib/analytics";
 
 vi.mock("../lib/analytics", () => ({
   analyticsConfigurado: vi.fn(),
-  cargarAnalytics: vi.fn(),
+  actualizarConsentimiento: vi.fn(),
 }));
 
 const CLAVE = "aprobox-consentimiento-cookies";
@@ -14,7 +14,7 @@ const CLAVE = "aprobox-consentimiento-cookies";
 beforeEach(() => {
   localStorage.clear();
   vi.mocked(analyticsConfigurado).mockReturnValue(true);
-  vi.mocked(cargarAnalytics).mockClear();
+  vi.mocked(actualizarConsentimiento).mockClear();
 });
 afterEach(() => localStorage.clear());
 
@@ -25,45 +25,45 @@ describe("AvisoCookies", () => {
     expect(screen.queryByText(/Usamos cookies analíticas/)).not.toBeInTheDocument();
   });
 
-  it("muestra el banner en la primera visita (sin decisión guardada)", () => {
+  it("muestra el banner en la primera visita (sin decisión guardada) y no toca el consentimiento", () => {
     render(<AvisoCookies />);
     expect(screen.getByText(/Usamos cookies analíticas/)).toBeInTheDocument();
-    expect(cargarAnalytics).not.toHaveBeenCalled();
+    expect(actualizarConsentimiento).not.toHaveBeenCalled();
   });
 
-  it("al aceptar: carga Analytics, guarda la decisión y oculta el banner", async () => {
+  it("al aceptar: concede el consentimiento, guarda la decisión y oculta el banner", async () => {
     const user = userEvent.setup();
     render(<AvisoCookies />);
 
     await user.click(screen.getByRole("button", { name: "Aceptar" }));
 
-    expect(cargarAnalytics).toHaveBeenCalledTimes(1);
+    expect(actualizarConsentimiento).toHaveBeenCalledWith(true);
     expect(localStorage.getItem(CLAVE)).toBe("aceptado");
     expect(screen.queryByText(/Usamos cookies analíticas/)).not.toBeInTheDocument();
   });
 
-  it("al rechazar: no carga Analytics, guarda la decisión y oculta el banner", async () => {
+  it("al rechazar: deniega el consentimiento, guarda la decisión y oculta el banner", async () => {
     const user = userEvent.setup();
     render(<AvisoCookies />);
 
     await user.click(screen.getByRole("button", { name: "Rechazar" }));
 
-    expect(cargarAnalytics).not.toHaveBeenCalled();
+    expect(actualizarConsentimiento).toHaveBeenCalledWith(false);
     expect(localStorage.getItem(CLAVE)).toBe("rechazado");
     expect(screen.queryByText(/Usamos cookies analíticas/)).not.toBeInTheDocument();
   });
 
-  it("si ya había un consentimiento aceptado guardado, no muestra el banner y carga Analytics solo", () => {
+  it("si ya había un consentimiento aceptado guardado, no muestra el banner y concede el consentimiento", () => {
     localStorage.setItem(CLAVE, "aceptado");
     render(<AvisoCookies />);
     expect(screen.queryByText(/Usamos cookies analíticas/)).not.toBeInTheDocument();
-    expect(cargarAnalytics).toHaveBeenCalledTimes(1);
+    expect(actualizarConsentimiento).toHaveBeenCalledWith(true);
   });
 
-  it("si ya había un rechazo guardado, no muestra el banner ni carga Analytics", () => {
+  it("si ya había un rechazo guardado, no muestra el banner y deniega el consentimiento", () => {
     localStorage.setItem(CLAVE, "rechazado");
     render(<AvisoCookies />);
     expect(screen.queryByText(/Usamos cookies analíticas/)).not.toBeInTheDocument();
-    expect(cargarAnalytics).not.toHaveBeenCalled();
+    expect(actualizarConsentimiento).toHaveBeenCalledWith(false);
   });
 });

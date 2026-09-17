@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
-import { analyticsConfigurado, cargarAnalytics } from "../lib/analytics";
+import { actualizarConsentimiento, analyticsConfigurado } from "../lib/analytics";
 
 const CLAVE_CONSENTIMIENTO = "aprobox-consentimiento-cookies";
 
 /**
  * Banner de consentimiento de cookies analíticas (RGPD/AEPD: en España
- * hace falta opt-in previo, no basta con avisar). Google Analytics
- * (lib/analytics.ts) solo se carga si el visitante pulsa "Aceptar" —
- * "Rechazar" o no decidir nada nunca lo activa. La decisión se guarda en
- * localStorage para no volver a preguntar en visitas siguientes.
+ * hace falta opt-in previo, no basta con avisar). La etiqueta de Google
+ * (lib/analytics.ts) se instala siempre vía Consent Mode, pero arranca en
+ * "denied" — solo pasa a "granted" (y empieza a escribir cookies) si el
+ * visitante pulsa "Aceptar" aquí. "Rechazar" o no decidir nada la deja
+ * denegada. La decisión se guarda en localStorage para no volver a
+ * preguntar en visitas siguientes.
  */
 export function AvisoCookies() {
   const [decision, setDecision] = useState<string | null>(() => localStorage.getItem(CLAVE_CONSENTIMIENTO));
 
   useEffect(() => {
-    if (decision === "aceptado") cargarAnalytics();
+    if (decision) actualizarConsentimiento(decision === "aceptado");
   }, [decision]);
 
   if (!analyticsConfigurado() || decision) return null;

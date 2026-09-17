@@ -4,6 +4,9 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import { App } from './App.tsx'
 import { registrarServiceWorker } from './registrarServiceWorker'
+import { inicializarAnalytics } from './lib/analytics'
+
+inicializarAnalytics()
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 
