@@ -2,15 +2,37 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { obtenerTemas } from "../api/endpoints";
 import { AppLayout } from "../components/AppLayout";
+import { PublicContentLayout } from "../components/PublicContentLayout";
 import { PageTitle } from "../components/PageTitle";
 import { EsquemaResumen } from "../components/EsquemaResumen";
+import { useSession } from "../context/SessionContext";
+import { useSeo } from "../hooks/useSeo";
 import type { Tema } from "../api/types";
 
+/**
+ * Página pública a propósito (ver App.tsx: no lleva RutaProtegida): es
+ * contenido de estudio real indexable por Google — quien llega desde una
+ * búsqueda ("resumen tema constitución auxiliar administrativo", etc.) ve
+ * el resumen igual que un usuario registrado, con una llamada a la acción
+ * para crear cuenta en vez del botón "Practicar" (que exige sesión).
+ */
 export function ResumenTema() {
   const { temaId } = useParams<{ temaId: string }>();
   const navigate = useNavigate();
+  const { estaAutenticado } = useSession();
   const [tema, setTema] = useState<Tema | null | undefined>(undefined);
   const [generandoPdf, setGenerandoPdf] = useState(false);
+
+  useSeo({
+    titulo: tema
+      ? `Tema ${tema.numero}. ${tema.nombre} — Resumen y test`
+      : "Resumen de tema — Auxiliar Administrativo del Estado",
+    descripcion: tema
+      ? `Resumen de estudio del Tema ${tema.numero} (${tema.nombre}) del temario de Auxiliar Administrativo del Estado, con test de preguntas verificadas para practicar gratis.`
+      : "Resúmenes de estudio y tests verificados del temario de Auxiliar Administrativo del Estado.",
+    ruta: `/temas/${temaId}/resumen`,
+    tipo: "article",
+  });
 
   /**
    * jsPDF arrastra consigo html2canvas y dompurify aunque no se use su
@@ -41,8 +63,10 @@ export function ResumenTema() {
     };
   }, [temaId]);
 
+  const Layout = estaAutenticado ? AppLayout : PublicContentLayout;
+
   return (
-    <AppLayout>
+    <Layout>
       <PageTitle icono="📖">{tema ? `Tema ${tema.numero}. ${tema.nombre}` : "Resumen del tema"}</PageTitle>
 
       {tema === undefined && <p className="text-sm text-muted">Cargando…</p>}
@@ -69,13 +93,21 @@ export function ResumenTema() {
       )}
 
       <div className="mt-6 flex flex-wrap gap-3">
-        {tema && (
+        {tema && estaAutenticado && (
           <button
             onClick={() => navigate(`/practicar/${tema.id}`)}
             className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
           >
             Practicar este tema
           </button>
+        )}
+        {tema && !estaAutenticado && (
+          <Link
+            to="/onboarding"
+            className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
+          >
+            Practicar este tema gratis
+          </Link>
         )}
         {tema?.resumen && (
           <button
@@ -87,12 +119,12 @@ export function ResumenTema() {
           </button>
         )}
         <Link
-          to="/progreso"
+          to={estaAutenticado ? "/progreso" : "/"}
           className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-muted hover:bg-canvas"
         >
-          Volver a Tests
+          {estaAutenticado ? "Volver a Tests" : "Ver todos los temas"}
         </Link>
       </div>
-    </AppLayout>
+    </Layout>
   );
 }

@@ -91,6 +91,20 @@ export function Landing() {
           ))}
         </section>
 
+        <section className="mt-16 rounded-2xl border border-line bg-card p-6 text-center">
+          <h2 className="text-lg font-semibold text-ink">Temario completo, tema por tema</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+            Consulta el resumen de estudio y las preguntas de cada uno de los 28 temas oficiales antes de crear
+            cuenta.
+          </p>
+          <Link
+            to="/temario"
+            className="mt-4 inline-block rounded-full border border-line px-6 py-2.5 text-sm font-medium text-ink hover:bg-canvas"
+          >
+            Ver el temario
+          </Link>
+        </section>
+
         <section className="my-20">
           <h2 className="text-center text-2xl font-bold text-ink">Elige tu plan</h2>
           <p className="mx-auto mt-2 max-w-md text-center text-sm text-muted">

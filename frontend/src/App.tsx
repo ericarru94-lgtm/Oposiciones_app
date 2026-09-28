@@ -27,6 +27,7 @@ const RepasarHoy = lazy(() => import("./pages/RepasarHoy").then((m) => ({ defaul
 const Favoritas = lazy(() => import("./pages/Favoritas").then((m) => ({ default: m.Favoritas })));
 const PracticarTema = lazy(() => import("./pages/PracticarTema").then((m) => ({ default: m.PracticarTema })));
 const ResumenTema = lazy(() => import("./pages/ResumenTema").then((m) => ({ default: m.ResumenTema })));
+const Temario = lazy(() => import("./pages/Temario").then((m) => ({ default: m.Temario })));
 const Progreso = lazy(() => import("./pages/Progreso").then((m) => ({ default: m.Progreso })));
 const Simulacro = lazy(() => import("./pages/Simulacro").then((m) => ({ default: m.Simulacro })));
 const ExamenOficial = lazy(() => import("./pages/ExamenOficial").then((m) => ({ default: m.ExamenOficial })));
@@ -79,6 +80,7 @@ export function App() {
             <Route path="/terminos" element={<Terminos />} />
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/contacto" element={<Contacto />} />
+            <Route path="/temario" element={<Temario />} />
             <Route path="/newsletter/confirmar" element={<NewsletterConfirmar />} />
             <Route path="/newsletter/baja" element={<NewsletterBaja />} />
             <Route
@@ -121,14 +123,8 @@ export function App() {
                 </RutaProtegida>
               }
             />
-            <Route
-              path="/temas/:temaId/resumen"
-              element={
-                <RutaProtegida>
-                  <ResumenTema />
-                </RutaProtegida>
-              }
-            />
+            {/* Pública a propósito: es contenido de estudio indexable, ver ResumenTema.tsx. */}
+            <Route path="/temas/:temaId/resumen" element={<ResumenTema />} />
             <Route
               path="/progreso"
               element={

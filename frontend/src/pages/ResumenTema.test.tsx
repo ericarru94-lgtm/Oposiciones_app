@@ -49,6 +49,7 @@ function renderResumen(temaId: number) {
 describe("ResumenTema", () => {
   beforeEach(() => {
     vi.mocked(useSession).mockReturnValue({
+      estaAutenticado: true,
       usuario: { id: "u1", email: "a@a.com", plan: "gratis" },
       logout: vi.fn(),
     } as unknown as ReturnType<typeof useSession>);
@@ -76,5 +77,21 @@ describe("ResumenTema", () => {
 
     await waitFor(() => expect(screen.getByText(/Todavía no hay un resumen/i)).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: /Descargar PDF/i })).not.toBeInTheDocument();
+  });
+
+  it("sin sesión, muestra una llamada a registrarse en vez del botón de practicar", async () => {
+    vi.mocked(useSession).mockReturnValue({
+      estaAutenticado: false,
+      usuario: null,
+      logout: vi.fn(),
+    } as unknown as ReturnType<typeof useSession>);
+    vi.mocked(obtenerTemas).mockResolvedValue({ temas: [temaConResumen, temaSinResumen] });
+    renderResumen(1);
+
+    expect(await screen.findByRole("link", { name: /Practicar este tema gratis/i })).toHaveAttribute(
+      "href",
+      "/onboarding"
+    );
+    expect(screen.queryByRole("button", { name: /^Practicar este tema$/i })).not.toBeInTheDocument();
   });
 });
