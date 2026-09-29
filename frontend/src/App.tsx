@@ -28,6 +28,8 @@ const Favoritas = lazy(() => import("./pages/Favoritas").then((m) => ({ default:
 const PracticarTema = lazy(() => import("./pages/PracticarTema").then((m) => ({ default: m.PracticarTema })));
 const ResumenTema = lazy(() => import("./pages/ResumenTema").then((m) => ({ default: m.ResumenTema })));
 const Temario = lazy(() => import("./pages/Temario").then((m) => ({ default: m.Temario })));
+const Blog = lazy(() => import("./pages/Blog").then((m) => ({ default: m.Blog })));
+const BlogPost = lazy(() => import("./pages/BlogPost").then((m) => ({ default: m.BlogPost })));
 const Progreso = lazy(() => import("./pages/Progreso").then((m) => ({ default: m.Progreso })));
 const Simulacro = lazy(() => import("./pages/Simulacro").then((m) => ({ default: m.Simulacro })));
 const ExamenOficial = lazy(() => import("./pages/ExamenOficial").then((m) => ({ default: m.ExamenOficial })));
@@ -81,6 +83,8 @@ export function App() {
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/contacto" element={<Contacto />} />
             <Route path="/temario" element={<Temario />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/newsletter/confirmar" element={<NewsletterConfirmar />} />
             <Route path="/newsletter/baja" element={<NewsletterBaja />} />
             <Route

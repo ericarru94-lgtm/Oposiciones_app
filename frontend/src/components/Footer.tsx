@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 const ENLACES = [
   { to: "/", label: "Inicio" },
   { to: "/temario", label: "Temario" },
+  { to: "/blog", label: "Blog" },
   { to: "/privacidad", label: "Privacidad" },
   { to: "/terminos", label: "Términos y condiciones" },
   { to: "/aviso-legal", label: "Aviso legal" },

@@ -11,6 +11,31 @@
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>https://aprobox.es/blog</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://aprobox.es/blog/temario-auxiliar-administrativo-estado</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://aprobox.es/blog/requisitos-auxiliar-administrativo-estado</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://aprobox.es/blog/sueldo-auxiliar-administrativo-estado</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://aprobox.es/blog/como-estudiar-auxiliar-administrativo-estado</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://aprobox.es/upgrade</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
