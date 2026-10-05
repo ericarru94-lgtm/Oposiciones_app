@@ -5,6 +5,7 @@ import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { registrarProgresoSM2 } from "../lib/progresoSM2";
 import { calcularProgresoPorTema } from "../lib/progresoPorTema";
+import { obtenerEstadisticasOtrosUsuarios } from "../lib/progresoComunidad";
 import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../lib/dailyLimit";
 import {
   claveDiaMadrid,
@@ -196,31 +197,25 @@ const MUESTRA_MINIMA_COMUNIDAD = 5;
  * propio usuario en su propia media, ni expone dato alguno por usuario,
  * solo el agregado). Puramente motivador — no es un ranking ni identifica
  * a nadie.
+ *
+ * Las estadísticas de "los demás" se calculan agregadas en Postgres (ver
+ * lib/progresoComunidad.ts), no trayendo cada intento ajeno a memoria —
+ * con la tabla `Intento` creciendo con toda la actividad histórica de
+ * todos los usuarios, hacerlo en memoria era el cuello de botella más
+ * severo del backend, repetido en cada visita de cada usuario a su propio
+ * Progreso.
  */
 progresoRouter.get("/comunidad", asyncHandler(async (req, res) => {
   const usuarioId = req.auth!.usuarioId;
 
-  const [propioTotal, propioAciertos, propiaRacha, intentosAjenos] = await Promise.all([
+  const [propioTotal, propioAciertos, propiaRacha, estadisticasOtros] = await Promise.all([
     prisma.intento.count({ where: { usuarioId } }),
     prisma.intento.count({ where: { usuarioId, esCorrecta: true } }),
     calcularRacha(usuarioId),
-    prisma.intento.findMany({
-      where: { usuarioId: { not: usuarioId } },
-      select: { usuarioId: true, createdAt: true, esCorrecta: true },
-    }),
+    obtenerEstadisticasOtrosUsuarios(usuarioId),
   ]);
 
-  const porUsuario = new Map<string, { total: number; aciertos: number; dias: Set<string> }>();
-  for (const intento of intentosAjenos) {
-    if (!intento.usuarioId) continue; // intentos anónimos (sesionAnonima, sin cuenta): fuera de la comparativa
-    const entrada = porUsuario.get(intento.usuarioId) ?? { total: 0, aciertos: 0, dias: new Set<string>() };
-    entrada.total++;
-    if (intento.esCorrecta) entrada.aciertos++;
-    entrada.dias.add(claveDiaMadrid(intento.createdAt));
-    porUsuario.set(intento.usuarioId, entrada);
-  }
-
-  const otrosUsuarios = [...porUsuario.values()];
+  const otrosUsuarios = [...estadisticasOtros.values()];
   const disponible = otrosUsuarios.length >= MUESTRA_MINIMA_COMUNIDAD;
 
   let media: { racha: number; precision: number | null } | null = null;
