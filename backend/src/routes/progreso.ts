@@ -190,24 +190,50 @@ const MUESTRA_MINIMA_COMUNIDAD = 5;
 progresoRouter.get("/comunidad", asyncHandler(async (req, res) => {
   const usuarioId = req.auth!.usuarioId;
 
-  const [propioTotal, propioAciertos, propiaRacha, intentosAjenos] = await Promise.all([
+  /**
+   * El total y los aciertos de "los demás" se agregan en la base de datos
+   * (groupBy) en vez de contarlos a mano sobre cada fila en JS: antes
+   * `intentosAjenos` traía todas las columnas de todos los intentos de
+   * todos los demás usuarios solo para sumar dos contadores — ahora esas
+   * dos sumas las hace Postgres, y solo se trae de vuelta una fila por
+   * usuario. La fecha de cada intento (para la racha) sigue necesitando
+   * fila a fila, porque calcularRachaDesdeDias necesita el conjunto de
+   * días con actividad de cada usuario, algo que no se puede calcular con
+   * un simple `groupBy` sin truncar la fecha en SQL.
+   */
+  const [propioTotal, propioAciertos, propiaRacha, totalesAjenos, aciertosAjenos, diasAjenos] = await Promise.all([
     prisma.intento.count({ where: { usuarioId } }),
     prisma.intento.count({ where: { usuarioId, esCorrecta: true } }),
     calcularRacha(usuarioId),
+    prisma.intento.groupBy({
+      by: ["usuarioId"],
+      where: { usuarioId: { not: usuarioId } },
+      _count: { _all: true },
+    }),
+    prisma.intento.groupBy({
+      by: ["usuarioId"],
+      where: { usuarioId: { not: usuarioId }, esCorrecta: true },
+      _count: { _all: true },
+    }),
     prisma.intento.findMany({
       where: { usuarioId: { not: usuarioId } },
-      select: { usuarioId: true, createdAt: true, esCorrecta: true },
+      select: { usuarioId: true, createdAt: true },
     }),
   ]);
 
   const porUsuario = new Map<string, { total: number; aciertos: number; dias: Set<string> }>();
-  for (const intento of intentosAjenos) {
-    if (!intento.usuarioId) continue; // intentos anónimos (sesionAnonima, sin cuenta): fuera de la comparativa
-    const entrada = porUsuario.get(intento.usuarioId) ?? { total: 0, aciertos: 0, dias: new Set<string>() };
-    entrada.total++;
-    if (intento.esCorrecta) entrada.aciertos++;
-    entrada.dias.add(claveDiaLocal(intento.createdAt));
-    porUsuario.set(intento.usuarioId, entrada);
+  for (const fila of totalesAjenos) {
+    if (!fila.usuarioId) continue; // intentos anónimos (sesionAnonima, sin cuenta): fuera de la comparativa
+    porUsuario.set(fila.usuarioId, { total: fila._count._all, aciertos: 0, dias: new Set<string>() });
+  }
+  for (const fila of aciertosAjenos) {
+    if (!fila.usuarioId) continue;
+    const entrada = porUsuario.get(fila.usuarioId);
+    if (entrada) entrada.aciertos = fila._count._all;
+  }
+  for (const intento of diasAjenos) {
+    if (!intento.usuarioId) continue;
+    porUsuario.get(intento.usuarioId)?.dias.add(claveDiaLocal(intento.createdAt));
   }
 
   const otrosUsuarios = [...porUsuario.values()];

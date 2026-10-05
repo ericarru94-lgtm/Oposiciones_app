@@ -100,6 +100,31 @@ describe("DELETE /api/auth/cuenta", () => {
     expect(stripeMock.subscriptions.cancel).toHaveBeenCalledWith("sub_test_elimina");
   });
 
+  it("borra la cuenta igualmente si el usuario tiene una suscripción push activa", async () => {
+    // PushSuscripcion.usuarioId es onDelete: Cascade (ver prisma/schema.prisma
+    // y la migración 20260831093411_push_suscripcion) — este test confirma
+    // empíricamente que el borrado en cascada funciona de verdad contra la
+    // base de datos real, no solo que el esquema lo declara.
+    const clerkUserId = "clerk_test-elimina-cuenta-push";
+    mockUsuarioClerk(clerkUserId, "test-elimina-cuenta-push@example.com");
+    const me = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${clerkUserId}`);
+    const usuarioId = me.body.id;
+
+    await prisma.pushSuscripcion.create({
+      data: {
+        usuarioId,
+        endpoint: "https://test-elimina-cuenta-push.example.com/endpoint",
+        p256dh: "clave-p256dh-de-prueba",
+        auth: "clave-auth-de-prueba",
+      },
+    });
+
+    const res = await request(app).delete("/api/auth/cuenta").set("Authorization", `Bearer ${clerkUserId}`);
+    expect(res.status).toBe(204);
+    expect(await prisma.usuario.findUnique({ where: { id: usuarioId } })).toBeNull();
+    expect(await prisma.pushSuscripcion.count({ where: { usuarioId } })).toBe(0);
+  });
+
   it("borra la cuenta igualmente si Stripe o Clerk fallan al cancelar/borrar", async () => {
     const clerkUserId = "clerk_test-elimina-cuenta-falla-stripe";
     mockUsuarioClerk(clerkUserId, "test-elimina-cuenta-falla-stripe@example.com");
