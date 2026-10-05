@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   obtenerEvolucion,
@@ -43,13 +44,17 @@ export function Progreso() {
   const evolucion = datos?.evolucion ?? null;
   const comunidad = datos?.comunidad ?? null;
 
-  const puntosDebiles = (temas ?? [])
-    .filter((t) => t.totalIntentos > 0)
-    .sort((a, b) => (a.precision ?? 1) - (b.precision ?? 1))
-    .slice(0, 5);
+  const { puntosDebiles, bloqueI, bloqueII } = useMemo(() => {
+    const puntosDebiles = (temas ?? [])
+      .filter((t) => t.totalIntentos > 0)
+      .sort((a, b) => (a.precision ?? 1) - (b.precision ?? 1))
+      .slice(0, 5);
 
-  const bloqueI = (temas ?? []).filter((t) => t.bloque === "I");
-  const bloqueII = (temas ?? []).filter((t) => t.bloque === "II");
+    const bloqueI = (temas ?? []).filter((t) => t.bloque === "I");
+    const bloqueII = (temas ?? []).filter((t) => t.bloque === "II");
+
+    return { puntosDebiles, bloqueI, bloqueII };
+  }, [temas]);
 
   return (
     <AppLayout>

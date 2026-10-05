@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { TemaCard } from "./TemaCard";
 import type { ProgresoPorTema } from "../api/types";
 
 /** Bloque de temas colapsable: cerrado por defecto, con el % global del bloque en la cabecera. */
-export function BloqueDesplegable({
+export const BloqueDesplegable = memo(function BloqueDesplegable({
   titulo,
   icono,
   temas,
@@ -47,4 +47,4 @@ export function BloqueDesplegable({
       )}
     </div>
   );
-}
+});

@@ -72,7 +72,13 @@ function useEstadoCompartido() {
     setNivelInicialPendienteState(nivel);
   }, []);
 
-  return { sesionAnonima, nivelInicialPendiente, setNivelInicialPendiente, onboardingCompleto, setOnboardingCompleto };
+  // Memoizado: si no, cada render crea un objeto nuevo y los useMemo de
+  // "value" en los providers (que dependen de "compartido") se invalidan
+  // siempre, perdiendo toda la memoización aunque nada haya cambiado.
+  return useMemo(
+    () => ({ sesionAnonima, nivelInicialPendiente, setNivelInicialPendiente, onboardingCompleto, setOnboardingCompleto }),
+    [sesionAnonima, nivelInicialPendiente, setNivelInicialPendiente, onboardingCompleto, setOnboardingCompleto]
+  );
 }
 
 /**

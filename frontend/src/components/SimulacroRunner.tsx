@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError } from "../api/client";
 import { responderPregunta } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
@@ -25,6 +25,48 @@ function formatoTiempo(segundos: number): string {
   const r = s % 60;
   return `${m}:${String(r).padStart(2, "0")}`;
 }
+
+interface OpcionesPreguntaProps {
+  opciones: string[];
+  opcionElegida: Opcion | null;
+  enviando: boolean;
+  onElegir: (opcion: Opcion) => void;
+}
+
+/**
+ * Memoizado aparte: el temporizador hace re-renderizar SimulacroRunner cada
+ * segundo, y sin este memo arrastraría también este bloque de opciones
+ * aunque ninguna de sus props cambie.
+ */
+const OpcionesPregunta = memo(function OpcionesPregunta({
+  opciones,
+  opcionElegida,
+  enviando,
+  onElegir,
+}: OpcionesPreguntaProps) {
+  return (
+    <div className="mt-8 space-y-3">
+      {opciones.map((texto, i) => {
+        const opcion = ETIQUETA_OPCION[i];
+        const esElegida = opcionElegida === opcion;
+        return (
+          <button
+            key={opcion}
+            data-testid={`opcion-${opcion}`}
+            disabled={enviando}
+            onClick={() => onElegir(opcion)}
+            className={`w-full rounded-xl border px-5 py-4 text-left text-base transition-colors disabled:cursor-default ${
+              esElegida ? "border-primary bg-primary/10" : "border-line hover:border-primary/40"
+            }`}
+          >
+            <span className="mr-3 font-semibold uppercase text-muted">{opcion}</span>
+            {texto}
+          </button>
+        );
+      })}
+    </div>
+  );
+});
 
 interface SimulacroRunnerProps {
   preguntas: PreguntaParaResponder[];
@@ -83,11 +125,11 @@ export function SimulacroRunner({ preguntas, tiempoLimiteMin, onFinalizar, onLim
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminado]);
 
-  if (!pregunta) return null;
-
-  async function elegirOpcion(opcion: Opcion) {
+  const elegirOpcion = useCallback((opcion: Opcion) => {
     setOpcionElegida(opcion);
-  }
+  }, []);
+
+  if (!pregunta) return null;
 
   async function siguiente() {
     if (!opcionElegida || enviando) return;
@@ -144,26 +186,12 @@ export function SimulacroRunner({ preguntas, tiempoLimiteMin, onFinalizar, onLim
       <div className="rounded-3xl bg-card p-8">
         <p className="text-xl font-semibold leading-relaxed text-ink">{pregunta.enunciado}</p>
 
-        <div className="mt-8 space-y-3">
-          {pregunta.opciones.map((texto, i) => {
-            const opcion = ETIQUETA_OPCION[i];
-            const esElegida = opcionElegida === opcion;
-            return (
-              <button
-                key={opcion}
-                data-testid={`opcion-${opcion}`}
-                disabled={enviando}
-                onClick={() => elegirOpcion(opcion)}
-                className={`w-full rounded-xl border px-5 py-4 text-left text-base transition-colors disabled:cursor-default ${
-                  esElegida ? "border-primary bg-primary/10" : "border-line hover:border-primary/40"
-                }`}
-              >
-                <span className="mr-3 font-semibold uppercase text-muted">{opcion}</span>
-                {texto}
-              </button>
-            );
-          })}
-        </div>
+        <OpcionesPregunta
+          opciones={pregunta.opciones}
+          opcionElegida={opcionElegida}
+          enviando={enviando}
+          onElegir={elegirOpcion}
+        />
 
         {error && <p className="mt-4 text-sm text-error">{error}</p>}
 

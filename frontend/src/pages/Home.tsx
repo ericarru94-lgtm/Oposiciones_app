@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { obtenerEvolucion, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { registrarEvento } from "../lib/analytics";
@@ -47,25 +47,31 @@ export function Home() {
   const resumen = datos?.resumen ?? null;
   const evolucion = datos?.evolucion ?? null;
 
-  const bloqueI = temas?.filter((t) => t.bloque === "I") ?? [];
-  const bloqueII = temas?.filter((t) => t.bloque === "II") ?? [];
+  const { bloqueI, bloqueII, puntoDebil, proximoHito, todoCompletado } = useMemo(() => {
+    const bloqueI = temas?.filter((t) => t.bloque === "I") ?? [];
+    const bloqueII = temas?.filter((t) => t.bloque === "II") ?? [];
 
-  // Punto débil del momento: el tema con peor % de acierto entre los ya practicados.
-  const puntoDebil = (temas ?? [])
-    .filter((t) => t.totalIntentos > 0)
-    .sort((a, b) => (a.precision ?? 1) - (b.precision ?? 1))[0];
+    // Punto débil del momento: el tema con peor % de acierto entre los ya practicados.
+    const puntoDebil = (temas ?? [])
+      .filter((t) => t.totalIntentos > 0)
+      .sort((a, b) => (a.precision ?? 1) - (b.precision ?? 1))[0];
 
-  // Próximo hito: el bloque más cerca de completarse (menos preguntas le faltan), si queda alguno por completar.
-  const hitos: Array<{ bloque: Bloque; total: number; contestadas: number; restantes: number }> = (["I", "II"] as const)
-    .map((bloque) => {
-      const ts = (temas ?? []).filter((t) => t.bloque === bloque);
-      const total = ts.reduce((s, t) => s + t.totalPreguntas, 0);
-      const contestadas = ts.reduce((s, t) => s + Math.min(t.preguntasContestadas, t.totalPreguntas), 0);
-      return { bloque, total, contestadas, restantes: total - contestadas };
-    })
-    .filter((h) => h.total > 0);
-  const proximoHito = hitos.filter((h) => h.restantes > 0).sort((a, b) => a.restantes - b.restantes)[0];
-  const todoCompletado = temas !== null && hitos.length > 0 && !proximoHito;
+    // Próximo hito: el bloque más cerca de completarse (menos preguntas le faltan), si queda alguno por completar.
+    const hitos: Array<{ bloque: Bloque; total: number; contestadas: number; restantes: number }> = (
+      ["I", "II"] as const
+    )
+      .map((bloque) => {
+        const ts = (temas ?? []).filter((t) => t.bloque === bloque);
+        const total = ts.reduce((s, t) => s + t.totalPreguntas, 0);
+        const contestadas = ts.reduce((s, t) => s + Math.min(t.preguntasContestadas, t.totalPreguntas), 0);
+        return { bloque, total, contestadas, restantes: total - contestadas };
+      })
+      .filter((h) => h.total > 0);
+    const proximoHito = hitos.filter((h) => h.restantes > 0).sort((a, b) => a.restantes - b.restantes)[0];
+    const todoCompletado = temas !== null && hitos.length > 0 && !proximoHito;
+
+    return { bloqueI, bloqueII, puntoDebil, proximoHito, todoCompletado };
+  }, [temas]);
 
   return (
     <AppLayout>
