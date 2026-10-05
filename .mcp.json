@@ -11,6 +11,13 @@
         "--executable-path",
         "/opt/pw-browsers/chromium"
       ]
+    },
+    "render": {
+      "type": "http",
+      "url": "https://mcp.render.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${RENDER_API_KEY:-}"
+      }
     }
   }
 }
