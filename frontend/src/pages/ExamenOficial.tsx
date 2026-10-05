@@ -6,6 +6,7 @@ import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { Card } from "../components/Card";
 import { PageTitle } from "../components/PageTitle";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
 import { medallaSegunPorcentaje } from "../lib/medallaSegunPorcentaje";
 import type { FaseExamenOficial } from "../api/endpoints";
@@ -124,13 +125,13 @@ export function ExamenOficial() {
             {porcentaje(paso.resultadoParte1)}% de acierto en la Parte 1. Ahora la Parte 2: {paso.parte2.preguntas.length}{" "}
             preguntas de ofimática en {paso.parte2.tiempoLimiteMin} minutos.
           </p>
-          <button
+          <PrimaryButton
             data-testid="empezar-parte2"
             onClick={() => setPaso({ fase: "parte2", parte2: paso.parte2, resultadoParte1: paso.resultadoParte1 })}
-            className="mt-6 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white transition-colors hover:bg-primary-hover"
+            className="mt-6 text-base transition-colors"
           >
             Empezar Parte 2
-          </button>
+          </PrimaryButton>
         </div>
       </AppLayout>
     );
@@ -161,14 +162,14 @@ export function ExamenOficial() {
 
         {error && <p className="mt-5 text-sm text-error">{error}</p>}
 
-        <button
+        <PrimaryButton
           data-testid="empezar-examen-oficial"
           onClick={empezar}
           disabled={paso.fase === "cargando"}
-          className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
+          className="mt-8 text-base transition-colors disabled:opacity-60"
         >
           {paso.fase === "cargando" ? "Preparando…" : "Empezar Parte 1"}
-        </button>
+        </PrimaryButton>
       </div>
     </AppLayout>
   );
@@ -222,12 +223,9 @@ function ResultadosExamenOficial({
       </div>
 
       <div className="px-6 pb-6">
-        <button
-          onClick={onVolver}
-          className="w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white transition-colors hover:bg-primary-hover"
-        >
+        <PrimaryButton onClick={onVolver} className="text-base transition-colors">
           Volver a mi progreso
-        </button>
+        </PrimaryButton>
       </div>
     </div>
   );

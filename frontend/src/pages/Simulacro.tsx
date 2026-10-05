@@ -6,6 +6,7 @@ import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
 import { PageTitle } from "../components/PageTitle";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { medallaSegunPorcentaje } from "../lib/medallaSegunPorcentaje";
 import type { Bloque, PreguntaParaResponder, Tema } from "../api/types";
 
@@ -179,14 +180,14 @@ export function Simulacro() {
 
           {error && <p className="mt-5 text-sm text-error">{error}</p>}
 
-          <button
+          <PrimaryButton
             data-testid="empezar-simulacro"
             onClick={empezar}
             disabled={paso.fase === "cargando"}
-            className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
+            className="mt-8 text-base transition-colors disabled:opacity-60"
           >
             {paso.fase === "cargando" ? "Preparando…" : "Empezar simulacro"}
-          </button>
+          </PrimaryButton>
         </div>
       </div>
     </AppLayout>
@@ -271,12 +272,9 @@ function ResultadosSimulacro({
           </div>
         )}
 
-        <button
-          onClick={onVolver}
-          className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white hover:bg-primary-hover"
-        >
+        <PrimaryButton onClick={onVolver} className="mt-8 text-base">
           Volver a Tests
-        </button>
+        </PrimaryButton>
       </div>
     </div>
   );

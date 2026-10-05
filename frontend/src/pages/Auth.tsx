@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { SignIn, SignUp } from "@clerk/clerk-react";
 import { iniciarSesionBypass, usandoClerk } from "../context/SessionContext";
+import { PrimaryButton } from "../components/PrimaryButton";
 
 /**
  * Clerk no ofrece un botón "volver" propio en `<SignIn>`/`<SignUp>` (son un
@@ -99,13 +100,9 @@ function AuthBypass({
           className="w-full rounded-lg border border-line px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
         />
         {error && <p className="text-sm text-error">{error}</p>}
-        <button
-          type="submit"
-          disabled={enviando}
-          className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-white hover:bg-primary-hover disabled:opacity-60"
-        >
+        <PrimaryButton type="submit" disabled={enviando} className="disabled:opacity-60">
           {enviando ? "Un momento…" : modoInicial === "registro" ? "Crear cuenta gratis" : "Iniciar sesión"}
-        </button>
+        </PrimaryButton>
       </form>
     </div>
   );

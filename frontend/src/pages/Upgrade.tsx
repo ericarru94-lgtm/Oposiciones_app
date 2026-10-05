@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import { crearCheckoutSession } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { ComparativaPlanes } from "../components/ComparativaPlanes";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { useSeo } from "../hooks/useSeo";
 
 /** A dónde volver tras el login/registro de Clerk disparado desde "Suscribirme". */
@@ -112,13 +113,13 @@ export function Upgrade() {
 
           {error && <p className="mt-4 text-sm text-error">{error}</p>}
 
-          <button
+          <PrimaryButton
             onClick={alPulsarSuscribirme}
             disabled={procesando || cargando}
-            className="mt-6 w-full rounded-xl bg-primary px-4 py-3 font-medium text-white hover:bg-primary-hover disabled:opacity-60"
+            className="mt-6 disabled:opacity-60"
           >
             {procesando ? "Redirigiendo a Stripe…" : "Suscribirme"}
-          </button>
+          </PrimaryButton>
 
           {!cargando && !estaAutenticado && (
             <p className="mt-3 text-sm text-muted">

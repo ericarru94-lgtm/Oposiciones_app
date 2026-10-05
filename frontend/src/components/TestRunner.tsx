@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "../api/client";
 import { desmarcarFavorita, marcarFavorita, obtenerIdsFavoritos, responderPregunta } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
+import { PrimaryButton } from "./PrimaryButton";
 import { medallaSegunPorcentaje } from "../lib/medallaSegunPorcentaje";
 import type { Opcion, PreguntaParaResponder, RespuestaFeedback, TablaDatos } from "../api/types";
 
@@ -153,13 +154,9 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
             </div>
           </div>
           <p className="mt-6 text-sm font-semibold text-primary">{porcentaje}% de aciertos</p>
-          <button
-            data-testid="continuar"
-            onClick={() => onFinalizar(resumen)}
-            className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white hover:bg-primary-hover"
-          >
+          <PrimaryButton data-testid="continuar" onClick={() => onFinalizar(resumen)} className="mt-8 text-base">
             Continuar
-          </button>
+          </PrimaryButton>
         </div>
       </div>
     );
@@ -339,13 +336,9 @@ export function TestRunner({ titulo, preguntas, onFinalizar, onLimiteAlcanzado }
             {!feedback.explicacion && !feedback.fuente && (
               <p className="mt-2 text-xs text-muted">💡 Sigue repasando este tema, pronto añadiremos más detalle.</p>
             )}
-            <button
-              data-testid="siguiente"
-              onClick={siguiente}
-              className="mt-5 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white hover:bg-primary-hover"
-            >
+            <PrimaryButton data-testid="siguiente" onClick={siguiente} className="mt-5 text-base">
               {indice + 1 < preguntas.length ? "Siguiente" : "Ver resumen"}
-            </button>
+            </PrimaryButton>
           </div>
         )}
       </div>

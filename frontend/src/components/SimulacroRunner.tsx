@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "../api/client";
 import { responderPregunta } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
+import { PrimaryButton } from "./PrimaryButton";
 import type { Opcion, PreguntaParaResponder } from "../api/types";
 
 export interface RespuestaSimulacro {
@@ -166,14 +167,14 @@ export function SimulacroRunner({ preguntas, tiempoLimiteMin, onFinalizar, onLim
 
         {error && <p className="mt-4 text-sm text-error">{error}</p>}
 
-        <button
+        <PrimaryButton
           data-testid="siguiente"
           disabled={!opcionElegida || enviando}
           onClick={siguiente}
-          className="mt-6 w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50"
         >
           {indice + 1 < preguntas.length ? "Siguiente" : "Terminar simulacro"}
-        </button>
+        </PrimaryButton>
       </div>
     </div>
   );
