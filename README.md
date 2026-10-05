@@ -4,6 +4,10 @@ App de preparación de oposiciones con banco de preguntas, mini-test sin
 registro, repetición espaciada (SM-2), panel de progreso, frontend web
 responsive y suscripción premium mensual vía Stripe (modo test/sandbox).
 
+Para una vista de conjunto de la arquitectura (flujo de datos, modelo de
+datos, zonas críticas y qué se refactorizó y por qué), ver
+[`backend/docs/arquitectura.md`](backend/docs/arquitectura.md).
+
 ## Estado actual
 
 - ✅ Modelo de datos (Prisma / PostgreSQL): temas, preguntas, usuarios,

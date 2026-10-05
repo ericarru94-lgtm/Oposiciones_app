@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { obtenerTemas } from "../api/endpoints";
 import { AppLayout } from "../components/AppLayout";
 import { PublicContentLayout } from "../components/PublicContentLayout";
+import { Card } from "../components/Card";
 import { PageTitle } from "../components/PageTitle";
 import { EsquemaResumen } from "../components/EsquemaResumen";
 import { useSession } from "../context/SessionContext";
@@ -73,7 +74,7 @@ export function ResumenTema() {
       {tema === null && <p className="text-sm text-muted">No se ha encontrado este tema.</p>}
 
       {tema && (
-        <div className="rounded-2xl border border-line bg-card p-6">
+        <Card>
           {tema.resumen ? (
             <>
               <EsquemaResumen texto={tema.resumen} />
@@ -89,7 +90,7 @@ export function ResumenTema() {
               tanto, puedes practicar directamente con las preguntas.
             </p>
           )}
-        </div>
+        </Card>
       )}
 
       <div className="mt-6 flex flex-wrap gap-3">

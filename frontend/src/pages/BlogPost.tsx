@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { PublicContentLayout } from "../components/PublicContentLayout";
+import { Card } from "../components/Card";
 import { PageTitle } from "../components/PageTitle";
 import { EsquemaResumen } from "../components/EsquemaResumen";
 import { ArticleJsonLd } from "../components/ArticleJsonLd";
@@ -40,9 +41,9 @@ export function BlogPost() {
       />
       <PageTitle icono="✍️">{entrada.titulo}</PageTitle>
 
-      <div className="rounded-2xl border border-line bg-card p-6">
+      <Card>
         <EsquemaResumen texto={entrada.cuerpo} />
-      </div>
+      </Card>
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Link

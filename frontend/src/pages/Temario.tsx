@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { obtenerTemas } from "../api/endpoints";
 import { PublicContentLayout } from "../components/PublicContentLayout";
 import { PageTitle } from "../components/PageTitle";
 import { useSeo } from "../hooks/useSeo";
+import { useApiData } from "../hooks/useApiData";
 import type { Tema } from "../api/types";
 
 const NOMBRE_BLOQUE = { I: "Bloque I. Organización pública", II: "Bloque II. Actividad administrativa y ofimática" };
@@ -15,8 +15,6 @@ const NOMBRE_BLOQUE = { I: "Bloque I. Organización pública", II: "Bloque II. A
  * no tiene forma de descubrirlos aunque cada uno tenga su propia URL.
  */
 export function Temario() {
-  const [temas, setTemas] = useState<Tema[] | null>(null);
-
   useSeo({
     titulo: "Temario completo de Auxiliar Administrativo del Estado",
     descripcion:
@@ -24,15 +22,9 @@ export function Temario() {
     ruta: "/temario",
   });
 
-  useEffect(() => {
-    let cancelado = false;
-    (async () => {
-      const { temas: lista } = await obtenerTemas();
-      if (!cancelado) setTemas(lista);
-    })();
-    return () => {
-      cancelado = true;
-    };
+  const { datos: temas } = useApiData<Tema[]>(async () => {
+    const { temas } = await obtenerTemas();
+    return temas;
   }, []);
 
   return (

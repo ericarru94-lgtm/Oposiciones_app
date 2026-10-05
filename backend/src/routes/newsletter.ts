@@ -3,14 +3,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { asyncHandler } from "../lib/asyncHandler";
-import { obtenerResend, RESEND_FROM_EMAIL } from "../lib/resend";
+import { enviarEmailResiliente } from "../lib/enviarEmailResiliente";
 import { plantillaBienvenida, plantillaConfirmacion } from "../lib/emailTemplates";
 import { limitarNewsletter } from "../middleware/rateLimit";
+import { FRONTEND_URL } from "../lib/frontendUrl";
 
 export const newsletterRouter = Router();
-
-/** Misma variable que ya usan las URLs de Stripe (routes/stripe.ts) para volver al frontend. */
-const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:5173";
 
 function generarToken(): string {
   return randomBytes(24).toString("hex");
@@ -22,29 +20,6 @@ function urlConfirmar(token: string): string {
 
 function urlBaja(token: string): string {
   return `${FRONTEND_URL}/newsletter/baja?token=${token}`;
-}
-
-/**
- * Envía un email de la newsletter sin dejar que un fallo (RESEND_API_KEY
- * ausente en dev/test, o un error real de Resend) tumbe la petición: la
- * captura del consentimiento en base de datos ya ha ocurrido antes de
- * llamar a esto y es lo que RGPD exige poder demostrar, así que un email
- * no entregado no debe deshacer ni ocultar esa alta. Solo queda registrado
- * en el log del servidor para poder investigarlo.
- */
-async function enviarEmail(params: { to: string; subject: string; html: string; text: string }) {
-  try {
-    const { error } = await obtenerResend().emails.send({
-      from: RESEND_FROM_EMAIL,
-      to: params.to,
-      subject: params.subject,
-      html: params.html,
-      text: params.text,
-    });
-    if (error) console.error(`[newsletter] Resend rechazó el envío a ${params.to}:`, error);
-  } catch (err) {
-    console.error(`[newsletter] No se pudo enviar el email a ${params.to}:`, err);
-  }
 }
 
 const suscribirSchema = z.object({
@@ -64,7 +39,7 @@ const suscribirSchema = z.object({
  * un token de confirmación, y envía el email de confirmación vía Resend
  * (ver lib/resend.ts) — si RESEND_API_KEY no está configurada (dev/test)
  * o Resend falla, el alta se guarda igual y el envío solo queda registrado
- * en el log del servidor (ver enviarEmail más arriba).
+ * en el log del servidor (ver lib/enviarEmailResiliente.ts).
  */
 newsletterRouter.post("/suscribir", limitarNewsletter, asyncHandler(async (req, res) => {
   const parsed = suscribirSchema.safeParse(req.body);
@@ -95,11 +70,15 @@ newsletterRouter.post("/suscribir", limitarNewsletter, asyncHandler(async (req, 
     ? await prisma.newsletterSuscriptor.update({ where: { email }, data: datos })
     : await prisma.newsletterSuscriptor.create({ data: { email, ...datos } });
 
+  // Fire-and-forget (ver enviarEmailResiliente): el consentimiento ya ha
+  // quedado guardado en BD justo arriba, que es lo que RGPD exige poder
+  // demostrar, así que un email no entregado no debe deshacer ni ocultar
+  // esa alta — solo queda registrado en el log del servidor.
   const { subject, html, text } = plantillaConfirmacion({
     confirmarUrl: urlConfirmar(suscriptor.tokenConfirmacion),
     bajaUrl: urlBaja(suscriptor.tokenBaja),
   });
-  await enviarEmail({ to: email, subject, html, text });
+  await enviarEmailResiliente("newsletter", { to: email, subject, html, text });
 
   res.status(201).json({ estado: suscriptor.estado });
 }));
@@ -131,7 +110,7 @@ newsletterRouter.get("/confirmar", asyncHandler(async (req, res) => {
     frontendUrl: FRONTEND_URL,
     bajaUrl: urlBaja(suscriptor.tokenBaja),
   });
-  await enviarEmail({ to: suscriptor.email, subject, html, text });
+  await enviarEmailResiliente("newsletter", { to: suscriptor.email, subject, html, text });
 
   res.json({ estado: "confirmado" });
 }));

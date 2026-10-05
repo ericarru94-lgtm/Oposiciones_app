@@ -1,3 +1,5 @@
+import { Card } from "./Card";
+
 /**
  * Refleja únicamente diferenciación real entre planes que existe hoy en el
  * código (ver backend/src/lib/dailyLimit.ts y routes/preguntas.ts): el
@@ -32,7 +34,7 @@ function Marca({ incluido }: { incluido: boolean }) {
 export function ComparativaPlanes() {
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-      <div className="rounded-2xl border border-line bg-card p-6">
+      <Card>
         <p className="text-sm font-semibold text-ink">Gratis</p>
         <p className="mt-1 text-3xl font-bold text-ink">0€</p>
         <p className="mt-1 text-sm text-muted">
@@ -46,7 +48,7 @@ export function ComparativaPlanes() {
             </li>
           ))}
         </ul>
-      </div>
+      </Card>
 
       <div className="relative overflow-hidden rounded-2xl border-2 border-accent bg-ink p-6 text-white">
         <span className="absolute right-5 top-5 rounded-full bg-accent px-3 py-1 text-xs font-bold text-white">

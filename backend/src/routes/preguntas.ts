@@ -7,21 +7,13 @@ import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../l
 import { seleccionarProporcionalAlTemario } from "../lib/seleccionProporcional";
 import { ESTRUCTURA_EXAMEN_OFICIAL, seleccionarExamenOficial } from "../lib/examenOficial";
 import { calidadDesdeAcierto } from "../lib/sm2";
-import { actualizarProgresoSM2 } from "../lib/progreso";
+import { registrarProgresoSM2 } from "../lib/progresoSM2";
 import { esUsuarioPremium } from "../lib/usuarios";
 import { limitarRespuestasAnonimas } from "../middleware/rateLimit";
+import { barajar } from "../lib/barajar";
 import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
 
 export const preguntasRouter = Router();
-
-export function barajar<T>(arr: T[]): T[] {
-  const copia = [...arr];
-  for (let i = copia.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copia[i], copia[j]] = [copia[j], copia[i]];
-  }
-  return copia;
-}
 
 /**
  * Campos públicos de una pregunta (sin la respuesta correcta) que comparten
@@ -253,7 +245,11 @@ preguntasRouter.post("/:id/responder", authOpcional, limitarRespuestasAnonimas, 
   });
 
   if (usuarioId) {
-    await actualizarProgresoSM2(usuarioId, pregunta.id, calidadDesdeAcierto(esCorrecta));
+    await registrarProgresoSM2(prisma, {
+      usuarioId,
+      preguntaId: pregunta.id,
+      calidad: calidadDesdeAcierto(esCorrecta),
+    });
   }
 
   res.json({
