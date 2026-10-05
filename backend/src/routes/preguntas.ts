@@ -11,6 +11,7 @@ import { registrarProgresoSM2 } from "../lib/progresoSM2";
 import { esUsuarioPremium } from "../lib/usuarios";
 import { limitarRespuestasAnonimas } from "../middleware/rateLimit";
 import { barajar } from "../lib/barajar";
+import { crearCacheTTL } from "../lib/cacheTTL";
 import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
 
 export const preguntasRouter = Router();
@@ -262,9 +263,17 @@ preguntasRouter.post("/:id/responder", authOpcional, limitarRespuestasAnonimas, 
   });
 }));
 
+// El temario (2 bloques, ~30 temas) solo cambia con una migración de
+// contenido manual, nunca por acción de un usuario: cachearlo 5 minutos
+// evita una consulta idéntica en cada carga de Home/Progreso/Temario de
+// cada usuario sin arriesgar una desactualización perceptible.
+const cargarTemas = crearCacheTTL(
+  () => prisma.tema.findMany({ orderBy: [{ bloque: "asc" }, { numero: "asc" }] }),
+  5 * 60_000
+);
+
 preguntasRouter.get("/temas", asyncHandler(async (_req, res) => {
-  const temas = await prisma.tema.findMany({
-    orderBy: [{ bloque: "asc" }, { numero: "asc" }],
-  });
+  const temas = await cargarTemas();
+  res.set("Cache-Control", "public, max-age=300");
   res.json({ temas });
 }));

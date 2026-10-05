@@ -276,3 +276,109 @@ correcto): `backend/.env`, `backend/.env.test`, `backend/.env.e2e` y
 `.env.test`. Se crearon a partir de sus `.example` para esta auditoría —
 cualquiera que clone el repo por primera vez necesita este mismo paso
 (ver los `README.md`/`backend/docs/testing.md` correspondientes).
+
+## 8. Pase de rendimiento (frontend + backend)
+
+Auditoría orientada a tráfico masivo: re-renders innecesarios, lógica
+cara repetida en cada render, memoria, y escalabilidad horizontal del
+backend. A diferencia del pase anterior, aquí sí había comportamiento
+de rendimiento real que corregir, no solo estructura.
+
+### 8.1 Frontend — corregido
+
+- **Bug de memoización en `SessionContext`** (el hallazgo de mayor
+  impacto): `useEstadoCompartido()` devolvía un objeto literal nuevo en
+  cada render, sin memoizar. Los dos providers (`SessionProviderClerk`,
+  `SessionProviderBypass`) pasaban ese objeto como dependencia de su
+  `useMemo` del `value` del contexto — así que ese `useMemo` nunca
+  producía una referencia estable, invalidándose en cada render aunque
+  nada relevante hubiera cambiado. Como 22 archivos consumen
+  `useSession()` (prácticamente todo el árbol autenticado, incluidos
+  `AppLayout` y las rutas protegidas), esto propagaba re-renders a toda
+  la aplicación en cada cambio de cualquier estado ajeno al contexto.
+  Arreglado envolviendo el objeto devuelto en su propio `useMemo`
+  (`SessionContext.tsx`), con lo que el `useMemo` de los providers ahora
+  sí puede estabilizar su referencia.
+- **Cálculos derivados sin memoizar en `Home.tsx` y `Progreso.tsx`**:
+  `puntoDebil`, `proximoHito`, `bloqueI`/`bloqueII`, `puntosDebiles`
+  recalculaban `.filter()/.sort()/.reduce()` sobre la lista de temas en
+  cada render, incluidos los causados por estado no relacionado (p.ej.
+  cerrar el aviso de pago). Envueltos en `useMemo` con `[temas]` como
+  única dependencia.
+- **`SimulacroRunner`: el temporizador re-renderizaba las opciones de
+  cada pregunta cada segundo.** El `setInterval` de 1s actualiza
+  `segundosRestantes` en el mismo componente que renderiza las 4
+  opciones de respuesta, así que cada tick re-renderizaba ese bloque sin
+  motivo. Extraído a `OpcionesPregunta`, un subcomponente memoizado con
+  `React.memo` que recibe `onElegir` ya estabilizado con `useCallback`;
+  ahora el tick del cronómetro solo re-renderiza el badge de tiempo.
+- **`React.memo` en `BloqueDesplegable`**: antes de este pase,
+  `React.memo` no se usaba en ningún componente de la aplicación. Se
+  aplicó aquí porque sus props (`temas` por bloque) ya son estables
+  gracias al `useMemo` de arriba, así que el memo puede evitar
+  re-renderizar la lista completa de `TemaCard` cuando el resto de la
+  página cambia.
+
+### 8.2 Backend — corregido
+
+- **Límite defensivo en `GET /api/favoritos/` y `/ids`**: ninguno de los
+  dos tenía cota; un usuario con miles de favoritas forzaría traer la
+  lista completa (la versión no-`/ids` con el `include` de la pregunta
+  completa) en cada test de favoritas. Añadido `take: 500` con
+  `orderBy: { createdAt: "desc" }` en ambos.
+- **Caché TTL + `Cache-Control` en `GET /preguntas/temas`**: el temario
+  (2 bloques, ~30 temas) es prácticamente estático — solo cambia con una
+  migración de contenido manual — pero se consultaba a la base de datos
+  en cada carga de Home/Progreso/Temario de cada usuario. Añadida
+  `crearCacheTTL` (`backend/src/lib/cacheTTL.ts`, caché de un único valor
+  en memoria con expiración, 5 min) más la cabecera `Cache-Control:
+  public, max-age=300`. Deliberadamente no se aplicó lo mismo a
+  `/admin/resumen-temas`: su tráfico es mínimo (panel interno) y el
+  coste de una respuesta obsoleta justo tras editar contenido no
+  compensa el ahorro.
+
+### 8.3 Backend — identificado y documentado, sin tocar código
+
+Decisiones de "documentar, no programar a ciegas": cada una depende de
+infraestructura de despliegue que no se puede verificar desde este
+checkout, o de una topología que decide quien opera Render/la base de
+datos, no el código en sí.
+
+- **Pool de conexiones de Prisma sin límite explícito.** `DATABASE_URL`
+  no fija `connection_limit`/`pool_timeout`: con varias instancias de
+  Render, cada una abre su propio pool (por defecto
+  `num_cpus*2+1`), y pueden agotar entre todas las conexiones que
+  Postgres permite. Documentado en `backend/.env.example` con la
+  sintaxis exacta a añadir; no se fijó un valor en código porque el
+  correcto depende de cuántas instancias y de qué plan de Postgres haya
+  en producción, algo que solo se puede decidir (y probar) desde fuera
+  de este entorno.
+- **Rate limiting no distribuido.** `express-rate-limit` usa su
+  `MemoryStore` por defecto en `limitarNewsletter`/
+  `limitarRespuestasAnonimas`: correcto con una sola instancia, pero con
+  varias cada una lleva su propio contador, así que el límite real
+  efectivo se multiplica por el número de instancias. Pasar a un store
+  en Redis es la solución estándar, pero no se implementó aquí: hacerlo
+  sin una instancia de Redis real contra la que probarlo sería enviar
+  código de infraestructura sin verificar, con el único resultado
+  observable siendo "funciona igual hasta que se despliegue con más de
+  una instancia".
+- **Logging síncrono y `node-cron` en el mismo proceso que el servidor
+  HTTP.** El logger de peticiones (`app.ts`) usa `console.log`/
+  `console.error` síncronos, y el cron de recordatorios diarios
+  (`server.ts`) corre en el mismo proceso que atiende peticiones. Ambos
+  son aceptables al volumen actual; a tráfico masivo, el primero
+  convendría mover a un logger asíncrono/por lotes y el segundo a un
+  proceso o servicio aparte (p.ej. un cron job de Render separado) para
+  que un recordatorio masivo no compita por CPU con las peticiones en
+  curso. No se tocó porque es un cambio de topología de despliegue, no
+  de lógica de aplicación.
+
+### 8.4 Verificación
+
+`tsc --noEmit` limpio (backend y frontend), suite completa de tests
+(133 backend / 100 frontend), `oxlint` sin advertencias nuevas (las 8
+preexistentes no tocan ningún archivo de este pase), `vite build` sin
+regresión de tamaño de bundle, y la suite E2E de Playwright completa
+(12/12) — incluye flujos reales de Home, Progreso y Simulacro, que son
+exactamente las pantallas con los cambios de memoización.

@@ -22,6 +22,8 @@ favoritosRouter.get(
     const favoritas = await prisma.preguntaFavorita.findMany({
       where: { usuarioId: req.auth!.usuarioId },
       select: { preguntaId: true },
+      orderBy: { createdAt: "desc" },
+      take: 500,
     });
     res.json({ ids: favoritas.map((f) => f.preguntaId) });
   })
@@ -35,6 +37,8 @@ favoritosRouter.get(
     const favoritas = await prisma.preguntaFavorita.findMany({
       where: { usuarioId: req.auth!.usuarioId },
       include: { pregunta: true },
+      orderBy: { createdAt: "desc" },
+      take: 500,
     });
     const preguntas = favoritas
       .map((f) => f.pregunta)
