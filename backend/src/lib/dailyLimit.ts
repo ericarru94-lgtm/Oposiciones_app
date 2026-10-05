@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { inicioDeHoyMadrid } from "./fechaLocal";
 
 /**
  * Límite del plan gratuito: número de *tests empezados* al día (Practicar
@@ -11,16 +12,10 @@ export const FREE_PLAN_DAILY_TEST_SESSIONS = Number(
   process.env.FREE_PLAN_DAILY_TEST_SESSIONS ?? 2
 );
 
-function inicioDeHoy(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-/** Cuenta cuántos tests ha empezado hoy un usuario. */
+/** Cuenta cuántos tests ha empezado hoy un usuario (día civil en Madrid, ver lib/fechaLocal.ts). */
 export async function contarSesionesTestHoy(usuarioId: string): Promise<number> {
   return prisma.sesionTest.count({
-    where: { usuarioId, createdAt: { gte: inicioDeHoy() } },
+    where: { usuarioId, createdAt: { gte: inicioDeHoyMadrid() } },
   });
 }
 

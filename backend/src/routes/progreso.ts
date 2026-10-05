@@ -5,7 +5,13 @@ import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { registrarProgresoSM2 } from "../lib/progresoSM2";
 import { calcularProgresoPorTema } from "../lib/progresoPorTema";
+import { obtenerEstadisticasOtrosUsuarios } from "../lib/progresoComunidad";
 import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../lib/dailyLimit";
+import {
+  claveDiaMadrid,
+  inicioDelDiaMadridDesdeClave,
+  ultimasClavesDiaMadrid,
+} from "../lib/fechaLocal";
 
 export const progresoRouter = Router();
 progresoRouter.use(authRequerido);
@@ -108,29 +114,34 @@ progresoRouter.post("/:preguntaId/revisar", asyncHandler(async (req, res) => {
   res.json({ progreso });
 }));
 
-function claveDiaLocal(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
 /**
  * Racha de días consecutivos con al menos un intento, a partir del conjunto
- * de días (clave `claveDiaLocal`) con actividad. Si hoy todavía no hay
- * actividad, la racha se cuenta hasta ayer (no se da por "rota" hasta que
- * el día termine sin actividad), igual que en apps tipo Duolingo. Función
- * pura para poder reutilizarla tanto para un usuario (calcularRacha) como
- * para todos a la vez (ver /comunidad, que evita N+1 consultas).
+ * de días (clave `claveDiaMadrid`, ver lib/fechaLocal.ts) con actividad. Si
+ * hoy todavía no hay actividad, la racha se cuenta hasta ayer (no se da por
+ * "rota" hasta que el día termine sin actividad), igual que en apps tipo
+ * Duolingo. Función pura para poder reutilizarla tanto para un usuario
+ * (calcularRacha) como para todos a la vez (ver /comunidad, que evita N+1
+ * consultas).
+ *
+ * El cursor retrocede en saltos de 24h exactas desde el mediodía UTC de
+ * "hoy en Madrid" (no desde la medianoche local del proceso): así cada
+ * paso cae siempre lejos de cualquier frontera de día tanto en UTC como en
+ * Madrid, y el cambio de horario (CET/CEST) no puede hacer que se salte o
+ * repita un día.
  */
 function calcularRachaDesdeDias(diasConActividad: Set<string>): number {
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-  if (!diasConActividad.has(claveDiaLocal(cursor))) {
-    cursor.setDate(cursor.getDate() - 1);
+  const UN_DIA_MS = 24 * 60 * 60 * 1000;
+  const [anio, mes, dia] = claveDiaMadrid(new Date()).split("-").map(Number);
+  let cursorUTC = Date.UTC(anio, mes - 1, dia, 12, 0, 0);
+
+  if (!diasConActividad.has(claveDiaMadrid(new Date(cursorUTC)))) {
+    cursorUTC -= UN_DIA_MS;
   }
 
   let dias = 0;
-  while (diasConActividad.has(claveDiaLocal(cursor))) {
+  while (diasConActividad.has(claveDiaMadrid(new Date(cursorUTC)))) {
     dias++;
-    cursor.setDate(cursor.getDate() - 1);
+    cursorUTC -= UN_DIA_MS;
   }
   return dias;
 }
@@ -143,7 +154,7 @@ async function calcularRacha(usuarioId: string): Promise<{ dias: number; ultimaA
   });
   if (intentos.length === 0) return { dias: 0, ultimaActividad: null };
 
-  const diasConActividad = new Set(intentos.map((i) => claveDiaLocal(i.createdAt)));
+  const diasConActividad = new Set(intentos.map((i) => claveDiaMadrid(i.createdAt)));
   return { dias: calcularRachaDesdeDias(diasConActividad), ultimaActividad: intentos[0].createdAt };
 }
 
@@ -186,57 +197,25 @@ const MUESTRA_MINIMA_COMUNIDAD = 5;
  * propio usuario en su propia media, ni expone dato alguno por usuario,
  * solo el agregado). Puramente motivador — no es un ranking ni identifica
  * a nadie.
+ *
+ * Las estadísticas de "los demás" se calculan agregadas en Postgres (ver
+ * lib/progresoComunidad.ts), no trayendo cada intento ajeno a memoria —
+ * con la tabla `Intento` creciendo con toda la actividad histórica de
+ * todos los usuarios, hacerlo en memoria era el cuello de botella más
+ * severo del backend, repetido en cada visita de cada usuario a su propio
+ * Progreso.
  */
 progresoRouter.get("/comunidad", asyncHandler(async (req, res) => {
   const usuarioId = req.auth!.usuarioId;
 
-  /**
-   * El total y los aciertos de "los demás" se agregan en la base de datos
-   * (groupBy) en vez de contarlos a mano sobre cada fila en JS: antes
-   * `intentosAjenos` traía todas las columnas de todos los intentos de
-   * todos los demás usuarios solo para sumar dos contadores — ahora esas
-   * dos sumas las hace Postgres, y solo se trae de vuelta una fila por
-   * usuario. La fecha de cada intento (para la racha) sigue necesitando
-   * fila a fila, porque calcularRachaDesdeDias necesita el conjunto de
-   * días con actividad de cada usuario, algo que no se puede calcular con
-   * un simple `groupBy` sin truncar la fecha en SQL.
-   */
-  const [propioTotal, propioAciertos, propiaRacha, totalesAjenos, aciertosAjenos, diasAjenos] = await Promise.all([
+  const [propioTotal, propioAciertos, propiaRacha, estadisticasOtros] = await Promise.all([
     prisma.intento.count({ where: { usuarioId } }),
     prisma.intento.count({ where: { usuarioId, esCorrecta: true } }),
     calcularRacha(usuarioId),
-    prisma.intento.groupBy({
-      by: ["usuarioId"],
-      where: { usuarioId: { not: usuarioId } },
-      _count: { _all: true },
-    }),
-    prisma.intento.groupBy({
-      by: ["usuarioId"],
-      where: { usuarioId: { not: usuarioId }, esCorrecta: true },
-      _count: { _all: true },
-    }),
-    prisma.intento.findMany({
-      where: { usuarioId: { not: usuarioId } },
-      select: { usuarioId: true, createdAt: true },
-    }),
+    obtenerEstadisticasOtrosUsuarios(usuarioId),
   ]);
 
-  const porUsuario = new Map<string, { total: number; aciertos: number; dias: Set<string> }>();
-  for (const fila of totalesAjenos) {
-    if (!fila.usuarioId) continue; // intentos anónimos (sesionAnonima, sin cuenta): fuera de la comparativa
-    porUsuario.set(fila.usuarioId, { total: fila._count._all, aciertos: 0, dias: new Set<string>() });
-  }
-  for (const fila of aciertosAjenos) {
-    if (!fila.usuarioId) continue;
-    const entrada = porUsuario.get(fila.usuarioId);
-    if (entrada) entrada.aciertos = fila._count._all;
-  }
-  for (const intento of diasAjenos) {
-    if (!intento.usuarioId) continue;
-    porUsuario.get(intento.usuarioId)?.dias.add(claveDiaLocal(intento.createdAt));
-  }
-
-  const otrosUsuarios = [...porUsuario.values()];
+  const otrosUsuarios = [...estadisticasOtros.values()];
   const disponible = otrosUsuarios.length >= MUESTRA_MINIMA_COMUNIDAD;
 
   let media: { racha: number; precision: number | null } | null = null;
@@ -277,16 +256,21 @@ const evolucionQuerySchema = z.object({
   dias: z.coerce.number().int().min(1).max(90).default(14),
 });
 
-/** Serie diaria de intentos/aciertos, para el gráfico de evolución del % de acierto. */
+/**
+ * Serie diaria de intentos/aciertos, para el gráfico de evolución del %
+ * de acierto. Los días de la serie son días civiles en Madrid (ver
+ * lib/fechaLocal.ts) — antes se calculaban sumando/restando días con
+ * `Date.setDate`/`setHours` en la hora local del proceso (UTC en
+ * producción), lo que podía desplazar en qué día caía cada intento.
+ */
 progresoRouter.get("/evolucion", asyncHandler(async (req, res) => {
   const parsed = evolucionQuerySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { dias } = parsed.data;
   const usuarioId = req.auth!.usuarioId;
 
-  const desde = new Date();
-  desde.setHours(0, 0, 0, 0);
-  desde.setDate(desde.getDate() - (dias - 1));
+  const claves = ultimasClavesDiaMadrid(dias); // más antiguo -> más reciente
+  const desde = inicioDelDiaMadridDesdeClave(claves[0]);
 
   const intentos = await prisma.intento.findMany({
     where: { usuarioId, createdAt: { gte: desde } },
@@ -295,26 +279,22 @@ progresoRouter.get("/evolucion", asyncHandler(async (req, res) => {
 
   const porDia = new Map<string, { intentos: number; aciertos: number }>();
   for (const intento of intentos) {
-    const clave = claveDiaLocal(intento.createdAt);
+    const clave = claveDiaMadrid(intento.createdAt);
     const actual = porDia.get(clave) ?? { intentos: 0, aciertos: 0 };
     actual.intentos += 1;
     if (intento.esCorrecta) actual.aciertos += 1;
     porDia.set(clave, actual);
   }
 
-  const serie = [];
-  const cursor = new Date(desde);
-  for (let i = 0; i < dias; i++) {
-    const clave = claveDiaLocal(cursor);
+  const serie = claves.map((clave) => {
     const datos = porDia.get(clave) ?? { intentos: 0, aciertos: 0 };
-    serie.push({
-      fecha: new Date(cursor).toISOString().slice(0, 10),
+    return {
+      fecha: clave,
       intentos: datos.intentos,
       aciertos: datos.aciertos,
       precision: datos.intentos > 0 ? datos.aciertos / datos.intentos : null,
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
+    };
+  });
 
   res.json({ serie });
 }));
