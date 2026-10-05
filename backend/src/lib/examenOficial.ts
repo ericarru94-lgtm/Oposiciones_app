@@ -1,4 +1,5 @@
 import { Bloque, TipoPregunta } from "@prisma/client";
+import { barajar } from "./barajar";
 
 /**
  * Estructura fija del primer ejercicio real de la oposición de Auxiliar
@@ -18,15 +19,6 @@ export interface PreguntaSeleccionable {
   temaId: number | null;
   tipo: TipoPregunta;
   bloque: Bloque | null;
-}
-
-function barajar<T>(arr: T[]): T[] {
-  const copia = [...arr];
-  for (let i = copia.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copia[i], copia[j]] = [copia[j], copia[i]];
-  }
-  return copia;
 }
 
 /**

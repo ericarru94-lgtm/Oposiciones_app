@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
-import { siguienteEstadoSM2 } from "../lib/sm2";
+import { registrarProgresoSM2 } from "../lib/progresoSM2";
+import { calcularProgresoPorTema } from "../lib/progresoPorTema";
 import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../lib/dailyLimit";
 
 export const progresoRouter = Router();
@@ -102,42 +103,7 @@ progresoRouter.post("/:preguntaId/revisar", asyncHandler(async (req, res) => {
   const pregunta = await prisma.pregunta.findUnique({ where: { id: preguntaId } });
   if (!pregunta) return res.status(404).json({ error: "Pregunta no encontrada" });
 
-  const progresoActual = await prisma.progreso.findUnique({
-    where: { usuarioId_preguntaId: { usuarioId, preguntaId } },
-  });
-  const base = progresoActual ?? {
-    repeticiones: 0,
-    factorFacilidad: 2.5,
-    intervaloDias: 0,
-  };
-  const siguiente = siguienteEstadoSM2(base, calidad);
-  const esCorrecta = calidad >= 3;
-
-  const progreso = await prisma.progreso.upsert({
-    where: { usuarioId_preguntaId: { usuarioId, preguntaId } },
-    create: {
-      usuarioId,
-      preguntaId,
-      repeticiones: siguiente.repeticiones,
-      factorFacilidad: siguiente.factorFacilidad,
-      intervaloDias: siguiente.intervaloDias,
-      proximaRevision: siguiente.proximaRevision,
-      ultimaRevision: new Date(),
-      ultimaCalidad: calidad,
-      vecesVista: 1,
-      vecesCorrecta: esCorrecta ? 1 : 0,
-    },
-    update: {
-      repeticiones: siguiente.repeticiones,
-      factorFacilidad: siguiente.factorFacilidad,
-      intervaloDias: siguiente.intervaloDias,
-      proximaRevision: siguiente.proximaRevision,
-      ultimaRevision: new Date(),
-      ultimaCalidad: calidad,
-      vecesVista: { increment: 1 },
-      vecesCorrecta: esCorrecta ? { increment: 1 } : undefined,
-    },
-  });
+  const progreso = await registrarProgresoSM2(prisma, { usuarioId, preguntaId, calidad });
 
   res.json({ progreso });
 }));
@@ -277,38 +243,7 @@ progresoRouter.get("/comunidad", asyncHandler(async (req, res) => {
  * distintas ha contestado el usuario y su precisión en ese tema.
  */
 progresoRouter.get("/por-tema", asyncHandler(async (req, res) => {
-  const usuarioId = req.auth!.usuarioId;
-
-  const temas = await prisma.tema.findMany({ orderBy: [{ bloque: "asc" }, { numero: "asc" }] });
-
-  const porTema = await Promise.all(
-    temas.map(async (tema) => {
-      const [totalPreguntas, intentosTema] = await Promise.all([
-        prisma.pregunta.count({ where: { temaId: tema.id, estado: "verificada" } }),
-        prisma.intento.findMany({
-          where: { usuarioId, pregunta: { temaId: tema.id } },
-          select: { preguntaId: true, esCorrecta: true },
-        }),
-      ]);
-
-      const totalIntentos = intentosTema.length;
-      const aciertos = intentosTema.filter((i) => i.esCorrecta).length;
-      const preguntasContestadas = new Set(intentosTema.map((i) => i.preguntaId)).size;
-
-      return {
-        temaId: tema.id,
-        bloque: tema.bloque,
-        numero: tema.numero,
-        nombre: tema.nombre,
-        totalPreguntas,
-        preguntasContestadas,
-        totalIntentos,
-        aciertos,
-        precision: totalIntentos > 0 ? aciertos / totalIntentos : null,
-      };
-    })
-  );
-
+  const porTema = await calcularProgresoPorTema(req.auth!.usuarioId);
   res.json({ temas: porTema });
 }));
 

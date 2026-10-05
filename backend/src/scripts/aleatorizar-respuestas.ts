@@ -26,6 +26,7 @@
  */
 import fs from "fs";
 import path from "path";
+import { barajar } from "../lib/barajar";
 
 type Letra = "a" | "b" | "c" | "d";
 const LETRAS: Letra[] = ["a", "b", "c", "d"];
@@ -36,16 +37,6 @@ interface PreguntaJSON {
   respuesta_correcta: string | null;
   estado: string;
   [clave: string]: unknown;
-}
-
-/** Fisher-Yates in-place: cada permutación de `array` es igual de probable. */
-function barajar<T>(array: T[]): T[] {
-  const copia = [...array];
-  for (let i = copia.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copia[i], copia[j]] = [copia[j], copia[i]];
-  }
-  return copia;
 }
 
 function main() {

@@ -3,7 +3,8 @@ import { prisma } from "../lib/prisma";
 import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { EstadoPregunta } from "@prisma/client";
-import { barajar, ocultarRespuesta } from "./preguntas";
+import { barajar } from "../lib/barajar";
+import { ocultarRespuesta } from "./preguntas";
 
 export const favoritosRouter = Router();
 

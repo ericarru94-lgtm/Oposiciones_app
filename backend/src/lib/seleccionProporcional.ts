@@ -1,3 +1,5 @@
+import { barajar } from "./barajar";
+
 /**
  * Reparte `numPreguntas` entre los temas de `disponibles`, proporcionalmente
  * al peso de cada tema. No existe en el modelo de datos un "peso oficial"
@@ -39,13 +41,4 @@ export function seleccionarProporcionalAlTemario<T extends { temaId: number | nu
     seleccion.push(...barajar(e.lista).slice(0, Math.min(e.cupo, e.lista.length)));
   }
   return barajar(seleccion).slice(0, objetivo);
-}
-
-function barajar<T>(arr: T[]): T[] {
-  const copia = [...arr];
-  for (let i = copia.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copia[i], copia[j]] = [copia[j], copia[i]];
-  }
-  return copia;
 }

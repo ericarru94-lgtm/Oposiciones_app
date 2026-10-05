@@ -4,12 +4,11 @@ import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { obtenerStripe } from "../lib/stripe";
 import { sincronizarSuscripcionDesdeStripe } from "../lib/sincronizarSuscripcion";
+import { FRONTEND_URL } from "../lib/frontendUrl";
 
 const ESTADOS_ACTIVOS = new Set(["active", "trialing"]);
 
 export const stripeRouter = Router();
-
-const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:5173";
 
 /**
  * Crea una Checkout Session de Stripe (modo suscripción) para el usuario

@@ -6,20 +6,13 @@ import { asyncHandler } from "../lib/asyncHandler";
 import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../lib/dailyLimit";
 import { seleccionarProporcionalAlTemario } from "../lib/seleccionProporcional";
 import { ESTRUCTURA_EXAMEN_OFICIAL, seleccionarExamenOficial } from "../lib/examenOficial";
-import { siguienteEstadoSM2, calidadDesdeAcierto } from "../lib/sm2";
+import { calidadDesdeAcierto } from "../lib/sm2";
+import { registrarProgresoSM2 } from "../lib/progresoSM2";
 import { limitarRespuestasAnonimas } from "../middleware/rateLimit";
+import { barajar } from "../lib/barajar";
 import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
 
 export const preguntasRouter = Router();
-
-export function barajar<T>(arr: T[]): T[] {
-  const copia = [...arr];
-  for (let i = copia.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copia[i], copia[j]] = [copia[j], copia[i]];
-  }
-  return copia;
-}
 
 /** Pregunta sin la respuesta correcta, para no filtrarla al cliente antes de responder. */
 export function ocultarRespuesta(p: {
@@ -248,41 +241,10 @@ preguntasRouter.post("/:id/responder", authOpcional, limitarRespuestasAnonimas, 
   });
 
   if (usuarioId) {
-    const progresoActual = await prisma.progreso.findUnique({
-      where: { usuarioId_preguntaId: { usuarioId, preguntaId: pregunta.id } },
-    });
-    const calidad = calidadDesdeAcierto(esCorrecta);
-    const base = progresoActual ?? {
-      repeticiones: 0,
-      factorFacilidad: 2.5,
-      intervaloDias: 0,
-    };
-    const siguiente = siguienteEstadoSM2(base, calidad);
-
-    await prisma.progreso.upsert({
-      where: { usuarioId_preguntaId: { usuarioId, preguntaId: pregunta.id } },
-      create: {
-        usuarioId,
-        preguntaId: pregunta.id,
-        repeticiones: siguiente.repeticiones,
-        factorFacilidad: siguiente.factorFacilidad,
-        intervaloDias: siguiente.intervaloDias,
-        proximaRevision: siguiente.proximaRevision,
-        ultimaRevision: new Date(),
-        ultimaCalidad: calidad,
-        vecesVista: 1,
-        vecesCorrecta: esCorrecta ? 1 : 0,
-      },
-      update: {
-        repeticiones: siguiente.repeticiones,
-        factorFacilidad: siguiente.factorFacilidad,
-        intervaloDias: siguiente.intervaloDias,
-        proximaRevision: siguiente.proximaRevision,
-        ultimaRevision: new Date(),
-        ultimaCalidad: calidad,
-        vecesVista: { increment: 1 },
-        vecesCorrecta: esCorrecta ? { increment: 1 } : undefined,
-      },
+    await registrarProgresoSM2(prisma, {
+      usuarioId,
+      preguntaId: pregunta.id,
+      calidad: calidadDesdeAcierto(esCorrecta),
     });
   }
 
