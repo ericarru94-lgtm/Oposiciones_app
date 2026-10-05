@@ -5,6 +5,7 @@ import { registrarEvento } from "../lib/analytics";
 import { useSession } from "../context/SessionContext";
 import { useApiData } from "../hooks/useApiData";
 import { AppLayout } from "../components/AppLayout";
+import { Card } from "../components/Card";
 import { AvisoRecordatorioPush } from "../components/AvisoRecordatorioPush";
 import { BloqueDesplegable } from "../components/BloqueDesplegable";
 import { ProgressBar } from "../components/ProgressBar";
@@ -112,7 +113,7 @@ export function Home() {
         )}
 
         {proximoHito && (
-          <div className="rounded-2xl border border-line bg-card p-6">
+          <Card>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">🎯 Próximo hito</p>
             <p className="mt-2 text-base font-bold text-ink">
               Te faltan {proximoHito.restantes} preguntas para completar el Bloque {proximoHito.bloque}
@@ -120,7 +121,7 @@ export function Home() {
             <div className="mt-4">
               <ProgressBar valor={proximoHito.contestadas / proximoHito.total} />
             </div>
-          </div>
+          </Card>
         )}
 
         {todoCompletado && !puntoDebil && (

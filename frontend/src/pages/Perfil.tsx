@@ -5,6 +5,7 @@ import { crearPortalSession, eliminarCuenta, obtenerProgresoPorTema, obtenerResu
 import { useSession } from "../context/SessionContext";
 import { useApiData } from "../hooks/useApiData";
 import { AppLayout } from "../components/AppLayout";
+import { Card } from "../components/Card";
 import { PageTitle } from "../components/PageTitle";
 import { NewsletterForm } from "../components/NewsletterForm";
 import type { ProgresoPorTema } from "../api/types";
@@ -167,7 +168,7 @@ export function Perfil() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-line bg-card p-6">
+      <Card>
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">🏅 Logros</h2>
 
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Constancia</h3>
@@ -212,7 +213,7 @@ export function Perfil() {
             ))}
           </ul>
         )}
-      </div>
+      </Card>
 
       <NewsletterForm className="mt-6" />
 

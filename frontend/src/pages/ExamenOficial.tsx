@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import { obtenerExamenOficial } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
+import { Card } from "../components/Card";
 import { PageTitle } from "../components/PageTitle";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
 import { medallaSegunPorcentaje } from "../lib/medallaSegunPorcentaje";
@@ -146,16 +147,16 @@ export function ExamenOficial() {
         </p>
 
         <div className="mt-8 space-y-4">
-          <div className="rounded-2xl border border-line bg-card p-6">
+          <Card>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Parte 1</p>
             <p className="mt-1 text-base font-bold text-ink">60 preguntas · 90 minutos</p>
             <p className="mt-1 text-sm text-muted">30 de materias comunes (Bloque I) + 30 psicotécnicas</p>
-          </div>
-          <div className="rounded-2xl border border-line bg-card p-6">
+          </Card>
+          <Card>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Parte 2</p>
             <p className="mt-1 text-base font-bold text-ink">50 preguntas · 45 minutos</p>
             <p className="mt-1 text-sm text-muted">Ofimática (Bloque II)</p>
-          </div>
+          </Card>
         </div>
 
         {error && <p className="mt-5 text-sm text-error">{error}</p>}

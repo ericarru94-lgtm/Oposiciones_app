@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Card } from "../components/Card";
 import { Footer } from "../components/Footer";
 import { NewsletterForm } from "../components/NewsletterForm";
 import { ComparativaPlanes } from "../components/ComparativaPlanes";
@@ -78,21 +79,18 @@ export function Landing() {
         {/* Tarjetas de beneficios solapadas sobre el hero, para que el recorrido no salte en seco de un bloque plano al siguiente. */}
         <section className="-mt-14 grid grid-cols-1 gap-5 sm:grid-cols-3">
           {BENEFICIOS.map((beneficio) => (
-            <div
-              key={beneficio.titulo}
-              className="rounded-2xl border border-line bg-card p-6 shadow-md shadow-ink/5 transition-transform hover:-translate-y-0.5"
-            >
+            <Card key={beneficio.titulo} className="shadow-md shadow-ink/5 transition-transform hover:-translate-y-0.5">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-xl">
                 {beneficio.icono}
               </div>
               <h2 className="mt-4 text-sm font-semibold text-ink">{beneficio.titulo}</h2>
               <p className="mt-2 text-sm text-muted">{beneficio.descripcion}</p>
-            </div>
+            </Card>
           ))}
         </section>
 
         <section className="mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="rounded-2xl border border-line bg-card p-6 text-center">
+          <Card className="text-center">
             <h2 className="text-lg font-semibold text-ink">Temario completo, tema por tema</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted">
               Consulta el resumen de estudio y las preguntas de cada uno de los 28 temas oficiales antes de crear
@@ -104,8 +102,8 @@ export function Landing() {
             >
               Ver el temario
             </Link>
-          </div>
-          <div className="rounded-2xl border border-line bg-card p-6 text-center">
+          </Card>
+          <Card className="text-center">
             <h2 className="text-lg font-semibold text-ink">Guías de la oposición</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted">
               Requisitos, sueldo, estructura del examen y cómo organizar el estudio, explicados en el blog.
@@ -116,7 +114,7 @@ export function Landing() {
             >
               Ir al blog
             </Link>
-          </div>
+          </Card>
         </section>
 
         <section className="my-20">
