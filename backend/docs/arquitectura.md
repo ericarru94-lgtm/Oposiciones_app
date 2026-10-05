@@ -130,32 +130,49 @@ Todo esto quedó consolidado en un único punto cada uno (ver sección 6,
 otra sesión sobre esta misma rama — se fusionó sin perder ninguna de las
 dos aportaciones (ver el commit de merge).
 
-### 4.3 — Escalabilidad: `GET /progreso/comunidad` (parcialmente corregido)
+### 4.3 — Bug real de zona horaria (corregido) y escalabilidad de `GET /progreso/comunidad` (corregido)
 
-`progreso.ts` traía **todos** los intentos de **todos los demás
-usuarios** (`prisma.intento.findMany({ where: { usuarioId: { not: usuarioId } } })`,
-sin `take`) para calcular total, aciertos y racha de la comunidad en
-JavaScript. Corregido en parte: el total y los aciertos por usuario ahora
-se calculan con dos `prisma.intento.groupBy()` (agregados en la base de
-datos, una fila por usuario distinto en vez de una fila por intento) en
-lugar de sumarlos a mano sobre cada fila. Verificado sin cambiar el
-resultado: los 4 tests de `progreso-comunidad.test.ts` (incluidos los que
-comprueban la media exacta con `toBeCloseTo`) siguen pasando tal cual.
+Esta sección pasó por tres versiones mientras se auditaba, así que vale
+la pena dejar constancia del recorrido completo:
 
-**Lo que queda sin resolver, a propósito**: la racha (días consecutivos
-con actividad) sigue necesitando, para cada usuario, el conjunto de días
-distintos en los que tuvo algún intento — y eso exige traer
-`{usuarioId, createdAt}` de cada intento, uno a uno, porque Prisma no
-permite agrupar truncando una fecha a "día" sin SQL crudo
-(`DATE(createdAt)`). Ese camino existe (y en este entorno, con
-`Intento.createdAt` como `timestamp without time zone` y tanto Node como
-Postgres en UTC, sería seguro), pero no lo apliqué: no pude confirmar que
-la base de datos de producción en Render también está en UTC, y una
-discrepancia ahí correría el riesgo real de desplazar la racha de algún
-usuario un día en el borde de la medianoche. Queda documentado para quien
-lo aborde con esa confirmación hecha, o cachee la media en vez de
-recalcularla en cada petición (no necesita ser exacta al segundo, es
-"motivación", no un dato crítico).
+1. Primera pasada: señalé `/progreso/comunidad` como un problema de
+   escalabilidad (traía **todos** los intentos de **todos los demás
+   usuarios** a memoria para agregar en JavaScript) y, aparte, apliqué un
+   arreglo parcial propio (mover total/aciertos a `prisma.intento.groupBy()`)
+   dejando la racha sin tocar porque habría necesitado SQL con fecha
+   truncada (`DATE(createdAt)`) y no podía confirmar si la Postgres de
+   producción corre en UTC o en hora local.
+2. Esa duda resultó señalar algo más gordo: otra sesión, en paralelo,
+   encontró que el proceso de Node en Render corre en UTC (confirmado:
+   sin `TZ` configurada en ningún sitio del repo) pero los cálculos de
+   "qué día es" (racha, límite diario del plan gratuito, `/evolucion`)
+   usaban `new Date()` con los métodos de hora **local del proceso**, no
+   la hora de Madrid. Cerca de medianoche en España (22:00-24:00 UTC, o
+   23:00-24:00 en horario de invierno), eso desplazaba el día real del
+   usuario hasta 2 horas — sin lanzar nunca una excepción, así que el
+   fallo era completamente silencioso. Lo corrigieron con
+   `lib/fechaLocal.ts` (`Intl.DateTimeFormat` con `timeZone:
+   "Europe/Madrid"`, verificado contra los cambios de horario reales de
+   2026 en `fechaLocal.test.ts`).
+3. Con esa base ya corregida y de confianza, esa misma sesión completó
+   la optimización de `/progreso/comunidad` del todo:
+   `lib/progresoComunidad.ts` usa `$queryRaw` con `AT TIME ZONE
+   'Europe/Madrid'` para traer una fila por usuario (total/aciertos) y
+   una fila por (usuario, día con actividad) — nunca una fila por
+   intento — sustituyendo tanto el `findMany` original como mi arreglo
+   parcial de groupBy.
+
+Fusionado sin conflicto salvo en `routes/progreso.ts` (resuelto a favor
+de su versión completa, ver el commit de merge). Verificado: 133/133
+tests tras la fusión, incluidos los 4 de `progreso-comunidad.test.ts`
+(con la media exacta vía `toBeCloseTo`) y los 13 nuevos de
+`fechaLocal.test.ts`.
+
+También falta un índice en `Intento.preguntaId` solo: `routes/progreso.ts`
+(`/por-tema`, ya optimizado) y `routes/favoritos.ts` filtran por la
+relación `pregunta.temaId`, apoyándose en el índice de `Pregunta`, no en
+uno de `Intento` — no es urgente hoy, pero merece revisarse si `Intento`
+crece mucho y esas consultas se notan en los logs de Postgres.
 
 También falta un índice en `Intento.preguntaId` solo: `routes/progreso.ts`
 (`/por-tema`, ya optimizado) y `routes/favoritos.ts` filtran por la
@@ -204,18 +221,14 @@ Documentado para quien lo aborde con tiempo de QA en navegador:
 
 ## 5. Decisiones de alcance explícitas (qué no se tocó, y por qué)
 
-1. **Racha de `/progreso/comunidad`** (4.3): el camino seguro (SQL con
-   fecha truncada) no se aplicó por no poder confirmar que la Postgres de
-   producción también está en UTC — ver 4.3 para el razonamiento
-   completo. El total/aciertos sí se optimizó.
-2. **Fusión `TestRunner`/`SimulacroRunner`** (4.4): es un rediseño, no
+1. **Fusión `TestRunner`/`SimulacroRunner`** (4.4): es un rediseño, no
    una deduplicación mecánica — fuera de alcance de este pase.
-3. **División de componentes que mezclan responsabilidades** (4.5): no
+2. **División de componentes que mezclan responsabilidades** (4.5): no
    están rotos, solo no están idealmente factorizados — dividirlos es
    una decisión de diseño que merece su propia conversación, no algo
    para decidir unilateralmente en una pasada de "arregla lo que
    encuentres".
-4. **`ResumenTema.tsx`** se dejó fuera del hook `useApiData` a propósito:
+3. **`ResumenTema.tsx`** se dejó fuera del hook `useApiData` a propósito:
    su `temaId` puede cambiar con el componente ya montado (navegar de un
    tema a otro sin desmontar), y mantiene a propósito el contenido
    anterior en pantalla mientras llega el nuevo en vez de mostrar
@@ -232,10 +245,13 @@ un refactor en paralelo) — cada uno con un único punto de verdad que
 antes estaba copiado 2-4 veces. `/progreso/por-tema` pasó de 2×N
 consultas (N = nº de temas) a 3 consultas totales, con un test nuevo
 (`progreso-por-tema.test.ts`) que fija el comportamiento exacto antes y
-después del cambio. `/progreso/comunidad` dejó de sumar total/aciertos a
-mano sobre cada intento y usa `groupBy` en su lugar. Se añadió un test
-que confirma que `DELETE /auth/cuenta` no falla con `PushSuscripcion`
-(la falsa alarma de 4.1).
+después del cambio. Se añadió un test que confirma que `DELETE
+/auth/cuenta` no falla con `PushSuscripcion` (la falsa alarma de 4.1).
+Incorporado de un refactor en paralelo: `lib/fechaLocal.ts` corrige un
+bug real de zona horaria (racha/límite diario/evolución calculaban "qué
+día es" con la hora UTC del proceso en vez de la hora de Madrid) y
+`lib/progresoComunidad.ts` mueve `/progreso/comunidad` entero a
+agregados SQL (ver 4.3).
 
 **Frontend**: `hooks/useApiData.ts` (patrón fetch-al-montar compartido,
 aplicado a Home/Progreso/Perfil/Temario), `lib/medallaSegunPorcentaje.ts`
@@ -244,7 +260,7 @@ aplicado a Home/Progreso/Perfil/Temario), `lib/medallaSegunPorcentaje.ts`
 primario de ancho completo, 10 sitios).
 
 **Verificación en cada paso**: `tsc --noEmit` limpio, suite completa de
-tests (120 backend / 100 frontend), `oxlint` sin errores, `vite build`
+tests (133 backend / 100 frontend), `oxlint` sin errores, `vite build`
 sin warnings nuevos, capturas de pantalla de landing/blog, y — para los
 cambios que tocaban componentes autenticados (`PrimaryButton`) — la
 suite E2E de Playwright completa (12/12), con login real vía bypass de
