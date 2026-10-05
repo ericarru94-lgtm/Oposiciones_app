@@ -6,6 +6,7 @@ import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { PageTitle } from "../components/PageTitle";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
+import { medallaSegunPorcentaje } from "../lib/medallaSegunPorcentaje";
 import type { FaseExamenOficial } from "../api/endpoints";
 
 type Paso =
@@ -17,7 +18,7 @@ type Paso =
   | { fase: "resultados"; resultadoParte1: ResultadoSimulacro; resultadoParte2: ResultadoSimulacro };
 
 function icono(porcentaje: number): string {
-  return porcentaje >= 90 ? "🏆" : porcentaje >= 70 ? "🎉" : porcentaje >= 40 ? "💪" : "📚";
+  return medallaSegunPorcentaje(porcentaje).icono;
 }
 
 function porcentaje(resultado: ResultadoSimulacro): number {

@@ -6,6 +6,7 @@ import { useSession } from "../context/SessionContext";
 import { AppLayout } from "../components/AppLayout";
 import { SimulacroRunner, type ResultadoSimulacro } from "../components/SimulacroRunner";
 import { PageTitle } from "../components/PageTitle";
+import { medallaSegunPorcentaje } from "../lib/medallaSegunPorcentaje";
 import type { Bloque, PreguntaParaResponder, Tema } from "../api/types";
 
 type Paso =
@@ -224,7 +225,7 @@ function ResultadosSimulacro({
     porBloque.set(bloque, actual);
   }
 
-  const icono = porcentaje >= 90 ? "🏆" : porcentaje >= 70 ? "🎉" : porcentaje >= 40 ? "💪" : "📚";
+  const { icono } = medallaSegunPorcentaje(porcentaje);
 
   return (
     <div data-testid="resultados-simulacro" className="mx-auto max-w-lg overflow-hidden rounded-3xl bg-card text-center">

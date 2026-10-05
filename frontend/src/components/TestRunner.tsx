@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "../api/client";
 import { desmarcarFavorita, marcarFavorita, obtenerIdsFavoritos, responderPregunta } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
+import { medallaSegunPorcentaje } from "../lib/medallaSegunPorcentaje";
 import type { Opcion, PreguntaParaResponder, RespuestaFeedback, TablaDatos } from "../api/types";
 
 /** Tabla de datos que necesitan algunas preguntas psicotécnicas (lectura de tablas) para poder resolverse. */
@@ -43,13 +44,6 @@ export interface ResumenTest {
 }
 
 const ETIQUETA_OPCION: Opcion[] = ["a", "b", "c", "d"];
-
-function medallaSegunPorcentaje(porcentaje: number): { icono: string; mensaje: string } {
-  if (porcentaje >= 90) return { icono: "🏆", mensaje: "¡Excelente! Dominas este bloque de preguntas." };
-  if (porcentaje >= 70) return { icono: "🎉", mensaje: "¡Muy bien! Vas por buen camino." };
-  if (porcentaje >= 40) return { icono: "💪", mensaje: "Buen esfuerzo, sigue practicando." };
-  return { icono: "📚", mensaje: "Repasa este tema y vuelve a intentarlo." };
-}
 
 interface TestRunnerProps {
   titulo: string;

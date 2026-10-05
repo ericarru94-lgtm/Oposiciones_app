@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { crearPortalSession, eliminarCuenta, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
+import { useApiData } from "../hooks/useApiData";
 import { AppLayout } from "../components/AppLayout";
 import { PageTitle } from "../components/PageTitle";
 import { NewsletterForm } from "../components/NewsletterForm";
 import type { ProgresoPorTema } from "../api/types";
+
+interface DatosLogros {
+  temas: ProgresoPorTema[];
+  rachaDias: number;
+}
 
 /** Un tema cuenta como "dominado" con el mismo criterio que la insignia de TemaCard. */
 function esDominado(tema: ProgresoPorTema): boolean {
@@ -35,9 +41,6 @@ const FRASE_CONFIRMACION_BORRADO = "ELIMINAR";
 export function Perfil() {
   const { usuario, perfilExterno, getToken, logout } = useSession();
   const navigate = useNavigate();
-  const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
-  const [rachaDias, setRachaDias] = useState<number | null>(null);
-  const [errorLogros, setErrorLogros] = useState<string | null>(null);
   const [procesandoPortal, setProcesandoPortal] = useState(false);
   const [errorPortal, setErrorPortal] = useState<string | null>(null);
   const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] = useState(false);
@@ -45,34 +48,23 @@ export function Perfil() {
   const [procesandoBorrado, setProcesandoBorrado] = useState(false);
   const [errorBorrado, setErrorBorrado] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelado = false;
-    (async () => {
-      try {
-        const token = await getToken();
-        if (!token) return;
-        const [{ temas }, resumen] = await Promise.all([
-          obtenerProgresoPorTema(token),
-          obtenerResumenProgreso(token),
-        ]);
-        if (cancelado) return;
-        setTemas(temas);
-        setRachaDias(resumen.racha.dias);
-      } catch (err) {
-        // Sin este catch, un fallo aquí (red, CORS, backend caído) dejaba
-        // temas/rachaDias en null para siempre — "Cargando…" infinito en vez
-        // de un error visible.
-        if (!cancelado) {
-          setErrorLogros(
-            err instanceof ApiError ? err.message : "No se pudieron cargar tus logros. Inténtalo de nuevo más tarde."
-          );
-        }
-      }
-    })();
-    return () => {
-      cancelado = true;
-    };
+  // Sin capturar el error aquí, un fallo (red, CORS, backend caído) dejaba
+  // temas/rachaDias en null para siempre — "Cargando…" infinito en vez de
+  // un error visible (ver errorLogros más abajo, derivado de `error`).
+  const { datos, error } = useApiData<DatosLogros>(async () => {
+    const token = await getToken();
+    if (!token) return undefined;
+    const [{ temas }, resumen] = await Promise.all([obtenerProgresoPorTema(token), obtenerResumenProgreso(token)]);
+    return { temas, rachaDias: resumen.racha.dias };
   }, [getToken]);
+
+  const temas = datos?.temas ?? null;
+  const rachaDias = datos?.rachaDias ?? null;
+  const errorLogros = error
+    ? error instanceof ApiError
+      ? error.message
+      : "No se pudieron cargar tus logros. Inténtalo de nuevo más tarde."
+    : null;
 
   const temasDominados = (temas ?? []).filter(esDominado);
   const insigniasRacha = HITOS_RACHA.filter((h) => (rachaDias ?? 0) >= h.dias);

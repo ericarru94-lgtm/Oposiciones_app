@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { obtenerEvolucion, obtenerProgresoPorTema, obtenerResumenProgreso } from "../api/endpoints";
 import { registrarEvento } from "../lib/analytics";
 import { useSession } from "../context/SessionContext";
+import { useApiData } from "../hooks/useApiData";
 import { AppLayout } from "../components/AppLayout";
 import { AvisoRecordatorioPush } from "../components/AvisoRecordatorioPush";
 import { BloqueDesplegable } from "../components/BloqueDesplegable";
@@ -10,13 +11,16 @@ import { ProgressBar } from "../components/ProgressBar";
 import { EvolucionChart } from "../components/EvolucionChart";
 import type { Bloque, EvolucionDia, ProgresoPorTema, ProgresoResumen } from "../api/types";
 
+interface DatosHome {
+  temas: ProgresoPorTema[];
+  resumen: ProgresoResumen;
+  evolucion: EvolucionDia[];
+}
+
 export function Home() {
   const { getToken } = useSession();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
-  const [resumen, setResumen] = useState<ProgresoResumen | null>(null);
-  const [evolucion, setEvolucion] = useState<EvolucionDia[] | null>(null);
   const pagoCompletado = searchParams.get("checkout") === "success";
 
   // Solo al montar: si se dispara en un efecto con `pagoCompletado` como
@@ -27,25 +31,20 @@ export function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    let cancelado = false;
-    (async () => {
-      const token = await getToken();
-      if (!token) return;
-      const [porTema, resumen, evolucion] = await Promise.all([
-        obtenerProgresoPorTema(token),
-        obtenerResumenProgreso(token),
-        obtenerEvolucion(token, 14),
-      ]);
-      if (cancelado) return;
-      setTemas(porTema.temas);
-      setResumen(resumen);
-      setEvolucion(evolucion.serie);
-    })();
-    return () => {
-      cancelado = true;
-    };
+  const { datos } = useApiData<DatosHome>(async () => {
+    const token = await getToken();
+    if (!token) return undefined;
+    const [porTema, resumen, evolucionResp] = await Promise.all([
+      obtenerProgresoPorTema(token),
+      obtenerResumenProgreso(token),
+      obtenerEvolucion(token, 14),
+    ]);
+    return { temas: porTema.temas, resumen, evolucion: evolucionResp.serie };
   }, [getToken]);
+
+  const temas = datos?.temas ?? null;
+  const resumen = datos?.resumen ?? null;
+  const evolucion = datos?.evolucion ?? null;
 
   const bloqueI = temas?.filter((t) => t.bloque === "I") ?? [];
   const bloqueII = temas?.filter((t) => t.bloque === "II") ?? [];

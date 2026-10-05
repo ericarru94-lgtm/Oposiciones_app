@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   obtenerEvolucion,
@@ -7,6 +6,7 @@ import {
   obtenerResumenProgreso,
 } from "../api/endpoints";
 import { useSession } from "../context/SessionContext";
+import { useApiData } from "../hooks/useApiData";
 import { AppLayout } from "../components/AppLayout";
 import { RachaBadge } from "../components/RachaBadge";
 import { EvolucionChart } from "../components/EvolucionChart";
@@ -16,34 +16,32 @@ import { StatTile } from "../components/StatTile";
 import { PageTitle } from "../components/PageTitle";
 import type { EvolucionDia, ProgresoComunidad, ProgresoPorTema, ProgresoResumen } from "../api/types";
 
+interface DatosProgreso {
+  resumen: ProgresoResumen;
+  temas: ProgresoPorTema[];
+  evolucion: EvolucionDia[];
+  comunidad: ProgresoComunidad;
+}
+
 export function Progreso() {
   const { getToken } = useSession();
-  const [resumen, setResumen] = useState<ProgresoResumen | null>(null);
-  const [temas, setTemas] = useState<ProgresoPorTema[] | null>(null);
-  const [evolucion, setEvolucion] = useState<EvolucionDia[] | null>(null);
-  const [comunidad, setComunidad] = useState<ProgresoComunidad | null>(null);
 
-  useEffect(() => {
-    let cancelado = false;
-    (async () => {
-      const token = await getToken();
-      if (!token) return;
-      const [r, t, e, c] = await Promise.all([
-        obtenerResumenProgreso(token),
-        obtenerProgresoPorTema(token),
-        obtenerEvolucion(token, 14),
-        obtenerProgresoComunidad(token),
-      ]);
-      if (cancelado) return;
-      setResumen(r);
-      setTemas(t.temas);
-      setEvolucion(e.serie);
-      setComunidad(c);
-    })();
-    return () => {
-      cancelado = true;
-    };
+  const { datos } = useApiData<DatosProgreso>(async () => {
+    const token = await getToken();
+    if (!token) return undefined;
+    const [r, t, e, c] = await Promise.all([
+      obtenerResumenProgreso(token),
+      obtenerProgresoPorTema(token),
+      obtenerEvolucion(token, 14),
+      obtenerProgresoComunidad(token),
+    ]);
+    return { resumen: r, temas: t.temas, evolucion: e.serie, comunidad: c };
   }, [getToken]);
+
+  const resumen = datos?.resumen ?? null;
+  const temas = datos?.temas ?? null;
+  const evolucion = datos?.evolucion ?? null;
+  const comunidad = datos?.comunidad ?? null;
 
   const puntosDebiles = (temas ?? [])
     .filter((t) => t.totalIntentos > 0)
