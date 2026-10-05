@@ -8,11 +8,28 @@ import { seleccionarProporcionalAlTemario } from "../lib/seleccionProporcional";
 import { ESTRUCTURA_EXAMEN_OFICIAL, seleccionarExamenOficial } from "../lib/examenOficial";
 import { calidadDesdeAcierto } from "../lib/sm2";
 import { registrarProgresoSM2 } from "../lib/progresoSM2";
+import { esUsuarioPremium } from "../lib/usuarios";
 import { limitarRespuestasAnonimas } from "../middleware/rateLimit";
 import { barajar } from "../lib/barajar";
 import { Opcion, EstadoPregunta, TipoPregunta, Bloque } from "@prisma/client";
 
 export const preguntasRouter = Router();
+
+/**
+ * Campos públicos de una pregunta (sin la respuesta correcta) que comparten
+ * /aleatorias y /simulacro — un único literal en vez de repetirlo en cada
+ * `findMany`, para que añadir o quitar un campo no pueda dejar a uno de los
+ * dos desincronizado del otro. /examen-oficial reutiliza este mismo objeto
+ * añadiendo `tema.bloque`, que solo él necesita.
+ */
+const SELECCION_PREGUNTA_PUBLICA = {
+  id: true,
+  enunciado: true,
+  opciones: true,
+  tipo: true,
+  temaId: true,
+  tablaDatos: true,
+} as const;
 
 /** Pregunta sin la respuesta correcta, para no filtrarla al cliente antes de responder. */
 export function ocultarRespuesta(p: {
@@ -63,10 +80,9 @@ preguntasRouter.get("/aleatorias", authOpcional, asyncHandler(async (req, res) =
   const usuarioId = req.auth?.usuarioId;
 
   if (temaId && usuarioId) {
-    const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
     const limite = await haAlcanzadoLimiteSesionesDiario({
       usuarioId,
-      esPremium: usuario?.plan === "premium",
+      esPremium: await esUsuarioPremium(usuarioId),
     });
     if (limite.alcanzado) {
       return res.status(429).json({
@@ -83,7 +99,7 @@ preguntasRouter.get("/aleatorias", authOpcional, asyncHandler(async (req, res) =
       ...(tipo ? { tipo } : {}),
       ...(temaId ? { temaId } : bloque ? { tema: { bloque } } : {}),
     },
-    select: { id: true, enunciado: true, opciones: true, tipo: true, temaId: true, tablaDatos: true },
+    select: SELECCION_PREGUNTA_PUBLICA,
   });
 
   const seleccion = barajar(preguntas).slice(0, limit);
@@ -114,11 +130,7 @@ preguntasRouter.get("/simulacro", authOpcional, asyncHandler(async (req, res) =>
   }
   const { numPreguntas } = parsed.data;
 
-  let esPremium = false;
-  if (req.auth?.usuarioId) {
-    const usuario = await prisma.usuario.findUnique({ where: { id: req.auth.usuarioId } });
-    esPremium = usuario?.plan === "premium";
-  }
+  const esPremium = req.auth?.usuarioId ? await esUsuarioPremium(req.auth.usuarioId) : false;
   if (!esPremium && numPreguntas !== SIMULACRO_LIBRE_PREGUNTAS_GRATIS) {
     return res.status(403).json({
       error: `El plan gratuito solo puede generar el simulacro libre con ${SIMULACRO_LIBRE_PREGUNTAS_GRATIS} preguntas. Hazte premium para elegir más preguntas.`,
@@ -127,7 +139,7 @@ preguntasRouter.get("/simulacro", authOpcional, asyncHandler(async (req, res) =>
 
   const disponibles = await prisma.pregunta.findMany({
     where: { estado: EstadoPregunta.verificada },
-    select: { id: true, enunciado: true, opciones: true, tipo: true, temaId: true, tablaDatos: true },
+    select: SELECCION_PREGUNTA_PUBLICA,
   });
 
   const seleccion = seleccionarProporcionalAlTemario(disponibles, numPreguntas);
@@ -155,15 +167,7 @@ preguntasRouter.get("/examen-oficial", authRequerido, asyncHandler(async (req, r
 
   const disponibles = await prisma.pregunta.findMany({
     where: { estado: EstadoPregunta.verificada },
-    select: {
-      id: true,
-      enunciado: true,
-      opciones: true,
-      tipo: true,
-      temaId: true,
-      tablaDatos: true,
-      tema: { select: { bloque: true } },
-    },
+    select: { ...SELECCION_PREGUNTA_PUBLICA, tema: { select: { bloque: true } } },
   });
 
   const normalizadas = disponibles.map((p) => ({ ...p, bloque: p.tema?.bloque ?? null }));
