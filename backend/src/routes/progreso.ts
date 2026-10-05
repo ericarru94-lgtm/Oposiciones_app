@@ -5,6 +5,11 @@ import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
 import { actualizarProgresoSM2 } from "../lib/progreso";
 import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../lib/dailyLimit";
+import {
+  claveDiaMadrid,
+  inicioDelDiaMadridDesdeClave,
+  ultimasClavesDiaMadrid,
+} from "../lib/fechaLocal";
 
 export const progresoRouter = Router();
 progresoRouter.use(authRequerido);
@@ -107,29 +112,34 @@ progresoRouter.post("/:preguntaId/revisar", asyncHandler(async (req, res) => {
   res.json({ progreso });
 }));
 
-function claveDiaLocal(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
 /**
  * Racha de días consecutivos con al menos un intento, a partir del conjunto
- * de días (clave `claveDiaLocal`) con actividad. Si hoy todavía no hay
- * actividad, la racha se cuenta hasta ayer (no se da por "rota" hasta que
- * el día termine sin actividad), igual que en apps tipo Duolingo. Función
- * pura para poder reutilizarla tanto para un usuario (calcularRacha) como
- * para todos a la vez (ver /comunidad, que evita N+1 consultas).
+ * de días (clave `claveDiaMadrid`, ver lib/fechaLocal.ts) con actividad. Si
+ * hoy todavía no hay actividad, la racha se cuenta hasta ayer (no se da por
+ * "rota" hasta que el día termine sin actividad), igual que en apps tipo
+ * Duolingo. Función pura para poder reutilizarla tanto para un usuario
+ * (calcularRacha) como para todos a la vez (ver /comunidad, que evita N+1
+ * consultas).
+ *
+ * El cursor retrocede en saltos de 24h exactas desde el mediodía UTC de
+ * "hoy en Madrid" (no desde la medianoche local del proceso): así cada
+ * paso cae siempre lejos de cualquier frontera de día tanto en UTC como en
+ * Madrid, y el cambio de horario (CET/CEST) no puede hacer que se salte o
+ * repita un día.
  */
 function calcularRachaDesdeDias(diasConActividad: Set<string>): number {
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-  if (!diasConActividad.has(claveDiaLocal(cursor))) {
-    cursor.setDate(cursor.getDate() - 1);
+  const UN_DIA_MS = 24 * 60 * 60 * 1000;
+  const [anio, mes, dia] = claveDiaMadrid(new Date()).split("-").map(Number);
+  let cursorUTC = Date.UTC(anio, mes - 1, dia, 12, 0, 0);
+
+  if (!diasConActividad.has(claveDiaMadrid(new Date(cursorUTC)))) {
+    cursorUTC -= UN_DIA_MS;
   }
 
   let dias = 0;
-  while (diasConActividad.has(claveDiaLocal(cursor))) {
+  while (diasConActividad.has(claveDiaMadrid(new Date(cursorUTC)))) {
     dias++;
-    cursor.setDate(cursor.getDate() - 1);
+    cursorUTC -= UN_DIA_MS;
   }
   return dias;
 }
@@ -142,7 +152,7 @@ async function calcularRacha(usuarioId: string): Promise<{ dias: number; ultimaA
   });
   if (intentos.length === 0) return { dias: 0, ultimaActividad: null };
 
-  const diasConActividad = new Set(intentos.map((i) => claveDiaLocal(i.createdAt)));
+  const diasConActividad = new Set(intentos.map((i) => claveDiaMadrid(i.createdAt)));
   return { dias: calcularRachaDesdeDias(diasConActividad), ultimaActividad: intentos[0].createdAt };
 }
 
@@ -205,7 +215,7 @@ progresoRouter.get("/comunidad", asyncHandler(async (req, res) => {
     const entrada = porUsuario.get(intento.usuarioId) ?? { total: 0, aciertos: 0, dias: new Set<string>() };
     entrada.total++;
     if (intento.esCorrecta) entrada.aciertos++;
-    entrada.dias.add(claveDiaLocal(intento.createdAt));
+    entrada.dias.add(claveDiaMadrid(intento.createdAt));
     porUsuario.set(intento.usuarioId, entrada);
   }
 
@@ -305,16 +315,21 @@ const evolucionQuerySchema = z.object({
   dias: z.coerce.number().int().min(1).max(90).default(14),
 });
 
-/** Serie diaria de intentos/aciertos, para el gráfico de evolución del % de acierto. */
+/**
+ * Serie diaria de intentos/aciertos, para el gráfico de evolución del %
+ * de acierto. Los días de la serie son días civiles en Madrid (ver
+ * lib/fechaLocal.ts) — antes se calculaban sumando/restando días con
+ * `Date.setDate`/`setHours` en la hora local del proceso (UTC en
+ * producción), lo que podía desplazar en qué día caía cada intento.
+ */
 progresoRouter.get("/evolucion", asyncHandler(async (req, res) => {
   const parsed = evolucionQuerySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { dias } = parsed.data;
   const usuarioId = req.auth!.usuarioId;
 
-  const desde = new Date();
-  desde.setHours(0, 0, 0, 0);
-  desde.setDate(desde.getDate() - (dias - 1));
+  const claves = ultimasClavesDiaMadrid(dias); // más antiguo -> más reciente
+  const desde = inicioDelDiaMadridDesdeClave(claves[0]);
 
   const intentos = await prisma.intento.findMany({
     where: { usuarioId, createdAt: { gte: desde } },
@@ -323,26 +338,22 @@ progresoRouter.get("/evolucion", asyncHandler(async (req, res) => {
 
   const porDia = new Map<string, { intentos: number; aciertos: number }>();
   for (const intento of intentos) {
-    const clave = claveDiaLocal(intento.createdAt);
+    const clave = claveDiaMadrid(intento.createdAt);
     const actual = porDia.get(clave) ?? { intentos: 0, aciertos: 0 };
     actual.intentos += 1;
     if (intento.esCorrecta) actual.aciertos += 1;
     porDia.set(clave, actual);
   }
 
-  const serie = [];
-  const cursor = new Date(desde);
-  for (let i = 0; i < dias; i++) {
-    const clave = claveDiaLocal(cursor);
+  const serie = claves.map((clave) => {
     const datos = porDia.get(clave) ?? { intentos: 0, aciertos: 0 };
-    serie.push({
-      fecha: new Date(cursor).toISOString().slice(0, 10),
+    return {
+      fecha: clave,
       intentos: datos.intentos,
       aciertos: datos.aciertos,
       precision: datos.intentos > 0 ? datos.aciertos / datos.intentos : null,
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
+    };
+  });
 
   res.json({ serie });
 }));
