@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authRequerido } from "../middleware/auth";
 import { asyncHandler } from "../lib/asyncHandler";
-import { siguienteEstadoSM2 } from "../lib/sm2";
+import { actualizarProgresoSM2 } from "../lib/progreso";
 import { haAlcanzadoLimiteSesionesDiario, registrarInicioSesionTest } from "../lib/dailyLimit";
 
 export const progresoRouter = Router();
@@ -102,42 +102,7 @@ progresoRouter.post("/:preguntaId/revisar", asyncHandler(async (req, res) => {
   const pregunta = await prisma.pregunta.findUnique({ where: { id: preguntaId } });
   if (!pregunta) return res.status(404).json({ error: "Pregunta no encontrada" });
 
-  const progresoActual = await prisma.progreso.findUnique({
-    where: { usuarioId_preguntaId: { usuarioId, preguntaId } },
-  });
-  const base = progresoActual ?? {
-    repeticiones: 0,
-    factorFacilidad: 2.5,
-    intervaloDias: 0,
-  };
-  const siguiente = siguienteEstadoSM2(base, calidad);
-  const esCorrecta = calidad >= 3;
-
-  const progreso = await prisma.progreso.upsert({
-    where: { usuarioId_preguntaId: { usuarioId, preguntaId } },
-    create: {
-      usuarioId,
-      preguntaId,
-      repeticiones: siguiente.repeticiones,
-      factorFacilidad: siguiente.factorFacilidad,
-      intervaloDias: siguiente.intervaloDias,
-      proximaRevision: siguiente.proximaRevision,
-      ultimaRevision: new Date(),
-      ultimaCalidad: calidad,
-      vecesVista: 1,
-      vecesCorrecta: esCorrecta ? 1 : 0,
-    },
-    update: {
-      repeticiones: siguiente.repeticiones,
-      factorFacilidad: siguiente.factorFacilidad,
-      intervaloDias: siguiente.intervaloDias,
-      proximaRevision: siguiente.proximaRevision,
-      ultimaRevision: new Date(),
-      ultimaCalidad: calidad,
-      vecesVista: { increment: 1 },
-      vecesCorrecta: esCorrecta ? { increment: 1 } : undefined,
-    },
-  });
+  const progreso = await actualizarProgresoSM2(usuarioId, preguntaId, calidad);
 
   res.json({ progreso });
 }));
@@ -275,39 +240,63 @@ progresoRouter.get("/comunidad", asyncHandler(async (req, res) => {
  * Progreso por tema (para el grid de la home y los "puntos débiles" del
  * panel de progreso): cuántas preguntas verificadas tiene el tema, cuántas
  * distintas ha contestado el usuario y su precisión en ese tema.
+ *
+ * Antes hacía 2 consultas POR TEMA (un `count` y un `findMany`) dentro de un
+ * `Promise.all` sobre `temas.map` — con N temas, eso es 1 + 2N round-trips a
+ * la base de datos en cada carga de Inicio o Progreso, un N+1 clásico que
+ * empeora según crece el temario. Ahora son 3 consultas en total, sin
+ * importar cuántos temas haya: una lista de temas, un recuento agregado de
+ * preguntas por tema (`groupBy`) y los intentos propios del usuario (ya
+ * acotados a sus propias filas por el índice `[usuarioId, createdAt]`),
+ * agrupados en memoria en JS — igual de barato que antes para el propio
+ * usuario, pero ya no multiplicado por el número de temas.
  */
 progresoRouter.get("/por-tema", asyncHandler(async (req, res) => {
   const usuarioId = req.auth!.usuarioId;
 
-  const temas = await prisma.tema.findMany({ orderBy: [{ bloque: "asc" }, { numero: "asc" }] });
+  const [temas, totalesPorTema, intentosPropios] = await Promise.all([
+    prisma.tema.findMany({ orderBy: [{ bloque: "asc" }, { numero: "asc" }] }),
+    prisma.pregunta.groupBy({
+      by: ["temaId"],
+      where: { estado: "verificada" },
+      _count: { _all: true },
+    }),
+    prisma.intento.findMany({
+      where: { usuarioId, pregunta: { temaId: { not: null } } },
+      select: { preguntaId: true, esCorrecta: true, pregunta: { select: { temaId: true } } },
+    }),
+  ]);
 
-  const porTema = await Promise.all(
-    temas.map(async (tema) => {
-      const [totalPreguntas, intentosTema] = await Promise.all([
-        prisma.pregunta.count({ where: { temaId: tema.id, estado: "verificada" } }),
-        prisma.intento.findMany({
-          where: { usuarioId, pregunta: { temaId: tema.id } },
-          select: { preguntaId: true, esCorrecta: true },
-        }),
-      ]);
+  const totalPreguntasPorTema = new Map(totalesPorTema.map((t) => [t.temaId, t._count._all]));
 
-      const totalIntentos = intentosTema.length;
-      const aciertos = intentosTema.filter((i) => i.esCorrecta).length;
-      const preguntasContestadas = new Set(intentosTema.map((i) => i.preguntaId)).size;
+  const intentosPorTema = new Map<number, { total: number; aciertos: number; preguntas: Set<string> }>();
+  for (const intento of intentosPropios) {
+    const temaId = intento.pregunta.temaId;
+    if (temaId === null) continue;
+    const acumulado = intentosPorTema.get(temaId) ?? { total: 0, aciertos: 0, preguntas: new Set<string>() };
+    acumulado.total++;
+    if (intento.esCorrecta) acumulado.aciertos++;
+    acumulado.preguntas.add(intento.preguntaId);
+    intentosPorTema.set(temaId, acumulado);
+  }
 
-      return {
-        temaId: tema.id,
-        bloque: tema.bloque,
-        numero: tema.numero,
-        nombre: tema.nombre,
-        totalPreguntas,
-        preguntasContestadas,
-        totalIntentos,
-        aciertos,
-        precision: totalIntentos > 0 ? aciertos / totalIntentos : null,
-      };
-    })
-  );
+  const porTema = temas.map((tema) => {
+    const acumulado = intentosPorTema.get(tema.id);
+    const totalIntentos = acumulado?.total ?? 0;
+    const aciertos = acumulado?.aciertos ?? 0;
+
+    return {
+      temaId: tema.id,
+      bloque: tema.bloque,
+      numero: tema.numero,
+      nombre: tema.nombre,
+      totalPreguntas: totalPreguntasPorTema.get(tema.id) ?? 0,
+      preguntasContestadas: acumulado?.preguntas.size ?? 0,
+      totalIntentos,
+      aciertos,
+      precision: totalIntentos > 0 ? aciertos / totalIntentos : null,
+    };
+  });
 
   res.json({ temas: porTema });
 }));
