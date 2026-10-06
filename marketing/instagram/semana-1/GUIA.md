@@ -1,5 +1,7 @@
 # HE Signal · Instagram · Semana 1 (7–13 octubre)
 
+Colores de marca: naranja #FF4B2B (oscuro #E23B1C) sobre azul marino #10151F. Tipografías: Space Grotesk (títulos) e Inter (texto).
+
 Objetivo: que academias, autoescuelas y gimnasios vean el problema (consultas que se pierden fuera de horario), entiendan la solución (chatbot) y pidan la auditoría gratuita o una de las 3 plazas piloto.
 
 ---
