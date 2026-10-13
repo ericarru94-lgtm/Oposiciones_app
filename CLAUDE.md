@@ -5,3 +5,7 @@ Este repositorio contiene la app AproBox (`backend/`, `frontend/`) y todo el tra
 Para cualquier tarea de la agencia (Instagram, marca, logo, chatbot de muestra, anuncios, prospección), lee primero el contexto completo:
 
 @marketing/CONTEXTO-HE-SIGNAL.md
+
+Para ver el estado de todos los proyectos del usuario (HE Signal, AproBox, Rumbea, FaroPyme) y qué se hizo en cada chat:
+
+@CONTEXTO-PROYECTOS.md
