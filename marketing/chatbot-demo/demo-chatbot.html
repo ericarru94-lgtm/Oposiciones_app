@@ -1,0 +1,317 @@
+<title>HE Signal · Demo de chatbot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a la izquierda el contexto y el panel del centro; a la derecha el móvil con el chat. En pantallas estrechas, el móvil va primero. */
+:root{
+  --signal:#FF4B2B; --signal-dark:#E23B1C; --signal-soft:#FFE4DD;
+  --ink:#10151F; --paper:#F1F3EE; --card:#FFFFFF; --line:#D9DDD4; --muted:#5B6372;
+  --online:#12B76A; --bubble-in:#FFFFFF; --bubble-out:#FFE4DD; --chat-bg:#E9ECE5;
+  --f-display:"Space Grotesk",system-ui,sans-serif; --f-body:"Inter",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --signal-soft:#3A1E19; --ink:#F1F3EE; --paper:#10151F; --card:#171E2B; --line:#2A3344; --muted:#9AA3B2;
+  --bubble-in:#1F2736; --bubble-out:#4A2219; --chat-bg:#0C1018; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --signal-soft:#3A1E19; --ink:#F1F3EE; --paper:#10151F; --card:#171E2B; --line:#2A3344; --muted:#9AA3B2;
+  --bubble-in:#1F2736; --bubble-out:#4A2219; --chat-bg:#0C1018; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:40px;align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}.phone-col{order:-1}}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:700;letter-spacing:.02em}
+.brand svg{width:38px;height:38px;color:var(--ink)}
+.brand small{display:block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.14em;color:var(--signal);font-weight:500}
+h1{font-family:var(--f-display);font-size:clamp(28px,4vw,40px);line-height:1.1;margin:22px 0 12px;text-wrap:balance}
+h1 em{font-style:normal;color:var(--signal)}
+.lead{color:var(--muted);max-width:60ch;margin:0 0 18px}
+.demo-tag{display:inline-flex;gap:8px;align-items:center;font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;background:var(--signal-soft);color:var(--signal-dark);padding:6px 10px;border-radius:6px}
+:root[data-theme="dark"] .demo-tag{color:var(--signal)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .demo-tag{color:var(--signal)}}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0 28px;padding:0;list-style:none}
+@media (max-width:560px){.steps{grid-template-columns:minmax(0,1fr)}}
+.steps li{border-top:2px solid var(--signal);padding-top:10px}
+.steps b{font-family:var(--f-display);display:block;font-size:15px}
+.steps span{color:var(--muted);font-size:13.5px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.panel h2{font-family:var(--f-display);font-size:17px;margin:0 0 4px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.panel p.hint{color:var(--muted);font-size:13px;margin:0 0 12px}
+.count{font-family:var(--f-mono);font-size:12px;background:var(--signal);color:#fff;border-radius:999px;padding:2px 9px}
+.feed{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.feed li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;font-size:13.5px;padding:10px;border-radius:8px;background:var(--paper)}
+.feed .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.k.reserva{background:var(--online);color:#fff}.k.aviso{background:var(--signal);color:#fff}.k.lead{background:var(--line);color:var(--ink)}
+.feed .empty{display:block;color:var(--muted);background:none;padding:0}
+details summary{cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:15px}
+textarea{width:100%;min-height:260px;margin-top:10px;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--paper);color:var(--ink);resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 12px;font-size:13.5px;font-weight:500}
+.btn.primary{background:var(--signal);border-color:var(--signal);color:#fff}
+.btn:hover{border-color:var(--signal)}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.mode{font-size:12.5px;color:var(--muted);margin-top:8px}
+
+/* Móvil */
+.phone{background:var(--ink);border-radius:36px;padding:10px;box-shadow:0 24px 60px -24px rgba(16,21,31,.45);position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+:root[data-theme="dark"] .phone{background:#000}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .phone{background:#000}}
+.screen{border-radius:28px;overflow:hidden;background:var(--chat-bg);display:flex;flex-direction:column;height:min(720px,82vh)}
+.chat-head{background:#10151F;color:#F1F3EE;padding:14px 14px 12px;display:flex;gap:10px;align-items:center}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--signal);display:grid;place-items:center;font-family:var(--f-display);font-weight:700;color:#fff;flex:none}
+.chat-head b{display:block;font-size:15px}
+.chat-head span{font-size:12px;color:#B9C0CC;display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--online)}
+.chat-head .ch{margin-left:auto;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;border:1px solid #3A4456;border-radius:5px;padding:3px 6px;color:#B9C0CC}
+.msgs{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:6px}
+.day{align-self:center;font-size:11.5px;color:var(--muted);background:var(--card);padding:3px 10px;border-radius:6px;margin-bottom:6px}
+.b{max-width:84%;padding:8px 10px 6px;border-radius:10px;font-size:14px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 0 rgba(16,21,31,.08)}
+.b.in{align-self:flex-start;background:var(--bubble-in);border-top-left-radius:3px}
+.b.out{align-self:flex-end;background:var(--bubble-out);border-top-right-radius:3px}
+.b time{display:block;text-align:right;font-size:10.5px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.b.sys{align-self:center;background:var(--signal-soft);font-size:12.5px;text-align:center;max-width:92%}
+.slots{display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start;max-width:90%}
+.slots button{border:1px solid var(--signal);color:var(--signal-dark);background:var(--card);border-radius:999px;padding:6px 11px;font-size:13px}
+:root[data-theme="dark"] .slots button{color:var(--signal)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .slots button{color:var(--signal)}}
+.typing{align-self:flex-start;background:var(--bubble-in);border-radius:10px;padding:10px 12px;display:flex;gap:4px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bl 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes bl{0%,80%,100%{opacity:.3}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.typing i{animation:none}}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 10px 0;scrollbar-width:none}
+.chips button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 11px;font-size:12.5px}
+form.composer{display:flex;gap:8px;padding:8px 10px 12px}
+form.composer input{flex:1;min-width:0;border:none;border-radius:999px;padding:10px 14px;font:inherit;font-size:14px;background:var(--card);color:var(--ink)}
+form.composer button{width:42px;height:42px;border-radius:50%;border:none;background:var(--signal);color:#fff;display:grid;place-items:center;flex:none}
+form.composer button:disabled{opacity:.5}
+.foot{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+</style>
+
+<div class="wrap">
+  <section>
+    <div class="brand">
+      <svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-12 0)" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"><path d="M46 68.5V131.5M90 68.5V131.5M46 100H90"/><path d="M120 62V138M120 62H155.5M120 138H155.5M120 100H150"/></g><g transform="translate(-12 0)" fill="none" stroke="currentColor" stroke-width="4.5"><circle cx="46" cy="62" r="6.5"/><circle cx="46" cy="138" r="6.5"/><circle cx="90" cy="62" r="6.5"/><circle cx="90" cy="138" r="6.5"/><circle cx="162" cy="62" r="6.5"/><circle cx="162" cy="138" r="6.5"/></g><circle cx="150" cy="100" r="9" fill="#FF4B2B"/></svg>
+      <div>HE SIGNAL<small>IA · CHATBOTS · MARKETING</small></div>
+    </div>
+
+    <h1>Son las 23:47. Tu centro está cerrado. <em>El asistente sigue contestando.</em></h1>
+    <p class="lead">Escribe como lo haría un alumno: pregunta horarios o precios, o pide una clase de prueba. El asistente responde solo con los datos del centro, reserva la clase y avisa al equipo cuando hace falta una persona.</p>
+    <span class="demo-tag">● Demo · Academia Lumen es un centro ficticio</span>
+
+    <ul class="steps">
+      <li><b>Responde al momento</b><span>Horarios, precios, plazas y ubicación, a cualquier hora.</span></li>
+      <li><b>Reserva la prueba</b><span>Ofrece huecos libres y apunta al alumno.</span></li>
+      <li><b>Pasa a una persona</b><span>Si no sabe algo, no se lo inventa: avisa al centro.</span></li>
+    </ul>
+
+    <div class="panel" aria-live="polite">
+      <h2>Lo que recibe el centro <span class="count" id="count">0</span></h2>
+      <p class="hint">Cada reserva o aviso llegaría al móvil del dueño por WhatsApp o email.</p>
+      <ul class="feed" id="feed"><li class="empty">Todavía nada. Prueba a pedir una clase de prueba en el chat.</li></ul>
+    </div>
+
+    <div class="panel">
+      <details>
+        <summary>Ficha del centro (lo único que sabe el asistente)</summary>
+        <p class="hint" style="margin-top:8px">Antes de una llamada, cámbiala por los datos reales del centro con el que vas a hablar. Se guarda solo en este navegador.</p>
+        <textarea id="ficha" spellcheck="false" aria-label="Ficha del centro"></textarea>
+        <div class="row">
+          <button class="btn primary" id="saveFicha" type="button">Aplicar y reiniciar chat</button>
+          <button class="btn" id="resetFicha" type="button">Volver a la academia de ejemplo</button>
+        </div>
+      </details>
+      <p class="mode" id="mode">Comprobando si la IA está disponible…</p>
+    </div>
+  </section>
+
+  <section class="phone-col">
+    <div class="phone">
+      <div class="screen">
+        <div class="chat-head">
+          <div class="avatar" id="avatar">L</div>
+          <div><b id="centerName">Academia Lumen</b><span><i class="dot"></i>Asistente 24/7 · responde al momento</span></div>
+          <div class="ch">WHATSAPP</div>
+        </div>
+        <div class="msgs" id="msgs" aria-live="polite"></div>
+        <div class="chips" id="chips"></div>
+        <form class="composer" id="composer">
+          <input id="text" autocomplete="off" placeholder="Escribe un mensaje" aria-label="Mensaje">
+          <button id="send" aria-label="Enviar"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 20.5 21 12 3 3.5v6.6L15 12 3 13.9z"/></svg></button>
+        </form>
+      </div>
+    </div>
+    <p class="foot">Demo de HE Signal · hesignalagency.com</p>
+  </section>
+</div>
+
+<script>
+const DEFAULT_FICHA = `NOMBRE: Academia Lumen
+TIPO: Academia de idiomas y repaso escolar
+ZONA: Gràcia, Barcelona (dirección de ejemplo: Carrer de l'Exemple 12)
+HORARIO DE SECRETARÍA: lunes a jueves 9:30–21:00 · viernes 9:30–14:00 · fines de semana cerrado
+CURSOS:
+- Inglés general A2, B1, B2 y C1 · 2 h/semana · 79 €/mes
+- Inglés intensivo B2/C1 (preparación de exámenes Cambridge) · 4 h/semana · 129 €/mes
+- Catalán A2–C1 · 2 h/semana · 69 €/mes
+- Repaso ESO y Bachillerato (matemáticas, física, química, inglés) · 65 €/mes por asignatura
+GRUPOS: máximo 8 alumnos. También clases particulares (precio a consultar con el centro).
+MATRÍCULA: 30 € (gratis si te apuntas en octubre)
+CLASE DE PRUEBA: gratuita, 45 minutos, con prueba de nivel incluida
+HUECOS PARA CLASE DE PRUEBA: martes 17:00 · miércoles 18:30 · jueves 19:00 · viernes 11:00
+PAGO: domiciliación o tarjeta. Sin permanencia: te das de baja avisando antes del día 25.
+CONTACTO HUMANO: secretaría (respuesta en horario de apertura)`;
+
+const LS = "hesignal-demo-ficha";
+let ficha = DEFAULT_FICHA;
+try { ficha = localStorage.getItem(LS) || DEFAULT_FICHA; } catch {}
+
+const $ = id => document.getElementById(id);
+const msgs = $("msgs"), feed = $("feed"), input = $("text"), sendBtn = $("send");
+let turns = [], events = 0, sample = null, busy = false, lead = {};
+
+function fichaField(name){
+  const m = ficha.match(new RegExp("^" + name + ":\\s*(.+)$", "mi"));
+  return m ? m[1].trim() : "";
+}
+function slots(){ return fichaField("HUECOS PARA CLASE DE PRUEBA").split(/·|,/).map(s => s.trim()).filter(Boolean); }
+function centerName(){ return fichaField("NOMBRE") || "Tu centro"; }
+const now = () => new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
+
+function bubble(text, who){
+  const b = document.createElement("div");
+  b.className = "b " + who;
+  b.textContent = text;
+  if (who !== "sys"){ const t = document.createElement("time"); t.textContent = now(); b.append(t); }
+  msgs.append(b); msgs.scrollTop = msgs.scrollHeight;
+  return b;
+}
+function typing(){
+  const t = document.createElement("div"); t.className = "typing"; t.innerHTML = "<i></i><i></i><i></i>";
+  msgs.append(t); msgs.scrollTop = msgs.scrollHeight; return t;
+}
+function logEvent(kind, label, text){
+  if (!events) feed.innerHTML = "";
+  events++; $("count").textContent = events;
+  const li = document.createElement("li");
+  const k = document.createElement("span"); k.className = "k " + kind; k.textContent = label;
+  const d = document.createElement("div"); d.textContent = text + " · " + now();
+  li.append(k, d); feed.prepend(li);
+}
+function showSlots(){
+  const wrap = document.createElement("div"); wrap.className = "slots";
+  for (const s of slots()){
+    const b = document.createElement("button"); b.type = "button"; b.textContent = s;
+    b.onclick = () => { wrap.remove(); book(s); };
+    wrap.append(b);
+  }
+  msgs.append(wrap); msgs.scrollTop = msgs.scrollHeight;
+}
+function book(slot){
+  bubble(slot, "out");
+  turns.push({role:"user", content:"Elijo: " + slot});
+  const who = lead.name ? lead.name : "Nuevo alumno";
+  const what = lead.interest ? " · " + lead.interest : "";
+  const reply = `¡Hecho! Te he reservado la clase de prueba el ${slot}. Dura 45 minutos e incluye la prueba de nivel. Te mandaré un recordatorio el día antes. Si te surge algo, escríbeme por aquí y lo cambiamos.`;
+  setTimeout(() => {
+    bubble(reply, "in"); turns.push({role:"assistant", content:reply});
+    logEvent("reserva", "Reserva", `${who}${what} · clase de prueba ${slot}`);
+  }, 500);
+}
+
+const RULES = () => `Eres el asistente de WhatsApp de un centro. Contestas a posibles alumnos en español, en tono cercano y breve (2–4 frases, como en WhatsApp, sin markdown, como mucho un emoji).
+REGLAS:
+1. Usa SOLO la información de la FICHA. Si te preguntan algo que no está en la ficha, no lo inventes: di que lo consultas con el equipo del centro y usa action "handoff".
+2. Si la persona quiere probar, apuntarse o pide clase de prueba, invítala a elegir un hueco y usa action "offer_slots" (los huecos se muestran como botones, no hace falta listarlos).
+3. Si pide hablar con una persona, o hay una queja, usa action "handoff" y dile que el equipo le escribirá en horario de secretaría.
+4. Cuando tenga sentido, termina con una pregunta que avance (nivel, curso o si quiere la clase de prueba).
+5. Si dice su nombre o qué le interesa, guárdalo en "lead".
+Responde SOLO con un JSON: {"reply":"texto","action":"none"|"offer_slots"|"handoff","lead":{"name":"","interest":""}}
+
+FICHA:
+${ficha}`;
+
+async function askAI(){
+  const r = await sample.json([{role:"user", content:RULES()}, ...turns.slice(-12)], {modelTier:"quick", cache:false});
+  return { reply: String(r?.reply || "").trim(), action: r?.action, lead: r?.lead || {} };
+}
+
+// Respuestas guionizadas si la IA no está disponible en este navegador
+function scripted(q){
+  const t = q.toLowerCase();
+  const has = (...w) => w.some(x => t.includes(x));
+  const cursos = (ficha.match(/^CURSOS:\n([\s\S]*?)\n[A-ZÁÉÍÓÚ ]+:/m) || [,""])[1].trim();
+  if (has("persona","humano","hablar con","llamar","queja")) return {reply:"Claro, ahora mismo aviso al equipo del centro y te escriben en horario de secretaría: " + fichaField("HORARIO DE SECRETARÍA") + ".", action:"handoff"};
+  if (has("prueba","probar","apuntar","reserv","empezar")) return {reply:"¡Genial! La clase de prueba es " + fichaField("CLASE DE PRUEBA") + ". ¿Qué hueco te va mejor?", action:"offer_slots"};
+  if (has("horario","hora","abr","cierr")) return {reply:"Secretaría: " + fichaField("HORARIO DE SECRETARÍA") + ". ¿Buscas horario para algún curso en concreto?", action:"none"};
+  if (has("precio","cuesta","cuánto","cuanto","tarifa","€")) return {reply:"Te paso los precios:\n" + cursos + "\nMatrícula: " + fichaField("MATRÍCULA") + ". ¿Quieres hacer una clase de prueba gratis?", action:"none"};
+  if (has("matr")) return {reply:"La matrícula es de " + fichaField("MATRÍCULA") + ".", action:"none"};
+  if (has("dónde","donde","direcc","ubica","zona")) return {reply:"Estamos en " + fichaField("ZONA") + ".", action:"none"};
+  if (has("curso","inglés","ingles","catal","repaso","clase","nivel","grupo")) return {reply:"Estos son los cursos:\n" + cursos + "\nGrupos: " + fichaField("GRUPOS") + " ¿Te apetece una clase de prueba gratis?", action:"none"};
+  if (has("hola","buenas","buenos")) return {reply:"¡Hola! 👋 Soy el asistente de " + centerName() + ". Te ayudo con horarios, precios o una clase de prueba gratis. ¿Qué te interesa?", action:"none"};
+  return {reply:"Eso prefiero consultarlo con el equipo para no darte un dato erróneo. Les aviso y te escriben en horario de secretaría.", action:"handoff"};
+}
+
+async function send(text){
+  text = text.trim(); if (!text || busy) return;
+  busy = true; sendBtn.disabled = true; input.value = "";
+  bubble(text, "out"); turns.push({role:"user", content:text});
+  const t = typing();
+  let res;
+  try {
+    if (!sample) throw {code:"offline"};
+    res = await askAI();
+    if (!res.reply) throw {code:"empty"};
+  } catch (e) {
+    if (e && (e.code === "not_granted" || e.code === "sampling_disabled")) { sample = null; setMode(); }
+    await new Promise(r => setTimeout(r, 700));
+    res = scripted(text);
+  }
+  t.remove();
+  bubble(res.reply, "in"); turns.push({role:"assistant", content:res.reply});
+  if (res.lead){
+    const before = lead.name || lead.interest;
+    if (res.lead.name) lead.name = res.lead.name;
+    if (res.lead.interest) lead.interest = res.lead.interest;
+    if (!before && (lead.name || lead.interest)) logEvent("lead", "Contacto", [lead.name, lead.interest].filter(Boolean).join(" · "));
+  }
+  if (res.action === "offer_slots") showSlots();
+  if (res.action === "handoff"){
+    bubble("El asistente ha avisado al equipo del centro", "sys");
+    logEvent("aviso", "Aviso", "Necesita una persona: «" + text.slice(0,80) + "»");
+  }
+  busy = false; sendBtn.disabled = false; input.focus();
+}
+
+function setMode(){
+  $("mode").textContent = sample
+    ? "IA activa: las respuestas se generan con la ficha del centro."
+    : "Modo sin IA: respuestas de ejemplo guionizadas a partir de la ficha. Ábrelo desde Claude para ver la IA real.";
+}
+
+function start(){
+  msgs.innerHTML = ""; turns = []; lead = {};
+  $("centerName").textContent = centerName();
+  $("avatar").textContent = centerName().replace(/^(academia|autoescuela|gimnasio|gym|centro)\s+/i,"").charAt(0).toUpperCase() || "C";
+  const d = document.createElement("div"); d.className = "day"; d.textContent = "Hoy"; msgs.append(d);
+  const hi = "¡Hola! 👋 Soy el asistente de " + centerName() + ". Contesto al momento, también fuera de horario. ¿Te ayudo con horarios, precios o una clase de prueba gratis?";
+  bubble(hi, "in"); turns.push({role:"assistant", content:hi});
+  // La lista de turnos debe empezar por el usuario: quitamos el saludo del historial que se envía.
+  turns = [];
+}
+
+const CHIPS = ["¿Qué horario tenéis?","¿Cuánto cuesta el inglés B2?","Quiero una clase de prueba","¿Hacéis clases de alemán?","Quiero hablar con una persona"];
+for (const c of CHIPS){
+  const b = document.createElement("button"); b.type = "button"; b.textContent = c;
+  b.onclick = () => send(c); $("chips").append(b);
+}
+$("composer").addEventListener("submit", e => { e.preventDefault(); send(input.value); });
+$("ficha").value = ficha;
+$("saveFicha").onclick = () => { ficha = $("ficha").value.trim() || DEFAULT_FICHA; try{localStorage.setItem(LS, ficha);}catch{} start(); };
+$("resetFicha").onclick = () => { ficha = DEFAULT_FICHA; $("ficha").value = ficha; try{localStorage.removeItem(LS);}catch{} start(); };
+
+start();
+if (window.claude?.use) claude.use("sample").then(s => { sample = s; setMode(); }).catch(() => setMode());
+else setMode();
+</script>
