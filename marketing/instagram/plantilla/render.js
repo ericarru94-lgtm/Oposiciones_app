@@ -13,6 +13,7 @@ body{width:${W}px;height:${H}px;background:#10151F;font-family:'Inter',sans-seri
 .big{font-family:'Space Grotesk';font-weight:bold;font-size:84px;line-height:1.12;letter-spacing:-1px}
 .mid{font-family:'Space Grotesk';font-weight:bold;font-size:60px;line-height:1.18}
 .step{font-family:'Space Grotesk';font-weight:bold;font-size:50px;line-height:1.25}
+.notif{background:#1B2230;border:2px solid #2B3446;border-radius:28px;padding:22px 30px;font-size:34px;line-height:1.3;color:#C9D2E0}.notif b{color:#fff;font-family:'Space Grotesk'}.notif i{float:right;font-style:normal;color:#7F8BA0;font-size:28px}
 .small{font-size:42px;line-height:1.35;color:#C9D2E0}
 .tag{display:inline-block;font-size:34px;font-weight:bold;color:#fff;background:#FF4B2B;padding:10px 24px;border-radius:40px}
 .acc{color:#FF4B2B}
