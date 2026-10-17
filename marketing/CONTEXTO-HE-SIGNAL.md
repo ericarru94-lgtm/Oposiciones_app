@@ -1,6 +1,6 @@
 # Contexto de HE Signal (agencia) · Resumen para nuevos chats
 
-Última actualización: 13/10/2026. Toda la conversación con el usuario es en **español**.
+Última actualización: 17/10/2026. Toda la conversación con el usuario es en **español**.
 
 ## La agencia
 - **HE Signal**: agencia de Barcelona que monta **chatbots de WhatsApp e Instagram** para **academias (idiomas, repaso, oposiciones), autoescuelas y gimnasios** (boxes, pilates, boutique). También web con reserva integrada y marketing local. Trabaja en remoto para toda España.
@@ -29,6 +29,13 @@
 - **Contacto directo (prioridad)**: `marketing/prospeccion/prospeccion-centros-barcelona.xlsx` (30 centros independientes de Barcelona con IG/WhatsApp/teléfono) y `marketing/prospeccion/GUIONES-CONTACTO.md`. Método «cliente misterioso»: el usuario escribe de noche (21:30–23:00) desde su móvil personal, anota tiempo de respuesta y luego manda un DM personalizado con el resultado. **LSSI**: nada de mensajes comerciales masivos por WhatsApp/email; solo DM de Instagram, llamada o en persona, uno a uno. El usuario empezó las pruebas el 13/10 por la noche.
 - **Reels programados en Metricool como TRIAL_REEL** (con audio): mié 14 19:30 (autoescuela), vie 16 19:30 (academia, mensajes del finde), dom 18 19:00 («haz esta prueba esta noche»). Archivos en `marketing/instagram/semana-2/`.
 - Promoción pagada (opción C): aparcada por ahora. Idea: promocionar el reel de 110 reproducciones con 20–30 €, Barcelona, dueños de gimnasios/academias.
+
+## Auditoría de captación y campaña «Boxes antes de enero» (17/10)
+- Informe completo: `marketing/campana-boxes/INFORME.md`; guion comercial, demo y seguimiento: `GUION-COMERCIAL.md`; 5 piezas listas: `PIEZAS.md` + `piezas/`.
+- Hallazgos clave: los reels del 14 y 16/10 **no se publicaron** (Metricool: TRIAL_REEL exige un mínimo de seguidores; publicar siempre como REEL normal). Lead del formulario del 7/9 («Hugo Palacios», gimnasio) sin respuesta en el Gmail. «Agendar» es un formulario sin teléfono que promete respuesta en 24 h.
+- Nicho elegido para 30 días: **boxes de CrossFit / gimnasios de clases dirigidas de Barcelona**. Palabra clave: PRUEBA.
+- Oferta de entrada propuesta (pendiente de aprobar por el usuario): piloto 30 días, 0 € alta + 149 € + IVA, devolución si no reserva ninguna clase de prueba.
+- La hoja de prospección tiene ya las columnas del experimento (S variante A/B, T motivo de pérdida).
 
 ## Próximos pasos previstos
 - Lunes 19/10: el usuario pasa la hoja rellenada y las reproducciones de los 3 reels → auditoría (`/ig-audit`) y plan de semana 3.

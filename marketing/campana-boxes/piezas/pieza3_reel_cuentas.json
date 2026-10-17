@@ -1,0 +1,10 @@
+{"duration": 21, "cover": 1.0, "items": [
+{"type": "text", "cls": "big", "top": 520, "at": 0.0, "until": 3.6, "text": "¿Cuánto le cuesta a tu box <span class='acc'>un DM sin contestar?</span>"},
+{"type": "text", "cls": "small", "top": 270, "at": 3.8, "until": 14.2, "text": "Hagamos números:"},
+{"type": "text", "cls": "step", "top": 400, "at": 4.2, "until": 14.2, "text": "Cuota de un box en Barcelona: <span class='acc'>60 a 115 €/mes</span>"},
+{"type": "text", "cls": "step", "top": 660, "at": 6.6, "until": 14.2, "text": "Ejemplo: 85 €/mes y se queda 6 meses = <span class='acc'>510 €</span>"},
+{"type": "text", "cls": "step", "top": 920, "at": 9.0, "until": 14.2, "text": "Una clase de prueba perdida por semana = <span class='acc'>4 socios posibles al mes</span>"},
+{"type": "text", "cls": "big", "top": 500, "at": 14.5, "text": "No hace falta recuperarlos todos.<br><span class='acc'>Uno al mes ya cambia las cuentas.</span>"},
+{"type": "text", "cls": "tag", "top": 1110, "at": 17.2, "pop": true, "text": "Comenta CUENTAS y hago las de tu box"},
+{"type": "text", "cls": "small", "top": 1250, "at": 17.6, "text": "<span style='font-size:30px'>Ejemplo con supuestos. Cuotas: tarifas públicas de boxes de Barcelona.</span>"}
+]}
