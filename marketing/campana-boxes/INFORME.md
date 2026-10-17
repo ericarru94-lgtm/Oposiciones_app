@@ -9,7 +9,7 @@ Qué **no** he podido ver: los DMs de Instagram, el WhatsApp de la agencia, las 
 
 | # | Problema | Evidencia | Gravedad |
 |---|---|---|---|
-| 1 | **Un posible cliente se quedó sin respuesta.** | En Gmail hay 4 envíos del formulario. Tres parecen pruebas tuyas, pero el del **7/9 a las 9:07** es «Hugo Palacios», gimnasio, reto «Responder a tiempo». No hay ninguna respuesta a su email en ese Gmail. Si no le contestaste desde otro sitio, es el único lead que ha entrado y se ha perdido. | Alta (hoy) |
+| 1 | **La web no ha traído ningún contacto real.** | En Gmail hay 4 envíos del formulario (20/8, 21/8, 22/8 y 7/9) y los 4 fueron pruebas del propio equipo (confirmado por el usuario). | Alta |
 | 2 | **«Agendar» no agenda.** El botón principal («Agendar sesión gratuita de 30 min») lleva a un formulario que pide reto, tipo de centro, nombre y email, **sin teléfono**, y promete «os contactamos en menos de 24h». | HTML de /agendar (Web3Forms) y /gracias. Vendes «respuesta al instante» y haces esperar 24 h a tu propio cliente. El botón de WhatsApp solo está en el pie de página y sin mensaje precargado. | Alta |
 | 3 | **Los reels de la semana 2 no se publicaron.** | Metricool: los del 14/10 y 16/10 dan **ERROR** («la cuenta no cumple el requisito de seguidores para reels de prueba»). El del domingo 18/10 está en cola con el mismo tipo y fallará igual. | Alta |
 | 4 | **Instagram no tiene alcance todavía.** | 0 seguidores, 60 seguidos. El mejor reel (11/10): 111 reproducciones, 102 cuentas, **2,0 s de visionado medio** y solo un 10,8 % pasó de 3 s: se mostró, pero la gente pasó de largo en el primer segundo. Los carruseles: 0 alcance registrado. | Media |
@@ -29,7 +29,7 @@ Qué **no** he podido ver: los DMs de Instagram, el WhatsApp de la agencia, las 
 | La oferta es demasiado amplia | **Indicios a favor, sin confirmar** | Problema 5. Pero nadie ha dicho «no» por eso todavía: no hay conversaciones registradas. |
 | El prospecto no entiende el retorno | **Sin datos** | La web no tiene ni un número de retorno. Hace falta oírlo en llamadas (experimento, sección 8). |
 | La demo enseña tecnología, no urgencia | **Sin datos** | No me consta ninguna demo hecha. ¿Cuántas has hecho y a quién? Si la respuesta es cero, el cuello de botella está antes. |
-| El proceso no cierra la siguiente acción | **Confirmado en la web** | Problemas 1 y 2: el formulario no cierra fecha y el único lead no tiene respuesta registrada. En llamadas: sin datos. |
+| El proceso no cierra la siguiente acción | **Confirmado en la web** | Problema 2: el formulario no cierra fecha ni pide teléfono. En llamadas: sin datos. |
 | Instagram no tiene prueba ni diferenciación | **Indicios a favor** | 0 seguidores, ningún caso, chats de ejemplo sin etiquetar. Pero con 0 alcance, el contenido no es lo que frena las ventas ahora. |
 
 **Conclusión honesta:** con 0 conversaciones de venta registradas, todavía no se puede saber por qué no se cierra. Lo que sí se sabe es que **no está entrando casi nadie al embudo** y que el poco que entra (la web) se encuentra fricción. El trabajo de 30 días es meter 30 boxes en el embudo y medir dónde se caen.
@@ -42,7 +42,7 @@ Qué **no** he podido ver: los DMs de Instagram, el WhatsApp de la agencia, las 
 2. **Una página para un solo nicho: `/boxes`.** Titular: «Que ninguna clase de prueba se pierda por contestar tarde». El chat de ejemplo (etiquetado «conversación de demostración»), el cálculo de la pieza 3 y la **oferta piloto** con sus condiciones. Esta es la página que se enlaza en la bio y en los DMs durante la campaña. Sin tocar el resto de la web.
 3. **Coherencia y honestidad.** Quitar «El más elegido» del pack (o cambiarlo por «El más completo»); elegir una sola ubicación (recomiendo «Barcelona y el Vallès»); quitar «restaurantes»; unificar el plazo («en marcha en 7 días») y aclarar que la cuota mensual del asistente no es opcional; etiquetar los chats como demostración.
 
-(No he cambiado nada: la web no está en el repositorio. Si me pasas la carpeta en .zip, hago los tres cambios y te la devuelvo lista para subir.)
+**Hecho el 17/10** sobre la versión 21 de la web (ahora en `marketing/web/`): página `/boxes` con calculadora y piloto; /agendar con vía rápida por WhatsApp, campo de WhatsApp y franja horaria (email opcional); botón flotante de WhatsApp en todas las páginas; bloque del piloto en inicio y precios; «El más completo» en lugar de «El más elegido»; fuera «restaurantes»; ubicación unificada («Desde Rubí para Barcelona y el Vallès»); plazo unificado a 1–2 semanas; FAQ de la cuota corregida; chats etiquetados como demostración; eslogan en el pie; sitemap y llms.txt actualizados. Arreglado además un fallo previo: los botones de opción de /agendar se veían descolocados. Pendiente: el calendario real (falta crear el enlace de reservas de Google Calendar).
 
 ---
 
@@ -61,7 +61,7 @@ Para 30 días hacen falta unos 40 boxes. Faltan unos 28: búscalos en Google Map
 
 ---
 
-## 5 · Oferta de entrada (propuesta, la decides tú)
+## 5 · Oferta de entrada (aprobada el 17/10, publicada en /boxes)
 
 **Piloto «Clase de prueba» · 30 días · solo 3 boxes**
 - **Qué incluye:** asistente en **un canal** (Instagram DM o WhatsApp, el que más use el box), hasta 15 preguntas frecuentes, reserva de la clase de prueba, aviso al coach y paso a una persona en lesiones, pagos y quejas. Informe al día 30: mensajes contestados fuera de horario y clases reservadas.
@@ -80,8 +80,8 @@ Objetivo: **1 piloto firmado**. Indicadores: 40 tests hechos, 40 DMs con resulta
 
 | Semana | Prospección (lo importante) | Instagram | Web |
 |---|---|---|---|
-| **1 · 19–25/10** | Completar la lista a 40 boxes. 15 tests de cliente misterioso (mar–jue noche). 10 DMs con resultado. Contestar a Hugo Palacios. | Pieza 1 (dom), pieza 2 (mar), pieza 3 (jue), pieza 4 (sáb). Republicar como reel normal el del 18/10. | Cambio 1 (calendario + WhatsApp) |
-| **2 · 26/10–1/11** | 15 tests más, 15 DMs, seguimientos día 3. Primeras demos. | Pieza 5 con los datos reales de los tests. 2 reels más del mismo estilo. | Cambio 2 (`/boxes`) y 3 |
+| **1 · 19–25/10** | Completar la lista a 40 boxes. 15 tests de cliente misterioso (mar–jue noche). 10 DMs con resultado. | Programado en Metricool: pieza 1 (dom 18), «haz esta prueba» (lun 19), pieza 2 (mar 20), autoescuela (mié 21), pieza 3 (jue 22), academia (vie 23), carrusel (sáb 24). | Subir la versión 22 |
+| **2 · 26/10–1/11** | 15 tests más, 15 DMs, seguimientos día 3. Primeras demos. | Pieza 5 con los datos reales de los tests. 2 reels más del mismo estilo. | Enlace de calendario |
 | **3 · 2–8/11** | 10 tests más, demos, propuestas. Visitar en persona 5 boxes que no contestan DMs. | 2 reels. Si hay piloto: reel «montando el asistente de un box» (con permiso). | — |
 | **4 · 9–17/11** | Seguimientos día 7, cerrar pilotos. Revisión del experimento. | 2 reels con lo aprendido. | Añadir el primer caso si lo hay |
 

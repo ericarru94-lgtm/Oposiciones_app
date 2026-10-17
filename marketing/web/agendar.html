@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=3">
+<link rel="stylesheet" href="assets/style.css?v=4">
 <link rel="canonical" href="https://www.hesignalagency.com/agendar">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -38,7 +38,7 @@
   "url": "https://www.hesignalagency.com/",
   "logo": "https://www.hesignalagency.com/assets/logo-icon.png",
   "image": "https://www.hesignalagency.com/assets/og-image.png",
-  "description": "Agencia de Rubí (Barcelona) especializada en asistentes de WhatsApp e Instagram con IA, webs, SEO local y AEO y redes sociales para academias, autoescuelas, gimnasios y restaurantes.",
+  "description": "Agencia de Rubí (Barcelona) especializada en asistentes de WhatsApp e Instagram con IA, webs, SEO local y AEO y redes sociales para academias, autoescuelas, gimnasios.",
   "email": "hesignalagency@gmail.com",
   "telephone": "+34623976145",
   "founder": [
@@ -180,6 +180,7 @@
       <a href="/nosotros">Nosotros</a>
       <a href="/contacto">Contacto</a>
       <a href="/blog">Blog</a>
+      <a href="/boxes">Para boxes y gimnasios</a>
       <a href="/agendar">Agendar sesión</a>
     </div>
   </nav>
@@ -189,14 +190,23 @@
 
   <div class="page-head">
     <div class="wrap">
-      <span class="eyebrow">Agenda tu sesión</span>
-      <h1 style="font-size:clamp(28px,3.8vw,40px);">Perfil de tu centro</h1>
-      <p>Cuéntanos sobre vuestro centro y qué necesitáis — os contactamos en menos de 24h para fijar día y hora.</p>
+      <span class="eyebrow">Agenda tu sesión gratuita</span>
+      <h1 style="font-size:clamp(28px,3.8vw,40px);">Elige día y hora para hablar 30 minutos</h1>
+      <p>Miramos cómo respondéis hoy a vuestros clientes y os damos 3 acciones concretas, gratis y sin compromiso.</p>
     </div>
   </div>
 
   <section>
     <div class="wrap">
+      <div class="fast-lane">
+        <h2>La vía rápida: escríbenos por WhatsApp</h2>
+        <p>Dinos qué día y hora te van bien y lo dejamos cerrado en el mismo chat. Te contestamos el mismo día.</p>
+        <a class="btn" href="https://wa.me/34623976145?text=Hola%2C%20quiero%20agendar%20la%20sesi%C3%B3n%20gratuita%20de%2030%20minutos.%20Mi%20centro%20es%3A%20" target="_blank" rel="noopener">Agendar por WhatsApp</a>
+      </div>
+      <!-- Cuando exista el enlace de reservas de Google Calendar o Cal.com, añadir aquí un botón «Elegir hueco en el calendario» -->
+
+      <p class="form-or">O déjanos tus datos y te proponemos hueco</p>
+
       <form class="form-section" method="POST" action="https://api.web3forms.com/submit">
         <input type="hidden" name="access_key" value="bf8cb01b-8d82-420c-b68d-9d6364f5148f">
         <input type="hidden" name="subject" value="Nueva solicitud de sesión — HE Signal">
@@ -229,7 +239,7 @@
               <option value="" selected disabled>Selecciona tu centro...</option>
               <option value="Academia">Academia</option>
               <option value="Autoescuela">Autoescuela</option>
-              <option value="Gimnasio">Gimnasio</option>
+              <option value="Box o gimnasio">Box o gimnasio</option>
               <option value="Otro">Otro</option>
             </select>
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
@@ -242,13 +252,32 @@
         </div>
 
         <div class="field-group">
-          <label for="email">Email profesional</label>
-          <input type="email" id="email" name="email" placeholder="marta@tucentro.com" required>
+          <label for="whatsapp">WhatsApp o teléfono</label>
+          <input type="tel" id="whatsapp" name="whatsapp" placeholder="600 00 00 00" autocomplete="tel" inputmode="tel" required>
+          <p class="field-hint">Te escribimos aquí para confirmar el día y la hora.</p>
         </div>
 
-        <span class="form-confirm">Respuesta en menos de 24h</span>
+        <div class="field-group">
+          <label for="franja">¿Cuándo te va mejor?</label>
+          <div class="select-wrap">
+            <select id="franja" name="franja" required>
+              <option value="" selected disabled>Elige una franja...</option>
+              <option value="Mañana (9 a 13 h)">Mañana (9 a 13 h)</option>
+              <option value="Mediodía (13 a 16 h)">Mediodía (13 a 16 h)</option>
+              <option value="Tarde (16 a 20 h)">Tarde (16 a 20 h)</option>
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+        </div>
 
-        <button type="submit" class="btn btn-primary form-submit">Solicitar Fecha y Hora →</button>
+        <div class="field-group">
+          <label for="email">Email (opcional)</label>
+          <input type="email" id="email" name="email" placeholder="marta@tucentro.com" autocomplete="email">
+        </div>
+
+        <span class="form-confirm">Te escribimos el mismo día para cerrar la hora</span>
+
+        <button type="submit" class="btn btn-primary form-submit">Pedir mi sesión gratuita →</button>
 
         <p class="form-privacy">Tus datos están seguros. Consulta nuestra <a href="/privacidad">Política de Privacidad</a>.</p>
       </form>
@@ -269,15 +298,16 @@
       <li><a href="/privacidad">Privacidad</a></li>
       <li><a href="/terminos">Términos</a></li>
       <li><a href="/contacto">Contacto</a></li>
+      <li><a href="/boxes">Para boxes</a></li>
       <li><a href="https://www.linkedin.com/company/hesignalagency/" target="_blank" rel="noopener">LinkedIn</a></li>
       <li><a href="https://www.instagram.com/hesignalagency" target="_blank" rel="noopener">Instagram</a></li>
     </ul>
-    <p class="foot-contact">Agencia de IA, webs y redes en <strong>Rubí (Barcelona)</strong> · Rubí, Sant Cugat, Terrassa y el Vallès Occidental, y en remoto con toda España<br>
+    <p class="foot-contact"><strong>IA · Chatbots · Marketing</strong> · Desde Rubí para Barcelona y el Vallès, y en remoto con toda España<br>
       <a href="tel:+34623976145">623 976 145</a> · <a href="mailto:hesignalagency@gmail.com">hesignalagency@gmail.com</a> · <a href="https://wa.me/34623976145" target="_blank" rel="noopener">WhatsApp</a></p>
     <span class="copy">© 2026 HE Signal. Todos los derechos reservados.</span>
   </div>
 </footer>
 
-<script src="assets/nav.js?v=2" defer></script>
+<script src="assets/nav.js?v=3" defer></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
 
 ## La agencia
 - **HE Signal**: agencia de Barcelona que monta **chatbots de WhatsApp e Instagram** para **academias (idiomas, repaso, oposiciones), autoescuelas y gimnasios** (boxes, pilates, boutique). También web con reserva integrada y marketing local. Trabaja en remoto para toda España.
-- Web: https://www.hesignalagency.com (HTML estático en **Cloudflare Pages**, el usuario lo sube a mano; no está en GitHub). Página de reservar: `/agendar`.
+- Web: https://www.hesignalagency.com (HTML estático en **Cloudflare Pages**, el usuario lo sube a mano). Código en `marketing/web/` de este repo. Página de reservar: `/agendar`; landing del nicho: `/boxes`.
 - Instagram: **@hesignalagency** (conectado a **Metricool**, brandId/blogId `7236659`, plan gratuito: sin flujo de aprobación). También LinkedIn y WhatsApp Business.
 - Oferta actual: **auditoría gratuita / sesión de 30 min** y **3 plazas piloto** con precio de lanzamiento y soporte prioritario el primer mes. Agencia joven y honesta: **nunca inventar clientes, cifras ni testimonios**.
 - El dueño también tiene las apps **AproBox** (oposiciones; es este repositorio) y **Rumbea** (rutas en moto).
@@ -12,7 +12,7 @@
 ## Marca (obligatorio)
 - **Naranja #FF4B2B** como color principal (oscuro #E23B1C, claro #FF8A70), fondo **azul marino #10151F**, papel #F1F3EE. El verde #12B76A solo para el punto de «en línea».
 - Tipografías: **Space Grotesk** (títulos) e **Inter** (texto). Se descargan de github.com/google/fonts (ver `marketing/instagram/plantilla/README.md`).
-- **Logo nuevo**: monograma «HE» de trazo fino estilo circuito, con terminales circulares y un punto naranja con ondas de señal. Eslogan: **«IA · CHATBOTS · MARKETING»**. Archivos en `marketing/marca/logo-final/` (Instagram, WhatsApp, LinkedIn, web, SVG). Ya está puesto en la web, Instagram, LinkedIn y WhatsApp. El eslogan aún no está en la web (falta que el usuario mande la carpeta de la web en .zip).
+- **Logo nuevo**: monograma «HE» de trazo fino estilo circuito, con terminales circulares y un punto naranja con ondas de señal. Eslogan: **«IA · CHATBOTS · MARKETING»**. Archivos en `marketing/marca/logo-final/` (Instagram, WhatsApp, LinkedIn, web, SVG). Ya está puesto en la web, Instagram, LinkedIn y WhatsApp. El eslogan está en el pie de la web desde la versión 22.
 
 ## Herramientas y cómo se ha trabajado
 - **Canva**: se usó, pero su cuota de generación se agota rápido y metía errores. El usuario eligió seguir con **la plantilla propia** (Playwright + ffmpeg): `marketing/instagram/plantilla/` (`render.js` para reels 1080×1920, `mux.py` añade música suave + «pops», `carrusel.js` para carruseles 1080×1350).
@@ -32,9 +32,11 @@
 
 ## Auditoría de captación y campaña «Boxes antes de enero» (17/10)
 - Informe completo: `marketing/campana-boxes/INFORME.md`; guion comercial, demo y seguimiento: `GUION-COMERCIAL.md`; 5 piezas listas: `PIEZAS.md` + `piezas/`.
-- Hallazgos clave: los reels del 14 y 16/10 **no se publicaron** (Metricool: TRIAL_REEL exige un mínimo de seguidores; publicar siempre como REEL normal). Lead del formulario del 7/9 («Hugo Palacios», gimnasio) sin respuesta en el Gmail. «Agendar» es un formulario sin teléfono que promete respuesta en 24 h.
+- Hallazgos clave: los reels del 14 y 16/10 **no se publicaron** (Metricool: TRIAL_REEL exige un mínimo de seguidores; publicar siempre como REEL normal). Los 4 envíos del formulario (incluido «Hugo Palacios» del 7/9) fueron pruebas del usuario: la web no ha traído ningún contacto real. «Agendar» era un formulario sin teléfono que prometía respuesta en 24 h.
 - Nicho elegido para 30 días: **boxes de CrossFit / gimnasios de clases dirigidas de Barcelona**. Palabra clave: PRUEBA.
-- Oferta de entrada propuesta (pendiente de aprobar por el usuario): piloto 30 días, 0 € alta + 149 € + IVA, devolución si no reserva ninguna clase de prueba.
+- Oferta de entrada **aprobada**: piloto 30 días para boxes, 0 € alta + 149 € + IVA, devolución si no reserva ninguna clase de prueba; después alta 295 € + 89 €/mes. Solo 3 plazas.
+- **Web**: el código ya está en el repo, `marketing/web/` (versión 22 con /boxes, /agendar con WhatsApp, botón flotante, coherencia). El usuario la sube a mano a Cloudflare Pages. Pendiente: enlace de reservas de Google Calendar para /agendar.
+- **Metricool (programado 17/10, todo como REEL)**: dom 18 19:00 pieza 1 · lun 19 19:30 «haz esta prueba» · mar 20 19:30 pieza 2 · mié 21 19:30 autoescuela · jue 22 19:30 pieza 3 · vie 23 19:30 academia · sáb 24 11:00 carrusel pieza 4.
 - La hoja de prospección tiene ya las columnas del experimento (S variante A/B, T motivo de pérdida).
 
 ## Próximos pasos previstos
