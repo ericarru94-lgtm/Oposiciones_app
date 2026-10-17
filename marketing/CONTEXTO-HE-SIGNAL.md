@@ -36,6 +36,8 @@
 - Nicho elegido para 30 días: **boxes de CrossFit / gimnasios de clases dirigidas de Barcelona**. Palabra clave: PRUEBA.
 - Oferta de entrada **aprobada**: piloto 30 días para boxes, 0 € alta + 149 € + IVA, devolución si no reserva ninguna clase de prueba; después alta 295 € + 89 €/mes. Solo 3 plazas.
 - **Web**: el código ya está en el repo, `marketing/web/` (versión 22 con /boxes, /agendar con WhatsApp, botón flotante, coherencia). El usuario la sube a mano a Cloudflare Pages. Pendiente: enlace de reservas de Google Calendar para /agendar.
+- **Demo en la web (versión 23)**: `/demo` con «Box Norte» (box ficticio, mismo que los reels): chat humanizado con respuestas preparadas (`assets/demo.js`, sin coste, funciona sin servidor), reserva de clase de prueba conversando, lesiones pasadas al coach, castellano y catalán, y panel del dueño al lado (ficha del contacto, avisos, actividad). Enlazada en el menú, la portada y /boxes.
+- **IA real para la demo (opcional, pendiente de que el usuario lo active)**: Worker de Cloudflare en `marketing/web-worker/` (`chat-worker.js` + README con pasos). Necesita una clave de la API de Anthropic (pago por uso). Cuando el usuario pase la URL del Worker, poner `API_URL` en `assets/demo.js`. Las demos de Vallès Jiu Jitsu y Forja Fit son artefactos de Claude (la de Vallès usa la IA de la cuenta de Claude y no funciona fuera de ella).
 - **Metricool (programado 17/10, todo como REEL)**: dom 18 19:00 pieza 1 · lun 19 19:30 «haz esta prueba» · mar 20 19:30 pieza 2 · mié 21 19:30 autoescuela · jue 22 19:30 pieza 3 · vie 23 19:30 academia · sáb 24 11:00 carrusel pieza 4.
 - La hoja de prospección tiene ya las columnas del experimento (S variante A/B, T motivo de pérdida).
 

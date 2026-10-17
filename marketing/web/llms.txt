@@ -20,6 +20,7 @@ Idiomas: castellano y catalán.
 
 - [Servicios](https://www.hesignalagency.com/servicios): qué hacemos y preguntas frecuentes
 - [Precios](https://www.hesignalagency.com/precios): todos los precios sin IVA
+- [Demo del asistente](https://www.hesignalagency.com/demo): pruébalo escribiendo como un cliente
 - [Para boxes y gimnasios](https://www.hesignalagency.com/boxes): piloto de 30 días
 - [Agendar sesión gratuita](https://www.hesignalagency.com/agendar): reserva una sesión gratuita
 - [Contacto](https://www.hesignalagency.com/contacto)
