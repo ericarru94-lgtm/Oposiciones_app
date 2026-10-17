@@ -1,11 +1,7 @@
 /* Demo del asistente de HE Signal para «Box Norte» (box ficticio).
-   Funciona entero en el navegador con respuestas preparadas. Si API_URL tiene la
-   dirección del Worker (ver marketing/web-worker/), contesta con IA real y, si falla,
-   vuelve solo al modo preparado. */
+   Funciona entero en el navegador, con respuestas preparadas: sin servidor y sin coste. */
 (function () {
   'use strict';
-
-  var API_URL = ''; // p. ej. 'https://hesignal-demo.TU-SUBDOMINIO.workers.dev/chat'
 
   /* ---------- Datos del box (ficticio) ---------- */
   var BOX = {
@@ -66,6 +62,9 @@
     material: /(que (traigo|llevo|tengo que llevar|necesito)|traer|ropa|zapatilla|calzado|material|toalla|ducha|vestuario|taquilla|candado|guantes)/,
     permanencia: /(permanencia|baja|darme de baja|contrato|matricula|compromiso|cancelar)/,
     suelta: /(clase suelta|una sola clase|drop ?in|bono|un dia suelto|pase de dia)/,
+    clase: /(como (es|son) (una |las )?clase|que se hace|en que consiste|que es (el )?crossfit|cuanto dura|cuantas personas|cuanta gente|grupos? (de|pequen)|wod)/,
+    objetivo: /(perder peso|adelgaz|bajar de peso|quemar|ganar (fuerza|musculo|masa)|ponerme en forma|tonificar|definir|resistencia|cardio)/,
+    hoy: /(hay clase hoy|clases? hoy|hoy hay|hoy a que|esta tarde hay|esta noche hay|ahora hay|avui hi ha)/,
     bot: /(\bbot\b|robot|\bia\b|inteligencia artificial|persona real|eres (una )?persona|eres humano|eres real|maquina|automatic|chatgpt|ets un)/,
     humano: /(hablar con (alguien|una persona|el coach|marc)|llamad|llamarme|telefono|whatsapp de alguien|persona de verdad)/,
     gracias: /(gracias|grcs|merci|thanks|mil gracias|grac)/,
@@ -134,85 +133,136 @@
     return f ? hs.filter(f) : [];
   }
 
+  function clasesRestantesHoy() {
+    var ahora = new Date(), min = ahora.getHours() * 60 + ahora.getMinutes();
+    return huecosDia(hoyIdx()).filter(function (h) { var p = h.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10) > min + 15; });
+  }
+  function listaHoras(hs) { return hs.join(', ').replace(/, ([^,]*)$/, ' y $1'); }
+
   var R = {
     saludo: function () {
-      return [una('saludo', T(
-        ['¡Buenas! 👋 Soy el asistente de Box Norte. Cuéntame, ¿en qué te ayudo?', '¡Hola! Aquí Box Norte 💪 ¿Qué te gustaría saber?', 'Hola, ¿qué tal? Dime y te cuento lo que necesites del box.'],
-        ['Bon dia! 👋 Sóc l\'assistent de Box Norte. Explica\'m, en què et puc ajudar?', 'Hola! Aquí Box Norte 💪 Què vols saber?']))];
+      return una('saludo', T([
+        ['¡Buenas! Soy el asistente de Box Norte.', 'Cuéntame, ¿en qué te ayudo?'],
+        ['¡Hola! 👋', 'Aquí Box Norte. ¿Qué te gustaría saber?'],
+        ['Hola, ¿qué tal?', 'Dime y te cuento lo que necesites del box.']
+      ], [['Bon dia! Sóc l\'assistent de Box Norte.', 'Explica\'m, en què et puc ajudar?']]));
     },
     precio: function () {
-      return [
-        una('precio1', T([
-          'Te cuento: 2 días por semana son 65 €/mes, 3 días 79 € y el ilimitado 89 €.',
-          'Pues mira, tenemos tres cuotas: 2 días a la semana 65 €, 3 días 79 € e ilimitado 89 € al mes.'
-        ], ['T\'explico: 2 dies per setmana són 65 €/mes, 3 dies 79 € i l\'il·limitat 89 €.'])),
-        una('precio2', T([
-          'Sin matrícula ni permanencia. Y la primera clase es gratis, por si quieres probar antes de decidir 😉',
-          'No hay permanencia y la primera clase es gratis. Lo suyo es que vengas un día y veas qué tal.'
-        ], ['Sense matrícula ni permanència. I la primera classe és gratis, per si vols provar abans 😉']))
-      ];
+      return una('precio', T([
+        ['Te cuento, tenemos tres cuotas:', '2 días a la semana, 65 €/mes\n3 días, 79 €/mes\nIlimitado, 89 €/mes', 'Sin matrícula y sin permanencia.', 'Y la primera clase es gratis, por si quieres probar antes de decidir.'],
+        ['Pues mira, depende de cuántos días vengas.', 'Con 2 días a la semana son 65 € al mes, con 3 días 79 € y el ilimitado 89 €.', 'No hay matrícula ni permanencia 🙂', '¿Cuántos días te gustaría entrenar?']
+      ], [['T\'explico, tenim tres quotes:', '2 dies a la setmana, 65 €/mes\n3 dies, 79 €/mes\nIl·limitat, 89 €/mes', 'Sense matrícula ni permanència.', 'I la primera classe és gratis, per si vols provar abans.']]));
     },
     horario: function () {
-      return [
-        T('De lunes a viernes hay clases a las 7, 8, 13:30, 18, 19, 20 y 21h (los viernes la última es a las 20h). Los sábados a las 10 y a las 11, y el domingo cerramos.',
-          'De dilluns a divendres fem classes a les 7, 8, 13:30, 18, 19, 20 i 21h (el divendres l\'última és a les 20h). Dissabte a les 10 i a les 11, i diumenge tanquem.'),
-        una('horario2', T(['¿Te va mejor por la mañana o por la tarde?', '¿Qué horario te encaja más?'], ['Et va millor al matí o a la tarda?']))
-      ];
+      return una('horario', T([
+        ['Entre semana hay clases a las 7, a las 8 y a las 13:30.', 'Y por la tarde a las 18, 19, 20 y 21h (el viernes la última es a las 20h).', 'Los sábados a las 10 y a las 11. El domingo descansamos.', '¿Te va mejor por la mañana o por la tarde?'],
+        ['Abrimos de lunes a sábado.', 'De lunes a viernes: 7, 8, 13:30, 18, 19, 20 y 21h. El viernes acabamos a las 20h.', 'Sábados a las 10 y a las 11.', '¿Qué horario te encaja más?']
+      ], [['Entre setmana fem classes a les 7, a les 8 i a les 13:30.', 'I a la tarda a les 18, 19, 20 i 21h (divendres l\'última és a les 20h).', 'Dissabte a les 10 i a les 11. Diumenge descansem.', 'Et va millor al matí o a la tarda?']]));
+    },
+    hoy: function () {
+      var r = clasesRestantesHoy();
+      if (r.length) return [una('hoy1', ['¡Sí! Hoy aún quedan clases a las ' + listaHoras(r) + '.', 'Hoy todavía tienes a las ' + listaHoras(r) + '.']), '¿Te apunto a alguna para probar?'];
+      var d = (hoyIdx() + 1) % 7; while (!huecosDia(d).length) d = (d + 1) % 7;
+      return ['Hoy ya no quedan clases.', 'La siguiente es ' + textoDia(d) + ' a las ' + huecosDia(d)[0] + '.', '¿Quieres que te reserve una para probar?'];
+    },
+    clase: function () {
+      return una('clase', [
+        ['Las clases duran una hora.', 'Empezamos calentando, luego trabajamos la técnica del movimiento del día y al final va el entreno (el WOD).', 'Somos como mucho 12 por clase, así que el coach te ve bien y te corrige.'],
+        ['Una hora en total.', 'Calentamiento, técnica y el entreno del día.', 'Grupos de 12 personas como máximo, nada de clases masificadas.', 'Y cada ejercicio se adapta a tu nivel.']
+      ]);
+    },
+    objetivo: function () {
+      return una('obj', [
+        ['Para eso va muy bien, la verdad.', 'Combina fuerza y cardio, y entrenando en grupo cuesta mucho menos ser constante.', 'El primer día Marc te pregunta qué buscas y te orienta.'],
+        ['Mucha gente viene justo por eso.', 'Con 2 o 3 días a la semana ya se nota bastante.', 'Lo importante es la constancia, y el grupo ayuda un montón.']
+      ]);
     },
     suelta: function () {
-      return ['Clase suelta son 15 € y el bono de 10 clases 120 €, para gastarlo en 3 meses. Va bien si viajas mucho o tienes horarios raros.'];
+      return ['Clase suelta son 15 €.', 'Y hay un bono de 10 clases por 120 €, para usarlo en 3 meses.', 'Va bien si viajas mucho o tienes horarios cambiantes.'];
     },
     ubicacion: function () {
-      return [una('ubic', [
-        'Estamos en el Carrer de la Demo, 12, en el Poblenou (es una dirección de ejemplo, el box es ficticio 😄).',
-        'Nos encontrarás en el Carrer de la Demo, 12, Poblenou. Dirección de ejemplo, que el box es de mentira 😄'
-      ]), 'Para aparcar hay zona azul en la calle y dentro tenemos sitio para bicis.'];
+      return ['Estamos en el Carrer de la Demo, 12, en el Poblenou.', '(Dirección de ejemplo, que el box es ficticio 😄)', 'Para aparcar hay zona azul en la calle, y dentro tenemos sitio para bicis.'];
     },
     material: function () {
-      return ['Con ropa cómoda, zapatillas planas de entrenar y una botella de agua vas sobrado.',
-        una('mat2', ['Hay duchas y taquillas, así que si vienes del curro puedes cambiarte aquí. Trae candado y toalla.', 'Tenemos duchas y taquillas (trae tu candado y una toalla).'])];
+      return una('mat', [
+        ['Nada especial.', 'Ropa cómoda, zapatillas planas y una botella de agua.', 'Hay duchas y taquillas, así que si vienes del curro te puedes cambiar aquí.', 'Eso sí, trae candado y toalla.'],
+        ['Con ropa cómoda, zapatillas planas y agua vas sobrado.', 'Tenemos duchas y taquillas (trae tu candado y una toalla).']
+      ]);
     },
     permanencia: function () {
-      return [una('perm', [
-        'Sin permanencia ni matrícula. Si un mes no puedes venir, avisas antes del día 25 y listo.',
-        'Nada de permanencia. Te das de baja cuando quieras avisando antes del 25 del mes.'
-      ])];
+      return una('perm', [
+        ['Ni matrícula ni permanencia.', 'Si un mes no puedes venir, avisas antes del día 25 y listo.'],
+        ['Nada de permanencia.', 'Te das de baja cuando quieras, solo avisando antes del 25 del mes.']
+      ]);
     },
     ninos: function (raw) {
       var m = norm(raw).match(/\b(\d{1,2})\s*(anos|any|anys)?\b/), e = m ? parseInt(m[1], 10) : 0;
-      if (e >= 12 && e <= 16) return ['Con ' + e + ' años le va perfecto CrossFit Teens: miércoles y viernes a las 17:30, grupos pequeños y con Laia.', 'Si quiere probar, la primera clase también es gratis. ¿Le apunto un día?'];
-      if (e > 16) return ['Con ' + e + ' años ya puede venir a las clases de adultos, sin problema. ¿Ha hecho crossfit alguna vez?'];
-      if (e) return ['Para menores de 12 todavía no tenemos grupo, lo siento 😕 A partir de los 12 está CrossFit Teens, los miércoles y viernes a las 17:30.'];
-      return ['Para peques todavía no tenemos grupo, pero para chavales de 12 a 16 años hay CrossFit Teens los miércoles y viernes a las 17:30.',
-        '¿Qué edad tiene? Así te digo si le encaja.'];
+      if (e >= 12 && e <= 16) return ['Con ' + e + ' años le va perfecto CrossFit Teens.', 'Es los miércoles y viernes a las 17:30, en grupos pequeños y con Laia.', 'La primera clase también es gratis. ¿Le apunto un día?'];
+      if (e > 16) return ['Con ' + e + ' años ya puede venir a las clases de adultos, sin problema.', '¿Ha hecho crossfit alguna vez?'];
+      if (e) return ['Para menores de 12 todavía no tenemos grupo, lo siento.', 'A partir de los 12 está CrossFit Teens, los miércoles y viernes a las 17:30.'];
+      return ['Para peques todavía no tenemos grupo.', 'Pero de 12 a 16 años hay CrossFit Teens, los miércoles y viernes a las 17:30.', '¿Qué edad tiene?'];
     },
     bot: function () {
-      return [una('bot', T([
-        'Soy el asistente virtual de Box Norte, sí 🙂 Contesto al momento lo que te haga falta y, si prefieres hablar con Marc o con Laia, se lo paso y te escriben ellos.',
-        'Sí, soy un asistente virtual. Si en algún momento prefieres que te escriba alguien del equipo, dímelo y se lo paso.'
-      ], ['Sóc l\'assistent virtual de Box Norte, sí 🙂 Si prefereixes parlar amb el Marc o la Laia, els ho passo i t\'escriuen ells.']))];
+      return una('bot', T([
+        ['Sí, soy el asistente virtual del box 🙂', 'Contesto al momento, a cualquier hora.', 'Y si prefieres hablar con Marc o con Laia, me lo dices y te escriben ellos.'],
+        ['Soy un asistente virtual, sí.', 'Si en algún momento prefieres que te escriba alguien del equipo, dímelo y se lo paso.']
+      ], [['Sí, sóc l\'assistent virtual del box 🙂', 'Si prefereixes parlar amb el Marc o la Laia, m\'ho dius i t\'escriuen ells.']]));
     },
     humano: function () {
       st.lead.aviso = st.lead.aviso || 'Quiere hablar con alguien del equipo';
       st.lead.estado = 'Necesita a una persona';
       log('🙋 Pide hablar con alguien del equipo → aviso a Marc');
-      return ['Claro, se lo paso ahora a Marc y te escribe él por aquí en cuanto acabe la clase.',
+      return ['Claro, sin problema.', 'Se lo paso ahora a Marc y te escribe él por aquí en cuanto acabe la clase.',
         nombreCorto() ? 'Le dejo tu nombre para que sepa quién eres.' : '¿Me dices tu nombre para que sepa a quién escribe?'];
     },
     gracias: function () {
-      if (st.lead.dia !== null && st.lead.nombre) return [una('grx', ['¡A ti! Nos vemos ' + textoDia(st.lead.dia) + ' 💪', 'Nada, ' + nombreCorto() + '. ¡Hasta ' + textoDia(st.lead.dia).replace(/^el /, 'el ') + '!'])];
-      return [una('gr', ['¡A ti! Cualquier cosa me escribes, aquí estoy a cualquier hora.', 'De nada 🙂 Si te animas a probar, dímelo y te reservo plaza.'])];
+      if (st.lead.dia !== null && st.lead.nombre) return una('grx', [['¡A ti! Nos vemos ' + textoDia(st.lead.dia) + ' 💪'], ['Nada, ' + nombreCorto() + '.', '¡Hasta ' + textoDia(st.lead.dia) + '!']]);
+      return una('gr', [['¡A ti!', 'Cualquier cosa me escribes, estoy a cualquier hora.'], ['De nada 🙂', 'Si te animas a probar, dímelo y te reservo plaza.']]);
     },
-    despedida: function () { return [una('bye', ['¡Hasta luego! 👋', '¡Que vaya bien! Aquí estamos para lo que necesites.'])]; },
+    despedida: function () { return una('bye', [['¡Hasta luego! 👋'], ['¡Que vaya bien!', 'Aquí estamos para lo que necesites.']]); },
     desconocido: function (raw) {
       st.lead.aviso = st.lead.aviso || 'Pregunta sin respuesta: «' + raw.slice(0, 60) + '»';
       log('❓ Pregunta que el asistente no sabe → pasada a Marc');
-      return [una('unk', [
-        'Uf, eso no lo sé seguro y no quiero decirte algo que no es. Se lo paso a Marc y te contesta él por aquí.',
-        'Esa te la tiene que contestar alguien del equipo, que no me la quiero inventar. Se lo dejo apuntado a Marc y te escribe en un rato.'
-      ]), 'Mientras tanto, si quieres te cuento horarios, precios o te reservo la clase de prueba.'];
+      return una('unk', [
+        ['Mmm, eso no lo sé seguro.', 'Y prefiero no decirte algo que no es.', 'Se lo paso a Marc y te contesta él por aquí.'],
+        ['Esa te la tiene que contestar alguien del equipo, que no me la quiero inventar.', 'Se la dejo apuntada a Marc y te escribe en un rato.', 'Mientras, si quieres te cuento horarios o precios.']
+      ]);
     }
   };
+
+  /* ---------- Pulido: frases cortas y emojis con mesura ---------- */
+  var EMOJI = /\p{Extended_Pictographic}️?/gu;
+  function pulir(partes) {
+    var out = [];
+    partes.forEach(function (p) {
+      p = p.trim(); if (!p) return;
+      if (p.length <= 95 || p.indexOf('\n') !== -1) { out.push(p); return; }
+      // parte en frases y las agrupa en mensajes cortos
+      var frases = p.match(/[^.!?]+[.!?]+(\s*\(?[^\p{L}\d¿¡(]*\)?)?|[^.!?]+$/gu) || [p], cur = '';
+      frases.forEach(function (fz) {
+        fz = fz.trim();
+        if (cur && (cur + ' ' + fz).length > 95) { out.push(cur); cur = fz; } else cur = cur ? cur + ' ' + fz : fz;
+      });
+      if (cur) out.push(cur);
+    });
+    // como mucho 5 mensajes
+    while (out.length > 5) { var ult = out.pop(); out[out.length - 1] += ' ' + ult; }
+    // emojis: uno por respuesta como máximo, y no en dos respuestas seguidas (salvo la confirmación)
+    var permitido = !st.emojiPrev || out.some(function (x) { return x.indexOf('✅') !== -1 || /^¡Listo/.test(x); });
+    var usado = false;
+    out = out.map(function (x) {
+      var quitadoAlFinal = false;
+      var y = x.replace(EMOJI, function (e, pos) {
+        if (permitido && !usado) { usado = true; return e; }
+        if (x.slice(pos + e.length).trim() === '') quitadoAlFinal = true;
+        return '';
+      }).replace(/\s+([.,!?)])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+      if (quitadoAlFinal && /[\p{L}\d]$/u.test(y)) y += '.';
+      return y;
+    }).filter(function (x) { return x && !/^[(\s)]*$/.test(x); });
+    st.emojiPrev = usado;
+    return out;
+  }
 
   /* ---------- Reserva de la clase de prueba ---------- */
   function siguientePasoReserva(previas) {
@@ -341,8 +391,11 @@
     var acuse = '';
     if ((st.reservando || has(t, RE.prueba)) && !L.nivel) {
       var cuando = (L.dia !== antes[0] && L.dia !== null && huecosDia(L.dia).length ? textoDia(L.dia) : '') + (L.hora !== antes[1] && /^\d/.test(L.hora) ? T(' a las ', ' a les ') + L.hora : '');
-      if (cuando.trim()) acuse = T(una('acu', ['Vale, ' + cuando.trim() + ' 👌', 'Perfecto, ' + cuando.trim() + ', apuntado.']), 'Val, ' + cuando.trim() + ' 👌');
-      if (L.nombre !== antes[2] && L.nombre) acuse = acuse ? acuse.replace(/( 👌|, apuntado\.)$/, ', ' + nombreCorto() + '$1') : T('Encantado, ' + nombreCorto() + ' 🙂', 'Encantat, ' + nombreCorto() + ' 🙂');
+      var nuevoNombre = L.nombre !== antes[2] && L.nombre;
+      cuando = cuando.trim();
+      if (cuando && nuevoNombre) acuse = T(una('acun', ['Perfecto, ' + nombreCorto() + '. ' + cap(cuando) + ', apuntado.', 'Encantado, ' + nombreCorto() + ' 🙂 Te guardo ' + cuando + '.']), 'Perfecte, ' + nombreCorto() + '. ' + cap(cuando) + ', apuntat.');
+      else if (cuando) acuse = T(una('acu', ['Vale, ' + cuando + ' 👌', 'Perfecto, ' + cuando + ', apuntado.']), 'Val, ' + cuando + ' 👌');
+      else if (nuevoNombre) acuse = T('Encantado, ' + nombreCorto() + ' 🙂', 'Encantat, ' + nombreCorto() + ' 🙂');
     }
     if (st.esperando === 'dia' && L.dia === null && /\b(primer|primero|el primero)\b/.test(t)) { L.dia = 1; L.hora = '19:00'; }
     if (st.esperando === 'dia' && L.dia === null && /\b(segund|el otro|el ultimo)\b/.test(t)) { L.dia = 3; L.hora = '20:00'; }
@@ -354,7 +407,10 @@
     if (has(t, RE.ninos)) intents.push('ninos');
     if (has(t, RE.precio)) intents.push(has(t, RE.suelta) ? 'suelta' : 'precio');
     else if (has(t, RE.suelta)) intents.push('suelta');
-    if (has(t, RE.horario) && !st.reservando && !has(t, RE.prueba)) intents.push('horario');
+    if (has(t, RE.hoy)) intents.push('hoy');
+    else if (has(t, RE.horario) && !st.reservando && !has(t, RE.prueba)) intents.push('horario');
+    if (has(t, RE.clase)) intents.push('clase');
+    if (has(t, RE.objetivo)) intents.push('objetivo');
     if (has(t, RE.ubicacion)) intents.push('ubicacion');
     if (has(t, RE.material)) intents.push('material');
     if (has(t, RE.permanencia)) intents.push('permanencia');
@@ -367,7 +423,7 @@
     st.saludado = st.saludado || saluda;
 
     // interés para el panel
-    var mapa = { precio: 'Precios', suelta: 'Clase suelta / bono', horario: 'Horarios', prueba: 'Clase de prueba', ninos: 'CrossFit Teens', lesion: 'Lesión', material: 'Qué traer', permanencia: 'Permanencia', ubicacion: 'Ubicación' };
+    var mapa = { hoy: 'Clases de hoy', clase: 'Cómo es una clase', objetivo: 'Objetivo físico', precio: 'Precios', suelta: 'Clase suelta / bono', horario: 'Horarios', prueba: 'Clase de prueba', ninos: 'CrossFit Teens', lesion: 'Lesión', material: 'Qué traer', permanencia: 'Permanencia', ubicacion: 'Ubicación' };
     intents.forEach(function (i) { if (mapa[i] && L.interes.indexOf(mapa[i]) === -1) { L.interes.push(mapa[i]); log('💬 Pregunta por ' + mapa[i].toLowerCase()); } });
 
     // si estábamos reservando y solo nos dan datos, seguimos el flujo
@@ -384,16 +440,16 @@
     }
 
     var prefijo = saluda ? (st.ca ? una('prefca', ['Bon dia! ', 'Hola! ']) : una('pref', ['¡Buenas! ', '¡Hola! ', 'Hola 👋 '])) : '';
-    intents.slice(0, 3).forEach(function (i) {
+    intents.slice(0, 2).forEach(function (i) {
       var partes;
       if (i === 'prueba') { st.reservando = true; return; }
       if (i === 'lesion') {
         L.aviso = 'Lesión / molestia: «' + raw.slice(0, 70) + '»';
         log('⚠️ Menciona una lesión → aviso a ' + BOX.coach);
-        partes = [una('lesion', [
-          'Gracias por contarlo. Con lesiones prefiero no darte consejos yo: se lo paso a ' + BOX.coach + ', nuestro head coach, y lo valora contigo antes de entrenar.',
-          'Eso mejor que lo vea ' + BOX.coach + ', que es quien adapta los entrenos. Se lo paso ahora y te escribe él.'
-        ]), 'Mucha gente entrena con alguna molestia, se trata de adaptar los ejercicios. Y si estás en tratamiento, consúltalo también con tu fisio o tu médico.'];
+        partes = una('lesion', [
+          ['Gracias por contármelo.', 'Con lesiones prefiero no aconsejarte yo: se lo paso a ' + BOX.coach + ', el head coach, y lo valora contigo antes de entrenar.', 'Mucha gente entrena con alguna molestia, se trata de adaptar los ejercicios.', 'Y si estás en tratamiento, coméntalo también con tu fisio.'],
+          ['Eso mejor que lo vea ' + BOX.coach + ', que es quien adapta los entrenos.', 'Se lo paso ahora y te escribe él.', 'Tranqui, es más habitual de lo que parece y casi siempre se puede entrenar adaptando.']
+        ]);
       } else partes = R[i](raw);
       out = out.concat(partes);
     });
@@ -404,7 +460,7 @@
       if (!out.length) out.push(prefijo + una('pr', T(['¡Claro! La primera clase es gratis y sin compromiso 🙌', '¡Genial que quieras probar! La primera clase es gratis.'],
         ['És clar! La primera classe és gratis i sense compromís 🙌'])));
       if (acuse) out.push(acuse);
-      return siguientePasoReserva(out).slice(0, 4);
+      return siguientePasoReserva(out);
     }
     // si estaba a medias de reservar, recordatorio natural
     if (st.reservando && out.length < 3) {
@@ -416,27 +472,7 @@
     } else if (intents.indexOf('precio') !== -1 && !st.lead.estado.match(/Prueba/) && out.length < 3) {
       // nada: el texto de precio ya invita a probar
     }
-    return out.slice(0, 3);
-  }
-
-  /* ---------- Modo IA (opcional) ---------- */
-  async function responderIA() {
-    var r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: st.historial.slice(-16) }) });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    var data = await r.json();
-    if (!data || !data.text) throw new Error('sin texto');
-    var p = data.panel || {};
-    var L = st.lead;
-    if (p.nombre) L.nombre = p.nombre;
-    if (p.nivel) L.nivel = p.nivel;
-    if (p.interes && L.interes.indexOf(p.interes) === -1) L.interes.push(p.interes);
-    if (p.aviso && !L.aviso) { L.aviso = p.aviso; log('⚠️ Aviso para ' + BOX.coach + ': ' + esc(p.aviso)); }
-    if (p.prueba && L.estado !== 'Prueba reservada') {
-      L.estado = 'Prueba reservada'; L.clase = p.prueba; st.pruebas = 1;
-      log('✅ <b>' + esc(L.nombre || 'Nuevo contacto') + '</b> reserva clase de prueba: ' + esc(p.prueba));
-      toast('📲 Aviso a ' + BOX.coach + ': ' + (L.nombre || 'nuevo contacto') + ' viene a probar ' + p.prueba);
-    }
-    return data.text.split(/\n\s*\n/).map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 3);
+    return out;
   }
 
   /* ---------- Interfaz ---------- */
@@ -506,17 +542,17 @@
     var t0 = Date.now(), partes;
     await wait(500); typing(true);
     try {
-      partes = API_URL ? await responderIA() : responder(texto);
+      partes = pulir(responder(texto));
     } catch (e) {
-      partes = responder(texto);
+      partes = pulir(R.desconocido(texto));
     }
     st.tiempos.push(Math.max(1, (Date.now() - t0) / 1000 + 0.4));
     renderPanel();
     for (var i = 0; i < partes.length; i++) {
-      var pausa = Math.min(700 + partes[i].length * 16, 2600) - (i === 0 ? (Date.now() - t0) : 0);
+      var pausa = Math.min(550 + partes[i].length * 20, 2300) - (i === 0 ? (Date.now() - t0) : 0);
       typing(true); if (pausa > 0) await wait(pausa);
       typing(false); bubble(partes[i], 'in');
-      if (i < partes.length - 1) await wait(380);
+      if (i < partes.length - 1) await wait(250 + Math.random() * 350);
     }
     st.historial.push({ role: 'assistant', content: partes.join('\n\n') });
     statusEl.textContent = 'en línea';
@@ -544,7 +580,7 @@
   });
 
   // para pruebas automáticas
-  window.__demoResponder = function (t) { return responder(t); };
+  window.__demoResponder = function (t) { return pulir(responder(t)); };
   window.__demoReset = function () { reset(); };
   window.__demoState = function () { return st; };
 })();

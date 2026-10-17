@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Botón flotante de WhatsApp con mensaje ya escrito (en /boxes habla de box)
 document.addEventListener('DOMContentLoaded', function () {
-  if (document.querySelector('.wa-float')) return;
+  if (document.querySelector('.wa-float') || location.pathname.indexOf('demo') !== -1) return;
   var esBox = location.pathname.indexOf('boxes') !== -1;
   var texto = esBox
     ? 'Hola, vengo de la web. Tengo un box y quiero ver cómo funcionaría el asistente.'
