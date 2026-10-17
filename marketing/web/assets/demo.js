@@ -50,10 +50,10 @@
 
   /* ---------- Detección ---------- */
   var RE = {
-    saludo: /\b(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|ey|bon dia|bona tarda|bona nit|ei)\b/,
-    precio: /(precio|cuanto (cuesta|vale|es|sale)|cuesta|tarifa|cuota|mensualidad|pagar|preu|quant (costa|val)|€|euros|caro|barato)/,
+    saludo: /\b(hola+|holi+|ola|buenas+|buenos dias|buenas tardes|buenas noches|hey+|ey|bon dia|bona tarda|bona nit|ei|que tal)\b/,
+    precio: /(precio|cuanto (cuesta|vale|es|sale)|cuesta|tarifa|cuota|mensualidad|preu|quant (costa|val)|€|euros|caro|barato)/,
     horario: /(horario|horari|a que hora|que horas|abris|abren|cerrais|cierran|obriu|tanqueu|clases hay|hay clase|por la manana|por la tarde|por la noche|al mediodia|fin de semana|findes?)/,
-    prueba: /(prueba|probar|provar|prova|primera clase|ir a ver|venir a ver|apuntar|apuntarme|reservar|reserva|inscribir|empezar ya|gratis|gratuit)/,
+    prueba: /(prueba|probar|provar|prova|primera clase|ir a ver|venir a ver|apuntar|apunto|apuntarme|reservar|reserva|inscrib|empezar ya|quiero empezar|quiero ir|quiero venir|como empiezo|gratis|gratuit)/,
     principiante: /(nunca|no he hecho|jamas|principiante|desde cero|de cero|novato|novata|no estoy en forma|forma fisica|baja forma|sedentari|no se si podre|podre|nivel|mi edad|tengo \d{2} anos|mayor|gordo|gorda|sobrepeso|mai he fet)/,
     experto: /(ya he hecho|he hecho crossfit|hago crossfit|vengo de otro box|entreno (crossfit|hace)|tengo experiencia|llevo \w+ (anos|meses))/,
     lesion: /(lesion|lesionad|rodilla|espalda|lumbar|hombro|tobillo|munec|cadera|cervical|hernia|operad|dolor|me duele|embaraz|tendin|esguince|lesio|genoll|esquena)/,
@@ -62,7 +62,7 @@
     material: /(que (traigo|llevo|tengo que llevar|necesito)|traer|ropa|zapatilla|calzado|material|toalla|ducha|vestuario|taquilla|candado|guantes)/,
     permanencia: /(permanencia|baja|darme de baja|contrato|matricula|compromiso|cancelar)/,
     suelta: /(clase suelta|una sola clase|drop ?in|bono|un dia suelto|pase de dia)/,
-    clase: /(como (es|son) (una |las )?clase|que se hace|en que consiste|que es (el )?crossfit|cuanto dura|cuantas personas|cuanta gente|grupos? (de|pequen)|wod)/,
+    clase: /(como (es|son) (una |las )?clase|que se hace|cuanto dura|cuantas personas|cuanta gente|grupos? (de|pequen)|wod)/,
     objetivo: /(perder peso|adelgaz|bajar de peso|quemar|ganar (fuerza|musculo|masa)|ponerme en forma|tonificar|definir|resistencia|cardio)/,
     hoy: /(hay clase hoy|clases? hoy|hoy hay|hoy a que|esta tarde hay|esta noche hay|ahora hay|avui hi ha)/,
     bot: /(\bbot\b|robot|\bia\b|inteligencia artificial|persona real|eres (una )?persona|eres humano|eres real|maquina|automatic|chatgpt|ets un)/,
@@ -138,6 +138,79 @@
     return huecosDia(hoyIdx()).filter(function (h) { var p = h.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10) > min + 15; });
   }
   function listaHoras(hs) { return hs.join(', ').replace(/, ([^,]*)$/, ' y $1'); }
+
+
+  /* ---------- Ficha del box: preguntas frecuentes con búsqueda tolerante ---------- */
+  var KB = [
+    { id: 'actividades', label: 'Actividades', keys: ['actividad', 'que haceis', 'que ofreceis', 'que clases', 'tipos de clase', 'disciplina', 'modalidad', 'que teneis', 'que se puede hacer', 'que hay en el', 'servicios'],
+      r: [['Además de CrossFit, tenemos unas cuantas cosas:', 'Iniciación para empezar de cero, Hyrox, halterofilia, open box y CrossFit Teens.', 'Y los sábados, movilidad, que va genial para recuperar.', '¿Te interesa alguna en concreto?'],
+          ['Te cuento lo que hay:', 'CrossFit (con Iniciación si empiezas de cero), Hyrox Prep, halterofilia, open box por las tardes, Teens y movilidad.', '¿Cuál te llama más?']] },
+    { id: 'quees', label: 'Qué es CrossFit', keys: ['que es crossfit', 'que es el crossfit', 'que es eso del crossfit', 'en que consiste', 'que es un box'],
+      r: [['Es entrenamiento funcional en grupo: fuerza, cardio y movimientos del día a día, todo mezclado.', 'Cada día hay un entreno distinto, así que no te aburres.', 'Y se adapta a cualquier nivel, por eso viene gente de todas las edades.', 'Una clase dura una hora: calentamiento, técnica y el entreno del día.']] },
+    { id: 'hyrox', label: 'Hyrox', keys: ['hyrox', 'hirox', 'hyros', 'hairox', 'carrera', 'correr', 'running'],
+      r: [['¡Sí! Tenemos Hyrox Prep 🏃', 'Martes y jueves a las 21:00, y el sábado a las 11:00.', 'Trabajamos las 8 estaciones y la carrera, y de vez en cuando hacemos un simulacro de competición.', 'Va incluido en el ilimitado. ¿Has hecho alguna Hyrox o sería la primera?'],
+          ['Sí, hacemos Hyrox.', 'Hay clase específica martes y jueves a las 21:00 y sábado a las 11:00.', 'Sirve tanto si quieres competir como si solo buscas un entreno distinto.', '¿Te reservo una para probarla?']] },
+    { id: 'halterofilia', label: 'Halterofilia', keys: ['halterofilia', 'halterofil', 'olimpic', 'arrancada', 'envion', 'dos tiempos', 'snatch', 'levantamiento', 'pesas'],
+      r: [['Sí, los miércoles a las 20:00 hay halterofilia.', 'Técnica de arrancada y dos tiempos, en grupo pequeño.', 'Si nunca has levantado, lo suyo es empezar por las clases normales y luego pasarte.']] },
+    { id: 'openbox', label: 'Open box', keys: ['open box', 'openbox', 'por mi cuenta', 'entrenar solo', 'entrenar sola', 'sala libre', 'por libre', 'a mi aire'],
+      r: [['Sí, hay open box de lunes a viernes de 15:00 a 17:00.', 'Vienes a entrenar a tu aire con todo el material del box.', 'Va incluido en la cuota ilimitada.']] },
+    { id: 'movilidad', label: 'Movilidad', keys: ['movilidad', 'estiramiento', 'estirar', 'flexibilidad', 'yoga', 'pilates', 'stretching'],
+      r: [['Los sábados a las 12:00 hay movilidad.', 'Una hora tranquila de estiramientos y movilidad, perfecta para recuperar.', 'Yoga o pilates como tal no hacemos, eso sí.']] },
+    { id: 'pago', label: 'Formas de pago', keys: ['bizum', 'tarjeta', 'efectivo', 'domicili', 'transferencia', 'recibo', 'como se paga', 'forma de pago', 'formas de pago', 'como pago'],
+      r: [['La cuota se paga por domiciliación o con tarjeta, a principio de mes.', 'Las clases sueltas también te las puedes pagar con Bizum.']] },
+    { id: 'descuento', label: 'Descuentos', keys: ['descuento', 'oferta', 'promo', 'rebaja', 'estudiante', 'pareja', 'amigo', 'amiga', 'familia', '2x1', 'dos personas'],
+      r: [['Si os apuntáis dos (pareja, amigos o familia), tenéis un 10% cada uno.', 'Y si eres estudiante, otro 10% enseñando el carnet.', 'La primera clase, como siempre, gratis.']] },
+    { id: 'coaches', label: 'Coaches', keys: ['coaches', 'entrenador', 'monitor', 'profe', 'profesor', 'quien da', 'quienes sois', 'titulacion', 'certificad', 'titulad'],
+      r: [['Somos dos coaches: Marc, el head coach, y Laia.', 'Los dos con el Level 2 de CrossFit y unos cuantos años dando clase.', 'Laia lleva además los Teens y la movilidad.']] },
+    { id: 'app', label: 'App y aforo', keys: ['app', 'aplicacion', 'aforo', 'cuantas plazas', 'se llena', 'se llenan', 'reservar las clases', 'como se reservan'],
+      r: [['Las clases se reservan desde la app del box, se tarda nada.', 'Somos 12 como máximo por clase.', 'Las de las 19 y 20h se llenan antes, así que mejor reservarlas el día anterior.']] },
+    { id: 'frecuencia', label: 'Cuántos días entrenar', keys: ['cuantas veces', 'cuantos dias', 'dias a la semana', 'dias por semana', 'cada cuanto', 'frecuencia'],
+      r: [['Para empezar, 2 o 3 días a la semana está perfecto.', 'Así el cuerpo se adapta y no acabas reventado la primera semana.', 'Cuando cojas ritmo, ya decides si te pasas al ilimitado.']] },
+    { id: 'miedo', label: 'Dudas de principiante', keys: ['peligroso', 'lesionarme', 'hacerme dano', 'muy duro', 'es duro', 'dificil', 'miedo', 'verguenza', 'no estoy en forma', 'baja forma', 'no podre', 'no voy a poder', 'nivel muy bajo'],
+      r: [['Es de las preguntas más habituales, tranqui.', 'Todo se adapta a tu nivel: el peso, las repeticiones y los ejercicios.', 'El coach está encima de la técnica para que no te hagas daño.', 'La mayoría de la gente del box empezó sin haber hecho nunca nada parecido.']] },
+    { id: 'edad', label: 'Edad', keys: ['edad maxima', 'muy mayor', 'soy mayor', 'jubilad', 'con mi edad', 'a mi edad', 'tarde para empezar', 'demasiado mayor', 'es tarde'],
+      r: [['No hay edad máxima.', 'Tenemos gente de más de 60 entrenando, cada uno a su ritmo.', 'Lo importante es empezar adaptado, y para eso está la clase de Iniciación.']] },
+    { id: 'festivos', label: 'Festivos y verano', keys: ['agosto', 'verano', 'festivo', 'navidad', 'vacaciones', 'puente', 'semana santa'],
+      r: [['En festivos solemos hacer una sola clase, a las 10:00.', 'Y en agosto cerramos la segunda quincena.', 'Lo avisamos siempre con tiempo por Instagram y por la app.']] },
+    { id: 'nutricion', label: 'Nutrición', keys: ['dieta', 'nutricion', 'nutricionista', 'alimentacion', 'suplement', 'proteina', 'que como'],
+      r: [['Nutricionista en el box no tenemos.', 'Pero Marc trabaja con una de confianza y, si quieres, te pasa el contacto.']] },
+    { id: 'fisio', label: 'Fisio', keys: ['fisio', 'masaje', 'osteopat', 'quiropract'],
+      r: [['Fisio en el box no hay, pero colaboramos con una clínica del barrio.', 'Si te hace falta, Marc te pasa el contacto.']] },
+    { id: 'competir', label: 'Competiciones', keys: ['competir', 'competicion', 'campeonato', 'torneo', 'el open'],
+      r: [['Sí, varias veces al año vamos en grupo a competiciones locales, sobre todo por parejas.', 'Y el Open de CrossFit lo hacemos todos juntos en el box.', 'Nadie está obligado, eh: es para quien le apetezca.']] },
+    { id: 'menu', label: '', keys: ['que me puedes decir', 'que me puedes contar', 'que sabes', 'en que me ayudas', 'en que me puedes ayudar', 'que puedo preguntar', 'informacion', 'info', 'cuentame', 'dime algo', 'ayuda', 'mas info'],
+      r: [['Pues casi todo lo del box 🙂', 'Precios, horarios, qué clases hay (CrossFit, Hyrox, halterofilia…), cómo es la primera clase o qué tienes que traer.', 'Y si te apetece, te reservo una clase de prueba gratis.', '¿Por dónde empezamos?'],
+          ['Te puedo contar lo que quieras del box:', 'precios, horarios, actividades, coaches, cómo funciona la primera clase…', '¿Qué te interesa más?']] }
+  ];
+
+  function lev(a, b) {
+    if (Math.abs(a.length - b.length) > 1) return 2;
+    var p = [], i, j;
+    for (j = 0; j <= b.length; j++) p[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      var prev = p[0]; p[0] = i;
+      for (j = 1; j <= b.length; j++) {
+        var tmp = p[j];
+        p[j] = Math.min(p[j] + 1, p[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = tmp;
+      }
+    }
+    return p[b.length];
+  }
+  function buscarKB(t) {
+    var palabras = t.replace(/[^a-z0-9ñç ]/g, ' ').split(/\s+/).filter(Boolean);
+    var res = [];
+    KB.forEach(function (e) {
+      var score = 0;
+      e.keys.forEach(function (k) {
+        if (k.indexOf(' ') !== -1) { if ((' ' + t + ' ').indexOf(' ' + k) !== -1) score += 2; return; }
+        if (palabras.some(function (w) { return w === k || (k.length >= 4 && w.indexOf(k) === 0) || (k.length >= 5 && w.length >= 5 && lev(w, k) <= 1); })) score += 1;
+      });
+      if (score) res.push({ e: e, score: score });
+    });
+    res.sort(function (a, b) { return b.score - a.score; });
+    return res.map(function (x) { return x.e; });
+  }
 
   var R = {
     saludo: function () {
@@ -224,8 +297,8 @@
       st.lead.aviso = st.lead.aviso || 'Pregunta sin respuesta: «' + raw.slice(0, 60) + '»';
       log('❓ Pregunta que el asistente no sabe → pasada a Marc');
       return una('unk', [
-        ['Mmm, eso no lo sé seguro.', 'Y prefiero no decirte algo que no es.', 'Se lo paso a Marc y te contesta él por aquí.'],
-        ['Esa te la tiene que contestar alguien del equipo, que no me la quiero inventar.', 'Se la dejo apuntada a Marc y te escribe en un rato.', 'Mientras, si quieres te cuento horarios o precios.']
+        ['Mmm, eso en concreto no lo tengo claro y no te quiero decir algo que no es.', 'Se lo paso a Marc y te contesta él por aquí.', 'Mientras, si quieres te cuento precios, horarios o qué actividades hay.'],
+        ['Esa se la dejo a Marc, que no me la quiero inventar.', 'Te escribe él en un rato.', 'Si te sirve, mientras te cuento horarios, precios o las clases que tenemos.']
       ]);
     }
   };
@@ -245,8 +318,8 @@
       });
       if (cur) out.push(cur);
     });
-    // como mucho 5 mensajes
-    while (out.length > 5) { var ult = out.pop(); out[out.length - 1] += ' ' + ult; }
+    // como mucho 6 mensajes
+    while (out.length > 6) out.pop();
     // emojis: uno por respuesta como máximo, y no en dos respuestas seguidas (salvo la confirmación)
     var permitido = !st.emojiPrev || out.some(function (x) { return x.indexOf('✅') !== -1 || /^¡Listo/.test(x); });
     var usado = false;
@@ -414,7 +487,19 @@
     if (has(t, RE.ubicacion)) intents.push('ubicacion');
     if (has(t, RE.material)) intents.push('material');
     if (has(t, RE.permanencia)) intents.push('permanencia');
-    if (has(t, RE.prueba) || (has(t, RE.principiante) && !intents.length)) intents.push('prueba');
+    var kb = buscarKB(t).filter(function (e) {
+      if (e.id === 'menu' && intents.length) return false;
+      if (e.id === 'miedo' && intents.indexOf('lesion') !== -1) return false;
+      return true;
+    });
+    var edad = t.match(/\btengo (\d{2}) (anos|any)/);
+    if (edad && parseInt(edad[1], 10) >= 40 && !kb.some(function (e) { return e.id === 'edad'; })) kb.unshift(KB.filter(function (e) { return e.id === 'edad'; })[0]);
+    var idsKB = kb.map(function (e) { return e.id; });
+    if (idsKB.indexOf('festivos') !== -1) intents = intents.filter(function (i) { return i !== 'horario'; });
+    if (idsKB.indexOf('quees') !== -1) intents = intents.filter(function (i) { return i !== 'clase'; });
+    kb.slice(0, 2).forEach(function (e) { intents.push('kb:' + e.id); });
+    var pidePrueba = has(t, RE.prueba) && !(idsKB.indexOf('app') !== -1 && !/(prueba|probar|apunt)/.test(t)) && !(edad && !/(prueba|probar|apunt|reserv)/.test(t));
+    if (pidePrueba || (has(t, RE.principiante) && !intents.length)) intents.push('prueba');
     if (!intents.length && has(t, RE.gracias)) intents.push('gracias');
     if (!intents.length && has(t, RE.despedida)) intents.push('despedida');
 
@@ -424,7 +509,9 @@
 
     // interés para el panel
     var mapa = { hoy: 'Clases de hoy', clase: 'Cómo es una clase', objetivo: 'Objetivo físico', precio: 'Precios', suelta: 'Clase suelta / bono', horario: 'Horarios', prueba: 'Clase de prueba', ninos: 'CrossFit Teens', lesion: 'Lesión', material: 'Qué traer', permanencia: 'Permanencia', ubicacion: 'Ubicación' };
+    KB.forEach(function (e) { if (e.label) mapa['kb:' + e.id] = e.label; });
     intents.forEach(function (i) { if (mapa[i] && L.interes.indexOf(mapa[i]) === -1) { L.interes.push(mapa[i]); log('💬 Pregunta por ' + mapa[i].toLowerCase()); } });
+    if (intents.length) st.dudas = 0;
 
     // si estábamos reservando y solo nos dan datos, seguimos el flujo
     var soloDatos = !intents.length || (intents.length === 1 && intents[0] === 'prueba');
@@ -432,14 +519,24 @@
 
     if (!intents.length) {
       if (saluda || (RE.si.test(t) && !st.reservando)) {
+        if (saluda && nom) return [una('salnom', ['¡Hola, ' + nombreCorto() + '! 👋', '¡Buenas, ' + nombreCorto() + '!']), una('salnom2', ['Aquí Box Norte. ¿En qué te ayudo?', 'Cuéntame, ¿qué te gustaría saber del box?'])];
         if (saluda) return R.saludo();
         st.reservando = true; return siguientePasoReserva([]);
       }
       if (st.reservando) return siguientePasoReserva(acuse ? [acuse] : out);
+      st.dudas = (st.dudas || 0) + 1;
+      if (st.dudas > 1) {
+        st.menu = true;
+        return una('noent', [
+          ['Igual no te he entendido bien 😅', '¿Me lo dices de otra forma?', 'Te puedo contar precios, horarios, actividades (CrossFit, Hyrox, halterofilia…) o reservarte una clase de prueba.'],
+          ['Perdona, esa no la pillo.', 'Prueba a preguntármelo de otra manera, o dime si quieres saber precios, horarios o qué clases hay.']
+        ]);
+      }
       return R.desconocido(raw);
     }
 
-    var prefijo = saluda ? (st.ca ? una('prefca', ['Bon dia! ', 'Hola! ']) : una('pref', ['¡Buenas! ', '¡Hola! ', 'Hola 👋 '])) : '';
+    var conNombre = nom && saluda ? ', ' + nombreCorto() : '';
+    var prefijo = saluda ? (st.ca ? una('prefca', ['Bon dia' + conNombre + '! ', 'Hola' + conNombre + '! ']) : (conNombre ? una('prefn', ['¡Hola' + conNombre + '! ', '¡Buenas' + conNombre + '! ']) : una('pref', ['¡Buenas! ', '¡Hola! ', 'Hola 👋 ']))) : '';
     intents.slice(0, 2).forEach(function (i) {
       var partes;
       if (i === 'prueba') { st.reservando = true; return; }
@@ -450,6 +547,10 @@
           ['Gracias por contármelo.', 'Con lesiones prefiero no aconsejarte yo: se lo paso a ' + BOX.coach + ', el head coach, y lo valora contigo antes de entrenar.', 'Mucha gente entrena con alguna molestia, se trata de adaptar los ejercicios.', 'Y si estás en tratamiento, coméntalo también con tu fisio.'],
           ['Eso mejor que lo vea ' + BOX.coach + ', que es quien adapta los entrenos.', 'Se lo paso ahora y te escribe él.', 'Tranqui, es más habitual de lo que parece y casi siempre se puede entrenar adaptando.']
         ]);
+      } else if (i.indexOf('kb:') === 0) {
+        var e = KB.filter(function (x) { return 'kb:' + x.id === i; })[0];
+        partes = una('kb' + e.id, e.r);
+        if (e.id === 'menu') st.menu = true;
       } else partes = R[i](raw);
       out = out.concat(partes);
     });
@@ -502,8 +603,9 @@
     if (st.esperando === 'hora') return ['Por la tarde', 'A las 19h', 'A primera hora'];
     if (st.esperando === 'nombre') return ['Me llamo Laura'];
     if (st.esperando === 'lesion') return ['No, ninguna', 'Me molesta un poco la espalda'];
+    if (st.menu) { st.menu = false; return ['¿Qué actividades hay?', '¿Cuánto cuesta?', '¿Cómo es una clase?', 'Quiero probar una clase']; }
     if (L.estado === 'Prueba reservada') return ['¿Qué tengo que traer?', '¿Hay duchas?', '¿Cuánto cuesta al mes?', 'Gracias!'];
-    return ['¿Cuánto cuesta al mes?', '¿Qué horarios tenéis?', 'Quiero probar una clase', '¿Eres un bot?'];
+    return ['¿Qué actividades hay?', '¿Cuánto cuesta al mes?', '¿Hacéis Hyrox?', 'Quiero probar una clase'];
   }
   function log(html) {
     var l = $('#dm-log'), e = l.querySelector('.dm-empty'); if (e) e.remove();
