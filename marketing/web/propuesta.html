@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<title>Propuesta de asistente | HE Signal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: two columns on desktop (pitch + facts | phone with live chat), one column on phone. Brand: HE Signal orange on paper/ink. */
+:root{
+  --paper:#F1F3EE; --card:#FFFFFF; --ink:#10151F; --muted:#5B6370; --line:#DCE0D8;
+  --signal:#FF4B2B; --signal-ink:#B8321A;
+  --chat-bg:#ECE5DD; --in:#FFFFFF; --out:#D9FDD3; --bar:#F7F7F5; --tick:#53BDEB;
+  --display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --body:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0E1218; --card:#161B23; --ink:#EEF0EA; --muted:#9AA2AE; --line:#262D38;
+  --signal:#FF6A4D; --signal-ink:#FF8A72;
+  --chat-bg:#0B141A; --in:#202C33; --out:#005C4B; --bar:#202C33; --tick:#53BDEB; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0E1218; --card:#161B23; --ink:#EEF0EA; --muted:#9AA2AE; --line:#262D38;
+  --signal:#FF6A4D; --signal-ink:#FF8A72;
+  --chat-bg:#0B141A; --in:#202C33; --out:#005C4B; --bar:#202C33; --tick:#53BDEB; color-scheme:dark}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;padding-block:40px 56px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:48px;align-items:start}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);gap:32px;padding-block:24px 40px}}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--signal);box-shadow:0 0 0 4px color-mix(in srgb,var(--signal) 22%,transparent)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,4vw,42px);line-height:1.1;letter-spacing:-.02em;margin:18px 0 14px;text-wrap:balance}
+h1 em{font-style:normal;color:var(--signal)}
+.lead{color:var(--muted);max-width:56ch;margin:0 0 28px}
+.note{font-size:13px;color:var(--muted);border-left:3px solid var(--signal);padding:2px 0 2px 12px;margin:0 0 28px;max-width:60ch}
+.facts{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+.facts h2,.summary h2{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px 16px;margin:0}
+dt{font-size:13px;color:var(--muted)} dd{margin:0;font-size:15px;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--paper)}
+.summary{margin-top:20px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+.summary .when{font-family:var(--mono);font-size:12px;color:var(--signal-ink);margin-bottom:10px}
+.summary ul{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.summary li{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;font-size:15px}
+.summary li span:first-child{color:var(--muted);font-size:13px}
+.cta{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{font-family:var(--display);font-weight:600;font-size:15px;border-radius:999px;padding:12px 20px;border:1px solid transparent;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--signal);color:#fff}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn:focus-visible{outline:3px solid color-mix(in srgb,var(--signal) 60%,transparent);outline-offset:2px}
+.tabs{display:flex;gap:6px;margin:0 0 14px}
+.tab{font:500 13px var(--body);padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+/* phone */
+.phone{border-radius:34px;background:var(--ink);padding:10px;box-shadow:0 20px 50px -20px rgba(16,21,31,.45);position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+@media (max-width:860px){.phone{position:static;max-width:400px;width:100%;margin:0 auto}}
+.screen{border-radius:26px;overflow:hidden;background:var(--chat-bg);display:flex;flex-direction:column;height:640px}
+.wa-bar{background:var(--bar);display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--signal);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+.wa-name{font-weight:600;font-size:15px;line-height:1.2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wa-sub{font-size:12px;color:var(--muted)}
+.chat{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:6px}
+.day{align-self:center;font-size:12px;background:var(--bar);color:var(--muted);padding:3px 10px;border-radius:8px;margin-bottom:6px}
+.msg{max-width:84%;padding:7px 10px 18px;border-radius:10px;font-size:14.5px;line-height:1.4;position:relative;box-shadow:0 1px 0 rgba(0,0,0,.06);white-space:pre-line}
+.msg.in{align-self:flex-start;background:var(--in);border-top-left-radius:3px}
+.msg.out{align-self:flex-end;background:var(--out);border-top-right-radius:3px}
+.msg time{position:absolute;right:8px;bottom:3px;font-size:11px;color:var(--muted);font-family:var(--mono)}
+.msg.out time::after{content:" ✓✓";color:var(--tick)}
+.msg .who{display:block;font-size:11px;font-weight:600;color:var(--signal-ink);margin-bottom:2px}
+.typing{align-self:flex-start;background:var(--in);border-radius:10px;padding:10px 12px;display:flex;gap:4px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+.msg.pop{animation:pop .25s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.msg.pop,.typing i{animation:none}}
+.wa-input{background:var(--bar);padding:10px 12px;font-size:13px;color:var(--muted);border-top:1px solid var(--line)}
+footer{max-width:1080px;margin:0 auto;padding-block:0 32px;font-size:12px;color:var(--muted)}
+</style>
+
+</head>
+<body>
+<main class="wrap">
+  <section>
+    <div class="brand"><span class="dot"></span>Demo preparada por HE Signal</div>
+    <h1 id="h1">Así contestaría <em id="h1name">vuestro</em> asistente de WhatsApp</h1>
+    <p class="lead" id="lead"></p>
+    <p class="note" id="note"></p>
+    <div class="facts">
+      <h2 id="factsTitle">Lo que sabe el asistente</h2>
+      <dl id="facts"></dl>
+    </div>
+    <div class="summary" id="summaryBox">
+      <h2 id="sumTitle">Lo que os llega al equipo</h2>
+      <div class="when" id="sumWhen"></div>
+      <ul id="summary"></ul>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="https://www.hesignalagency.com/agendar" target="_blank" rel="noopener">Hablemos 10 minutos</a>
+      <button class="btn ghost" id="replay" type="button">▶ Ver la conversación en directo</button>
+    </div>
+  </section>
+  <aside>
+    <div class="tabs" id="tabs" hidden></div>
+    <div class="phone" aria-label="Simulación de conversación de WhatsApp">
+      <div class="screen">
+        <div class="wa-bar"><div class="avatar" id="av">HE</div><div style="min-width:0"><div class="wa-name" id="waName"></div><div class="wa-sub">Asistente virtual · responde al momento</div></div></div>
+        <div class="chat" id="chat" aria-live="polite"></div>
+        <div class="wa-input">Escribe un mensaje</div>
+      </div>
+    </div>
+  </aside>
+</main>
+<footer>Conversación de ejemplo creada por HE Signal (hesignalagency.com) con información pública del negocio. No es un canal oficial del negocio ni contiene datos reales de clientes. Precios, horarios y respuestas se configuran con el propio negocio antes de activar el asistente. El asistente siempre se presenta como asistente virtual.</footer>
+
+<script>
+const DATA = {"solerfinques": {"sector": "inmo", "name": "Soler Finques", "short": "Soler Finques", "town": "Sant Cugat del Vallès", "address": "Av. de la Vía Augusta, 15, 2º, 08174 Sant Cugat del Vallès", "phone": "+34 663 85 29 19", "rating": 4.9, "reviews": 201, "services": ["Compraventa", "Alquiler"], "ask": null, "who": null, "facts": [], "satclosed": true}, "mashomes": {"sector": "inmo", "name": "Mas Homes", "short": "Mas Homes", "town": "Sant Cugat del Vallès", "address": "Carrer del Vallespir, 19, 3º 2ª, 08173 Sant Cugat del Vallès", "phone": "+34 676 71 72 31", "rating": 4.9, "reviews": 260, "services": ["Compraventa", "Asesoramiento legal y financiero", "Servicio posventa"], "ask": null, "who": null, "facts": [], "satclosed": true}, "inmoeuropeas": {"sector": "inmo", "name": "InmoEuropeas", "short": "InmoEuropeas", "town": "Rubí", "address": "Passeig de Francesc Macià, 65, 08191 Rubí", "phone": "+34 935 88 31 58", "rating": 4.5, "reviews": 249, "services": ["Compraventa", "Alquiler"], "ask": null, "who": null, "facts": ["En el centro de Rubí desde hace 25 años"], "satclosed": true}, "totfinques": {"sector": "inmo", "name": "Tot Finques", "short": "Tot Finques", "town": "Rubí", "address": "Carrer de Sant Cugat, 40, 08191 Rubí", "phone": "+34 935 88 17 33", "rating": 4.9, "reviews": 294, "services": ["Compraventa", "Alquiler"], "ask": null, "who": null, "facts": [], "satclosed": true}, "moransender": {"sector": "inmo", "name": "Moran & Sender", "short": "Moran & Sender", "town": "Rubí", "address": "Plaça de Josep Sapés i Esmendia, 2, 08191 Rubí", "phone": "+34 931 20 54 72", "rating": 4.8, "reviews": 266, "services": ["Compraventa", "Alquileres"], "ask": null, "who": null, "facts": [], "satclosed": true}, "havitec": {"sector": "inmo", "name": "Havitec", "short": "Havitec", "town": "Rubí", "address": "Carrer de Sant Ignasi, 16, 08191 Rubí", "phone": "+34 930 18 16 20", "rating": 4.9, "reviews": 139, "services": ["Compraventa", "Alquiler", "Gestión patrimonial"], "ask": null, "who": null, "facts": [], "satclosed": true}, "vallhonrat": {"sector": "inmo", "name": "Finques Vallhonrat", "short": "Finques Vallhonrat", "town": "Rubí", "address": "Passeig de Francesc Macià, 80, 08191 Rubí", "phone": "+34 935 88 54 99", "rating": 4.5, "reviews": 392, "services": ["Compraventa", "Alquiler", "Administración de fincas"], "ask": null, "who": null, "facts": ["Oficina en Rubí y servicio en Sant Cugat"], "satclosed": false}, "immotempus": {"sector": "inmo", "name": "IMMOtempus", "short": "IMMOtempus", "town": "Terrassa", "address": "Rambla de Francesc Macià, 20, Loc 4, 08226 Terrassa", "phone": "+34 638 70 90 66", "rating": 5.0, "reviews": 173, "services": ["Compraventa", "Alquiler", "Valoración gratuita en 24 h", "Pisos heredados"], "ask": null, "who": null, "facts": [], "satclosed": true}, "openfinques": {"sector": "inmo", "name": "OpenFinques", "short": "OpenFinques", "town": "Terrassa", "address": "Carrer de l'Església, 16, 3er 1er, 08221 Terrassa", "phone": "+34 937 80 40 00", "rating": 4.6, "reviews": 220, "services": ["Compraventa", "Alquiler"], "ask": null, "who": null, "facts": [], "satclosed": true}, "latorre": {"sector": "inmo", "name": "Latorre Immobles", "short": "Latorre Immobles", "town": "Sabadell", "address": "Carrer de Latorre, 136, 08201 Sabadell", "phone": "+34 698 56 56 42", "rating": 4.8, "reviews": 141, "services": ["Compraventa", "Gestión integral de alquileres", "Alquiler por habitaciones"], "ask": null, "who": null, "facts": ["Más de 25 años de experiencia"], "satclosed": true}, "proddigia": {"sector": "inmo", "name": "Proddigia", "short": "Proddigia", "town": "Sant Cugat del Vallès", "address": "Av. de Rius i Taulet, 1, 08172 Sant Cugat del Vallès", "phone": "+34 935 89 45 36", "rating": 4.8, "reviews": 186, "services": ["Compraventa", "Alquiler", "Home staging"], "ask": null, "who": null, "facts": ["Oficinas en Barcelona y Sant Cugat"], "satclosed": true}, "catimmobles": {"sector": "inmo", "name": "Catimmobles", "short": "Catimmobles", "town": "Sant Cugat del Vallès", "address": "Rambla Mossèn Jacint Verdaguer, 6, 08197 Sant Cugat del Vallès", "phone": "+34 935 89 20 84", "rating": 4.9, "reviews": 137, "services": ["Compraventa", "Alquiler"], "ask": null, "who": null, "facts": [], "satclosed": false}, "dhabitat": {"sector": "inmo", "name": "D&Habitat", "short": "D&Habitat", "town": "Terrassa", "address": "L'Ametllera local, Carrer del Pla de l'Ametllera, 100, 08225 Terrassa", "phone": "+34 931 70 41 89", "rating": 4.9, "reviews": 321, "services": ["Compraventa", "Alquiler", "Valoraciones", "Financiación"], "ask": null, "who": null, "facts": ["Oficinas en Terrassa y Rubí"], "satclosed": true}, "gerfincas": {"sector": "inmo", "name": "Gerfincas", "short": "Gerfincas", "town": "Terrassa", "address": "Plaça del Progrés, 42, 08224 Terrassa", "phone": "+34 937 88 50 94", "rating": 4.8, "reviews": 385, "services": ["Compraventa", "Alquiler", "Obra nueva"], "ask": null, "who": null, "facts": [], "satclosed": true}, "sbdimmobles": {"sector": "inmo", "name": "SBD Immobles", "short": "SBD Immobles", "town": "Sabadell", "address": "Av. Onze de Setembre, 22, 08208 Sabadell", "phone": "+34 937 45 18 12", "rating": 4.7, "reviews": 338, "services": ["Compraventa", "Alquiler"], "ask": null, "who": null, "facts": [], "satclosed": false}, "controlimmobles": {"sector": "inmo", "name": "Control Immobles", "short": "Control Immobles", "town": "Sabadell", "address": "Carrer de les Valls, 28, 2n5a, 08201 Sabadell", "phone": "+34 931 83 76 00", "rating": 4.9, "reviews": 195, "services": ["Compraventa", "Alquiler", "Tasación gratuita"], "ask": null, "who": null, "facts": ["En Sabadell desde 1998", "Agentes API colegiados"], "satclosed": true}, "onviure": {"sector": "inmo", "name": "On-viure", "short": "On-viure", "town": "Sant Cugat del Vallès", "address": "Av. Lluís Companys i Jover, 52, 08172 Sant Cugat del Vallès", "phone": "+34 936 74 77 76", "rating": 4.8, "reviews": 485, "services": ["Compraventa", "Alquiler"], "ask": null, "who": null, "facts": ["Más de 40 años de experiencia en Sant Cugat"], "satclosed": true}, "mesquefinques": {"sector": "inmo", "name": "Més Que Finques", "short": "Més Que Finques", "town": "Terrassa", "address": "Passeig del Vint-i-dos de Juliol, 512, 08222 Terrassa", "phone": "+34 936 88 60 65", "rating": 4.7, "reviews": 454, "services": ["Compraventa", "Alquiler", "Gestión de venta"], "ask": null, "who": null, "facts": [], "satclosed": true}, "inmobity": {"sector": "inmo", "name": "Inmobity", "short": "Inmobity", "town": "Sabadell", "address": "Av. de Francesc Macià, 30, 2º 4ª, 08208 Sabadell", "phone": "+34 932 80 96 69", "rating": 5.0, "reviews": 101, "services": ["Compraventa", "Valoración gratuita"], "ask": null, "who": null, "facts": [], "satclosed": false}, "ladolcevita": {"sector": "viaje", "name": "La Dolce Vita Travel", "short": "La Dolce Vita Travel", "town": "Sant Cugat del Vallès", "address": "Carrer de Costa i Llobera, 29, 08173 Sant Cugat del Vallès", "phone": "+34 936 74 32 76", "rating": 4.9, "reviews": 42, "services": ["Viajes a medida", "Listas de boda", "Luxury Travel Club", "Cruceros"], "ask": "Hola! Nos casamos en junio y queremos un viaje de novios de unas dos semanas. ¿Nos ayudáis?", "who": null, "facts": [], "satclosed": true}, "levitravel": {"sector": "viaje", "name": "Levi Travel", "short": "Levi Travel", "town": "Sabadell", "address": "Carrer d'Antoni Forrellad, 119, 08207 Sabadell", "phone": "+34 632 83 79 45", "rating": 4.9, "reviews": 70, "services": ["Paquetes y ofertas", "Cruceros", "Excursiones por España y Europa"], "ask": "Hola! Hemos visto ofertas al Caribe con todo incluido. Somos 2 adultos y 2 niños, ¿qué nos recomendáis para Semana Santa?", "who": null, "facts": [], "satclosed": true}, "sbdtravel": {"sector": "viaje", "name": "SBD Travel", "short": "SBD Travel", "town": "Sabadell", "address": "Carrer de l'Estrella, 163 bis, 08201 Sabadell", "phone": "+34 937 45 15 05", "rating": 5.0, "reviews": 15, "services": ["Viajes a medida", "Cruceros", "Viajes para seniors", "Viajes de empresa"], "ask": "Hola! Queremos hacer un crucero por el Mediterráneo el verano que viene, somos una pareja de jubilados. ¿Qué opciones hay?", "who": null, "facts": ["Más de 55 años como especialistas en viajes"], "satclosed": true}, "xaluca": {"sector": "viaje", "name": "Xaluca Tours", "short": "Xaluca Tours", "town": "Sabadell", "address": "Carrer de Latorre, 52, 08201 Sabadell", "phone": "+34 937 26 83 66", "rating": 4.9, "reviews": 284, "services": ["Viajes a medida por Marruecos", "Circuitos en 4x4", "Salidas especiales"], "ask": "Hola! Queremos ir a Marruecos y dormir en el desierto. Somos 4 amigos, ¿cómo lo organizamos?", "who": null, "facts": ["Más de 30 años creando viajes por Marruecos"], "satclosed": true}, "kareba": {"sector": "viaje", "name": "Kareba Viatges", "short": "Kareba Viatges", "town": "Sabadell", "address": "Ronda de Ponent, 80, 08201 Sabadell", "phone": "+34 937 15 66 59", "rating": 4.9, "reviews": 456, "services": ["Viajes a medida", "Viajes en grupo", "Lunas de miel", "Aventura"], "ask": "Hola! Me interesa Japón en otoño. ¿Todavía hay plazas para la salida de noviembre?", "who": null, "facts": [], "satclosed": true}, "atlantida": {"sector": "viaje", "name": "Atlantida Travel", "short": "Atlantida Travel", "town": "Sabadell", "address": "Carrer de Gràcia, 185, 08201 Sabadell", "phone": "+34 937 15 69 73", "rating": 4.8, "reviews": 47, "services": ["Viajes exclusivos a medida", "Lunas de miel", "Viajes en grupo"], "ask": "Hola! Queremos un viaje especial por nuestro aniversario, algo tipo Polinesia. ¿Cómo funciona?", "who": null, "facts": [], "satclosed": true}, "drmiquelno": {"sector": "clinica", "name": "Dr. Miquel No · Cirugía Plástica", "short": "la consulta del Dr. Miquel No", "town": "Sabadell", "address": "Quirón Vallès, Passeig de Rubió i Ors, 23, 1ª, 08203 Sabadell", "phone": "+34 690 70 79 06", "rating": 4.9, "reviews": 202, "services": ["Cirugía de pecho", "Cirugía corporal", "Cirugía facial"], "ask": "Hola, estoy pensando en un aumento de pecho. ¿Cuánto cuesta más o menos?", "who": "el doctor", "facts": ["Consulta en Quirón Vallès, Sabadell"], "satclosed": true}, "alejandraluna": {"sector": "clinica", "name": "Dra. Alejandra Luna", "short": "la consulta de la Dra. Alejandra Luna", "town": "Sant Cugat del Vallès", "address": "Av. de Rius i Taulet, 2, 1-1, 08172 Sant Cugat del Vallès", "phone": "+34 930 13 00 13", "rating": 4.9, "reviews": 70, "services": ["Rejuvenecimiento facial", "Lifting sin cirugía", "Relleno de ojeras", "Tratamientos corporales"], "ask": "Hola! Tengo ojeras muy marcadas, ¿qué tratamiento me recomendáis y qué precio tiene?", "who": "la doctora", "facts": ["Valoración médica antes de cada tratamiento"], "satclosed": true}, "clinicavega": {"sector": "clinica", "name": "Clínica Vega", "short": "Clínica Vega", "town": "Terrassa", "address": "Carrer de Sant Tomàs, 12, 08222 Terrassa", "phone": "+34 937 86 01 57", "rating": 4.4, "reviews": 101, "services": ["Medicina estética facial y corporal", "Cirugía estética", "Depilación láser", "Tratamientos capilares"], "ask": "Hola, me interesa el microinjerto capilar. ¿Cómo funciona y cuánto cuesta?", "who": "el equipo médico", "facts": ["Desde 1986 en Terrassa", "Primera consulta informativa gratuita"], "satclosed": true}, "elixium": {"sector": "clinica", "name": "Elixium Clinic", "short": "Elixium Clinic", "town": "Sabadell", "address": "Carrer de Sant Antoni Maria Claret, 1, 3a, 08202 Sabadell", "phone": "+34 653 97 05 85", "rating": 4.9, "reviews": 315, "services": ["Medicina estética", "Cirugía plástica", "Estética avanzada", "Podología avanzada"], "ask": "Hola! Quería información sobre rellenos de labios, ¿qué precio tiene?", "who": "el equipo médico", "facts": ["Más de 1.000 pacientes"], "satclosed": true}, "cimed": {"sector": "clinica", "name": "Institución CIMED", "short": "Institución CIMED", "town": "Rubí", "address": "Carrer d'Antoni de Borja, 15, 08191 Rubí", "phone": "+34 679 23 94 28", "rating": 4.9, "reviews": 34, "services": ["Medicina estética", "Cirugía facial", "Cirugía corporal"], "ask": "Hola, estoy pensando en una blefaroplastia. ¿Cuánto cuesta y cuánto tarda la recuperación?", "who": "el equipo médico", "facts": ["Más de 30 años de experiencia"], "satclosed": true}, "nelidagrande": {"sector": "clinica", "name": "Clínica Dra. Nélida Grande", "short": "la Clínica Dra. Nélida Grande", "town": "Sabadell", "address": "Carrer Pi i Margall, 43, 08208 Sabadell", "phone": "+34 937 16 95 25", "rating": 4.7, "reviews": 110, "services": ["Cirugía de mama", "Liposucción y abdominoplastia", "Medicina estética facial", "Plataforma láser"], "ask": "Hola, quería información sobre una liposucción. ¿Qué precio tiene?", "who": "la doctora", "facts": [], "satclosed": true}, "nuclinic": {"sector": "clinica", "name": "Nu Clinic", "short": "Nu Clinic", "town": "Sant Cugat del Vallès", "address": "Carretera Sant Cugat a Rubi 40-50, 2º 5º, 08173 Sant Cugat del Vallès", "phone": "+34 935 95 90 95", "rating": 4.7, "reviews": 67, "services": ["Medicina estética", "Cirugía estética"], "ask": "Hola! Quería saber qué tratamientos hacéis para la flacidez de la cara.", "who": "el equipo médico", "facts": [], "satclosed": true}, "bodystetic": {"sector": "clinica", "name": "Susana by bodyStetic", "short": "Susana by bodyStetic", "town": "Cerdanyola del Vallès", "address": "Carrer Bona-Sort, 18, 08290 Cerdanyola del Vallès", "phone": "+34 936 92 87 57", "rating": 4.9, "reviews": 94, "services": ["Medicina estética", "Estética avanzada"], "ask": "Hola! ¿Qué tratamiento tenéis para la celulitis y qué precio tiene?", "who": "el equipo", "facts": [], "satclosed": true}};
+const GENERIC = {
+  inmo:{sector:"inmo",name:"vuestra inmobiliaria",town:"vuestra ciudad",address:"",phone:"",services:["Compraventa","Alquiler"],facts:[],satclosed:true},
+  viaje:{sector:"viaje",name:"vuestra agencia",town:"vuestra ciudad",address:"",phone:"",services:["Viajes a medida"],facts:[],ask:"Hola! Queremos ir a Japón en abril, somos 2. ¿Nos preparáis algo?"},
+  clinica:{sector:"clinica",name:"vuestra clínica",town:"vuestra ciudad",address:"",phone:"",services:["Medicina estética"],facts:[],who:"el equipo médico",ask:"Hola! ¿Qué precio tiene un tratamiento para las ojeras?"}
+};
+function pick(){
+  let h=""; try{h=decodeURIComponent((location.hash||"").slice(1)).toLowerCase()}catch(e){}
+  if(DATA[h]) return DATA[h];
+  if(GENERIC[h]) return GENERIC[h];
+  return GENERIC.clinica;
+}
+const P = pick();
+const generic = !Object.values(DATA).includes(P);
+const N = P.name; const NS = P.short || P.name;
+const free = (P.facts||[]).some(f=>/gratuit/i.test(f));
+const capq=s=>{s=s.replace(/^Hola!?,?\s*/,"");return s.charAt(0).toUpperCase()+s.slice(1)};
+function scripts(){
+  if(P.sector==="inmo"){
+    const when = P.satclosed ? "Sábado" : "Hoy";
+    const t = P.satclosed ? ["11:20","11:20","11:21","11:21","11:22","11:22","11:23","11:23","11:23"] : ["21:48","21:48","21:49","21:49","21:50","21:50","21:51","21:51","21:51"];
+    return {
+      "Comprador":{day:when,times:t,msgs:[
+        ["in","Hola! He visto un piso vuestro en "+P.town+" en un portal, el de 3 habitaciones con terraza. ¿Sigue disponible?"],
+        ["out","¡Hola! 😊 Soy el asistente virtual de "+NS+". Ahora te ayudo. Para que un agente te confirme disponibilidad y te proponga visita, cuéntame: ¿lo buscas para vivir o para invertir?"],
+        ["in","Para vivir. Tengo la hipoteca preaprobada."],
+        ["out","¡Genial, eso lo agiliza mucho! ¿Qué días te irían bien para verlo?"],
+        ["in","Jueves o viernes por la tarde"],
+        ["out","Apuntado ✅ El equipo te escribe el próximo día laborable para confirmar disponibilidad y hora. ¿A nombre de quién lo dejo?"],
+        ["in","Laura"],
+        ["out","Gracias, Laura. Queda todo anotado para el equipo de "+N+". ¡Que tengas buen día! 🏡"]],
+        when: (P.satclosed?"Sábado 11:23 · con la oficina cerrada":"Hoy 21:51 · fuera de horario"),
+        sum:[["Tipo","Comprador"],["Nombre","Laura"],["Interés","Piso 3 hab. con terraza en "+P.town],["Financiación","Hipoteca preaprobada"],["Visita","Jueves o viernes por la tarde"],["Siguiente paso","Confirmar disponibilidad y hora"]]},
+      "Propietario":{day:when,times:t,msgs:[
+        ["in","Hola, estoy pensando en vender mi piso en "+P.town+". ¿Cuánto me podríais sacar?"],
+        ["out","¡Hola! Soy el asistente virtual de "+NS+" 😊 El precio lo da una valoración: un agente ve el piso y te dice cuánto pedir. Para prepararla, ¿me dices zona, metros y habitaciones?"],
+        ["in","Centro, unos 90 m², 3 habitaciones y ascensor"],
+        ["out","Muy buen punto de partida. ¿Tienes un plazo en mente para vender?"],
+        ["in","Me gustaría antes del verano"],
+        ["out","Entendido. ¿Prefieres que te llame un agente por la mañana o por la tarde para quedar y verlo?"],
+        ["in","Por la tarde. Soy Jordi"],
+        ["out","Perfecto, Jordi ✅ El equipo de "+NS+" te llama por la tarde para concretar la visita de valoración. ¡Gracias!"]],
+        when: (P.satclosed?"Sábado 11:23 · con la oficina cerrada":"Hoy 21:51 · fuera de horario"),
+        sum:[["Tipo","Propietario que quiere vender"],["Nombre","Jordi"],["Inmueble","Centro, 90 m², 3 hab., ascensor"],["Plazo","Antes del verano"],["Siguiente paso","Llamar por la tarde y quedar para valorar"]]}
+    };
+  }
+  if(P.sector==="viaje"){
+    const t=["23:05","23:05","23:06","23:06","23:07","23:07","23:08","23:08","23:08"];
+    return {"Consulta de viaje":{day:"Hoy",times:t,msgs:[
+      ["in",P.ask],
+      ["out","¡Hola! Soy el asistente virtual de "+NS+" ✈️ ¡Qué buen plan! Para que un agente os prepare una propuesta, cuéntame: ¿qué fechas tenéis en mente?"],
+      ["in","Más o menos flexibles, pero queremos cerrarlo pronto"],
+      ["out","Perfecto. ¿Tenéis un presupuesto aproximado por persona? Si no, el agente os propone varias opciones."],
+      ["in","Preferimos ver opciones"],
+      ["out","Sin problema. ¿Preferís que os llame un agente o pasar por la agencia en "+P.town+"?"],
+      ["in","Que nos llamen por la tarde. Soy Marc"],
+      ["out","¡Hecho, Marc! ✅ Mañana un agente de "+NS+" os llama por la tarde con ideas. ¡A empezar a soñar! 🌍"]],
+      when:"Hoy 23:08 · con la agencia cerrada",
+      sum:[["Nombre","Marc"],["Consulta","«"+capq(P.ask)+"»"],["Fechas","Flexibles, quiere cerrarlo pronto"],["Presupuesto","Ver varias opciones"],["Siguiente paso","Llamar mañana por la tarde"]]}};
+  }
+  const who=P.who||"el equipo médico";
+  const t=["22:14","22:14","22:15","22:15","22:16","22:16","22:17","22:17","22:17"];
+  return {"Consulta de paciente":{day:"Hoy",times:t,msgs:[
+    ["in",P.ask],
+    ["out","¡Hola! Soy el asistente virtual de "+NS+" 😊 El precio depende de cada caso: "+who+" lo valora en una primera visita y ahí te da el presupuesto."+(free?" La primera consulta informativa es gratuita.":"")+" ¿Quieres que te reserve esa valoración?"],
+    ["in","Sí. ¿Cómo es esa primera visita?"],
+    ["out","Es una consulta en la que "+who+" revisa tu caso, resuelve tus dudas y te explica las opciones, sin prisas."],
+    ["in","Vale. ¿Tenéis algo la semana que viene por la tarde?"],
+    ["out","Le paso tu petición al equipo para que te confirme día y hora ✅ ¿Me dices tu nombre?"],
+    ["in","Marta"],
+    ["out","Gracias, Marta. Mañana te escriben para cerrar la cita. Un consejo: no compartas datos médicos por aquí, eso lo hablas en consulta 🌸"]],
+    when:"Hoy 22:17 · con la clínica cerrada",
+    sum:[["Nombre","Marta"],["Consulta","«"+capq(P.ask)+"»"],["Quiere","Primera visita de valoración"],["Disponibilidad","Tardes, la semana que viene"],["Siguiente paso","Confirmar día y hora"]]}};
+}
+const S = scripts();
+let current = Object.keys(S)[0];
+const $=id=>document.getElementById(id);
+const initials = N.replace(/^(Dr\.|Dra\.|Clínica|vuestra|vuestro)\s*/i,"").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"HE";
+document.title = generic ? "Asistente HE Signal" : "Asistente para "+N;
+$("h1name").textContent = generic ? "vuestro" : "el";
+$("h1").innerHTML = generic ? 'Así contestaría <em>vuestro</em> asistente de WhatsApp' : 'Así contestaría el asistente de WhatsApp de <em></em>';
+if(!generic) $("h1").querySelector("em").textContent = N;
+const leads = {
+  inmo:"Mensajes que llegan por la noche o en fin de semana, desde portales, la web o Instagram. El asistente contesta al momento, pregunta lo que el agente necesita saber y deja la visita o la valoración lista para el equipo.",
+  viaje:"La gente sueña su próximo viaje por la noche, desde el sofá. El asistente contesta al momento, recoge fechas, presupuesto y preferencias, y el agente empieza el día con la propuesta medio hecha.",
+  clinica:"Las preguntas de precio llegan de noche y desde Instagram. El asistente responde con criterio, sin dar precios a ciegas, y convierte la duda en una primera visita de valoración."
+};
+$("lead").textContent = leads[P.sector];
+$("note").textContent = (P.sector==="inmo"&&P.satclosed&&!generic) ? "Según Google, "+N+" cierra los sábados. Justo cuando mucha gente mira pisos, nadie contesta hasta el lunes." : "El asistente nunca se hace pasar por una persona: se presenta como asistente virtual y pasa al equipo lo que necesita a alguien.";
+$("factsTitle").textContent = generic ? "Lo que sabría el asistente" : "Lo que sabe el asistente de "+N;
+const rows=[];
+if(P.address) rows.push(["Dirección",P.address]);
+if(P.phone) rows.push(["Teléfono",P.phone]);
+if(P.rating) rows.push(["Google",P.rating.toLocaleString("es-ES")+" ★ · "+P.reviews+" reseñas"]);
+(P.facts||[]).forEach(f=>rows.push(["Dato",f]));
+const dl=$("facts");
+rows.forEach(([k,v])=>{const dt=document.createElement("dt");dt.textContent=k;const dd=document.createElement("dd");dd.textContent=v;dl.append(dt,dd)});
+const dt=document.createElement("dt");dt.textContent="Servicios";const dd=document.createElement("dd");const c=document.createElement("div");c.className="chips";
+P.services.forEach(s=>{const sp=document.createElement("span");sp.className="chip";sp.textContent=s;c.append(sp)});dd.append(c);dl.append(dt,dd);
+$("waName").textContent = generic ? "Tu negocio" : N; $("av").textContent=initials;
+const tabs=$("tabs");
+if(Object.keys(S).length>1){tabs.hidden=false;Object.keys(S).forEach(k=>{const b=document.createElement("button");b.type="button";b.className="tab";b.textContent=k;b.setAttribute("role","tab");b.setAttribute("aria-selected",k===current);b.onclick=()=>{current=k;[...tabs.children].forEach(x=>x.setAttribute("aria-selected",x===b));render(false)};tabs.append(b)})}
+let timer=null;
+function bubble(m,i,anim){const s=S[current];const d=document.createElement("div");d.className="msg "+m[0]+(anim?" pop":"");
+  if(m[0]==="out"){const w=document.createElement("span");w.className="who";w.textContent="Asistente virtual";d.append(w)}
+  d.append(document.createTextNode(m[1]));const tm=document.createElement("time");tm.textContent=s.times[i]||"";d.append(tm);return d}
+function render(live){
+  clearTimeout(timer);const s=S[current];const chat=$("chat");chat.innerHTML="";
+  const day=document.createElement("div");day.className="day";day.textContent=s.day;chat.append(day);
+  $("sumWhen").textContent="Recibido "+s.when.charAt(0).toLowerCase()+s.when.slice(1);
+  const ul=$("summary");ul.innerHTML="";s.sum.forEach(([k,v])=>{const li=document.createElement("li");const a=document.createElement("span");a.textContent=k;const b=document.createElement("span");b.textContent=v;li.append(a,b);ul.append(li)});
+  const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(!live||reduce){s.msgs.forEach((m,i)=>chat.append(bubble(m,i,false)));return}
+  let i=0;
+  const step=()=>{if(i>=s.msgs.length)return;const m=s.msgs[i];
+    if(m[0]==="out"){const ty=document.createElement("div");ty.className="typing";ty.innerHTML="<i></i><i></i><i></i>";chat.append(ty);chat.scrollTop=chat.scrollHeight;
+      timer=setTimeout(()=>{ty.remove();chat.append(bubble(m,i,true));chat.scrollTop=chat.scrollHeight;i++;timer=setTimeout(step,900)},1100)}
+    else{chat.append(bubble(m,i,true));chat.scrollTop=chat.scrollHeight;i++;timer=setTimeout(step,1200)}};
+  step();
+}
+$("replay").onclick=()=>render(true);
+render(false);
+window.addEventListener("hashchange",()=>location.reload());
+</script>
+
+</body>
+</html>
