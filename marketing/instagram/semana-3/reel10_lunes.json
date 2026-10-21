@@ -1,0 +1,9 @@
+{"duration": 12, "cover": 0, "items": [
+{"type": "text", "cls": "big", "top": 170, "at": 0, "until": 6.8, "text": "Lunes, 9:00.<br><span class='acc'>Abres el WhatsApp.</span>"},
+{"type": "text", "cls": "notif", "top": 560, "at": 0, "until": 6.8, "text": "<b>Laura</b><i>sáb 22:14</i><br>¿Hay clase de prueba?"},
+{"type": "text", "cls": "notif", "top": 760, "at": 0.9, "until": 6.8, "text": "<b>Marc</b><i>sáb 23:40</i><br>¿Precio del ilimitado?"},
+{"type": "text", "cls": "notif", "top": 960, "at": 1.8, "until": 6.8, "text": "<b>Andrea</b><i>dom 10:05</i><br>Hola!! ¿Seguís teniendo plazas?"},
+{"type": "text", "cls": "notif", "top": 1160, "at": 2.9, "until": 6.8, "text": "<b>Pablo</b><i>dom 21:30</i><br>Al final me apunto en otro sitio, gracias"},
+{"type": "text", "cls": "big", "top": 480, "at": 7.1, "text": "¿Cuántos se fueron <span class='acc'>mientras esperaban?</span>"},
+{"type": "text", "cls": "tag", "top": 1000, "at": 9.0, "pop": true, "text": "Cómo evitarlo: enlace en la bio"}
+]}

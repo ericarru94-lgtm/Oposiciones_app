@@ -53,7 +53,8 @@ const ease=x=>1-Math.pow(1-Math.min(Math.max(x,0),1),3);
 window.render=t=>{
   document.getElementById('bar').style.width=(t/S.duration*100)+'%';
   for(const [it,e] of els){
-    const a=ease((t-it.at)/0.45);
+    // lo que empieza en 0 se ve desde el primer fotograma (el gancho no puede salir en blanco)
+    const a=it.at<=0?1:ease((t-it.at)/0.45);
     const out=it.until!==undefined?ease((t-it.until)/0.35):0;
     const o=a*(1-out);
     e.style.opacity=o;

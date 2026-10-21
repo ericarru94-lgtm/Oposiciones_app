@@ -1,0 +1,8 @@
+{"duration": 14, "cover": 0, "items": [
+{"type": "text", "cls": "big", "top": 300, "at": 0, "until": 3.6, "text": "Esta respuesta <span class='acc'>te hace perder clientes:</span>"},
+{"type": "text", "cls": "notif", "top": 800, "at": 0, "until": 3.6, "text": "<b>Tu gimnasio</b><i>22:41</i><br>«Te paso la info por privado» ❌"},
+{"type": "text", "cls": "small", "top": 330, "at": 3.8, "until": 9.8, "text": "Quien pregunta el precio quiere decidir <span class='acc'>ahora</span>."},
+{"type": "text", "cls": "notif", "top": 620, "at": 5.0, "until": 9.8, "text": "<b>Mejor así</b><i>22:41</i><br>«Son 65 €/mes y la primera clase es gratis. ¿Te va el martes o el jueves?» ✅"},
+{"type": "text", "cls": "big", "top": 500, "at": 10.0, "text": "Precio, gancho y <span class='acc'>siguiente paso.</span>"},
+{"type": "text", "cls": "tag", "top": 1000, "at": 11.4, "pop": true, "text": "Guárdalo para tu equipo"}
+]}

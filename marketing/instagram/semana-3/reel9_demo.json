@@ -1,0 +1,13 @@
+{"duration": 13.5, "cover": 0, "items": [
+{"type": "text", "cls": "big", "top": 150, "at": 0, "until": 9.6, "text": "23:58.<br><span class='acc'>Respuesta en 2 s.</span>"},
+{"type": "phone", "at": 0, "until": 9.6, "initials": "BN", "name": "Box Norte"},
+{"type": "out", "at": 0, "text": "¿Precio? ¿Y hay clase de prueba?", "time": "23:58"},
+{"type": "typing", "at": 0.9, "until": 1.7},
+{"type": "in", "at": 1.9, "text": "Con 2 días a la semana son 65 €/mes. Y la primera clase es gratis 💪", "time": "23:58"},
+{"type": "in", "at": 3.6, "text": "¿Te va bien el martes a las 19:00?", "time": "23:58"},
+{"type": "out", "at": 5.4, "text": "Sí!", "time": "23:59"},
+{"type": "in", "at": 6.6, "text": "Hecho ✅ Te escribo el día antes para recordártelo.", "time": "23:59"},
+{"type": "text", "cls": "big", "top": 500, "at": 9.9, "text": "Pruébalo tú <span class='acc'>con preguntas reales.</span>"},
+{"type": "text", "cls": "tag", "top": 1000, "at": 11.0, "pop": true, "text": "Demo gratis: enlace en la bio"},
+{"type": "text", "cls": "small", "top": 1140, "at": 11.3, "text": "<span style='font-size:30px'>Conversación de demostración</span>"}
+]}

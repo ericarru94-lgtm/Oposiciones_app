@@ -1,0 +1,8 @@
+{"duration": 13, "cover": 0, "items": [
+{"type": "text", "cls": "big", "top": 440, "at": 0, "until": 3.2, "text": "Coge el móvil.<br><span class='acc'>Escribe a tu gimnasio.</span>"},
+{"type": "text", "cls": "step", "top": 400, "at": 3.4, "until": 9.2, "text": "<span class='acc'>1.</span> Pregunta: «¿Cuánto cuesta?»"},
+{"type": "text", "cls": "step", "top": 640, "at": 4.8, "until": 9.2, "text": "<span class='acc'>2.</span> Pon el cronómetro."},
+{"type": "text", "cls": "step", "top": 880, "at": 6.2, "until": 9.2, "text": "<span class='acc'>3.</span> Espera la respuesta."},
+{"type": "text", "cls": "big", "top": 500, "at": 9.4, "text": "Eso espera <span class='acc'>cada cliente nuevo.</span>"},
+{"type": "text", "cls": "tag", "top": 1040, "at": 10.6, "pop": true, "text": "Cómo sería en 2 segundos: enlace en la bio"}
+]}
