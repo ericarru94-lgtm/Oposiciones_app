@@ -41,6 +41,13 @@
 - **Metricool (programado 17/10, todo como REEL)**: dom 18 19:00 pieza 1 · lun 19 19:30 «haz esta prueba» · mar 20 19:30 pieza 2 · mié 21 19:30 autoescuela · jue 22 19:30 pieza 3 · vie 23 19:30 academia · sáb 24 11:00 carrusel pieza 4.
 - La hoja de prospección tiene ya las columnas del experimento (S variante A/B, T motivo de pérdida).
 
+## Instagram semana 3 (programado 21/10)
+- Datos hasta el 21/10: dom 11 «No lo perdiste por precio» 111 vistas (2,0 s medio); dom 18 «22:47» 27 vistas (3,4 s); **lun 19 «Haz esta prueba» 59 vistas, 4,5 s, 22 % pasa de 3 s (el mejor)**; mar 20 demo 11 vistas pero 2 compartidos. 0 seguidores.
+- **Fallo encontrado y arreglado**: el primer fotograma de todos los reels salía en blanco (la plantilla hacía aparecer el texto poco a poco). `render.js` ahora muestra desde el fotograma 0 todo lo que tiene `at: 0`. Regla: el gancho siempre con `at: 0`.
+- El usuario **no quiere** hacer pruebas de cliente misterioso ni mandar mensajes a centros. Trabajar solo Instagram y la web.
+- Programado (REEL, 18:00, la mejor hora según Metricool): dom 25 reel7 reto · lun 26 reel9 demo en 2 s · mié 28 reel8 respuesta mal/bien · vie 30 reel10 lunes 9:00. Archivos en `instagram/semana-3/`. Llamada a la acción: «demo en el enlace de la bio» (la bio debe apuntar a /demo; /boxes ya redirige a /demo).
+- Revisión prevista: sábado 31/10, ver datos y preparar la semana 4.
+
 ## Próximos pasos previstos
 - Lunes 19/10: el usuario pasa la hoja rellenada y las reproducciones de los 3 reels → auditoría (`/ig-audit`) y plan de semana 3.
 - Redactar los DMs personalizados con los resultados de cada prueba.
