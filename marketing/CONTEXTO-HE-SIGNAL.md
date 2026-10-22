@@ -46,6 +46,7 @@
 - **Fallo encontrado y arreglado**: el primer fotograma de todos los reels salía en blanco (la plantilla hacía aparecer el texto poco a poco). `render.js` ahora muestra desde el fotograma 0 todo lo que tiene `at: 0`. Regla: el gancho siempre con `at: 0`.
 - El usuario **no quiere** hacer pruebas de cliente misterioso ni mandar mensajes a centros. Trabajar solo Instagram y la web.
 - Programado (REEL, 18:00, la mejor hora según Metricool): dom 25 reel7 reto · lun 26 reel9 demo en 2 s · mié 28 reel8 respuesta mal/bien · vie 30 reel10 lunes 9:00. Archivos en `instagram/semana-3/`. Llamada a la acción: «demo en el enlace de la bio» (la bio debe apuntar a /demo; /boxes ya redirige a /demo).
+- **Portadas (22/10)**: cada reel lleva una portada propia diseñada (no el primer fotograma), serie «CHATBOTS · Nº xx» con logo, etiqueta, titular grande y una ilustración. Generador: `instagram/plantilla/portadas.js`; archivos en `instagram/portadas/`. Se pasan a Metricool en `videoThumbnailUrl`. Regla: todo reel nuevo, con portada propia.
 - Revisión prevista: sábado 31/10, ver datos y preparar la semana 4.
 
 ## Próximos pasos previstos
