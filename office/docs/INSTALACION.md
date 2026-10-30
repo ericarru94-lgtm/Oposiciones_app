@@ -28,7 +28,7 @@ cd office && npm install && npm run dev   # http://localhost:3000
 ```
 
 ## Usarla desde el móvil
-Hace falta publicarla. Opción gratuita para uso personal: Vercel Hobby, nuevo proyecto desde este repositorio con **Root Directory = `office`** y las variables de arriba.
+Publicada en **https://he-signal-office.vercel.app** (Vercel Hobby, proyecto `he-signal-office`, Root Directory `office`). Las variables de entorno ya están configuradas en Vercel.
 
 ## Notas del plan gratuito
 - Supabase Free pausa el proyecto tras 7 días sin uso; se reactiva desde el panel con un clic.

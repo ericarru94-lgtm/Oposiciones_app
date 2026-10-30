@@ -33,7 +33,7 @@ Próximo: chatbot de muestra para enseñar a clientes y reel para anuncio pagado
 ## 5. HE SIGNAL AI OFFICE · oficina virtual de agentes de IA (chat «AI Office»)
 - Carpeta `office/` de este repositorio (app independiente: Next.js 16 + Supabase + Claude). Rama `ccr-30b91845-834xuv`.
 - Nueve empleados de IA (Alex CEO, Marcus, Sofia, Daniel, Lucia, David, Emma, Oscar, Victoria) con permisos: toda acción externa, gasto, producción o borrado requiere aprobación del administrador.
-- **Estado (30/10)**: fase 1 terminada (30 pruebas). Uso personal y gratuito. Supabase creado: proyecto `he-signal-office` (`bgptbtmyhtobqohkoeyd`, plan Free, Irlanda) con migraciones y seed; admin permitido `hesignalagency@gmail.com`. Cuenta de administrador creada y vinculada (30/10). Pendiente: publicar en Vercel (proyecto `he-signal-office`, cuenta personal Hobby) y revisión externa con ChatGPT (`office/docs/RESUMEN-REVISION.md`) antes de la fase 2. Siguiente: fase 2, oficina 3D.
+- **Estado (30/10)**: fase 1 terminada (30 pruebas). Uso personal y gratuito. Supabase creado: proyecto `he-signal-office` (`bgptbtmyhtobqohkoeyd`, plan Free, Irlanda) con migraciones y seed; admin permitido `hesignalagency@gmail.com`. Cuenta de administrador creada y vinculada (30/10). Publicada en **https://he-signal-office.vercel.app** (Vercel Hobby, proyecto `he-signal-office`, Root Directory `office`, producción desplegada desde la rama `ccr-30b91845-834xuv` con la herramienta de Vercel). Pendiente: revisión externa con ChatGPT (`office/docs/RESUMEN-REVISION.md`) antes de la fase 2. Siguiente: fase 2, oficina 3D.
 
 ---
 
