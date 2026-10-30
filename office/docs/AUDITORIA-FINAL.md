@@ -63,8 +63,12 @@ Limitaciones por proveedor (para cuando se conecten):
 
 ## 5. Veredicto
 
-**APTO CON CONDICIONES** para conectar la API de Claude y empezar el piloto:
+**APTO CON CONDICIONES** para conectar la API de Claude y empezar el piloto (condición 1 cumplida el 30/10, ver §6):
 
 1. Aplicar `0005` en producción (sin operaciones destructivas) — necesita tu autorización.
 2. Fijar un tope de gasto en la consola de Anthropic y un límite mensual en la oficina antes de la primera ejecución.
 3. Recomendado: activar la protección de contraseñas filtradas en Supabase Auth si tu plan lo permite.
+
+## 6. Aplicación de 0005 en producción (30/10/2026)
+
+Aplicada con autorización del administrador (`hardening_idempotency`). Verificado en Supabase real: `anon` sin ningún privilegio sobre tablas, vistas ni funciones; `authenticated` sin TRUNCATE/REFERENCES/TRIGGER y solo puede ejecutar `ai_budget_status`, `decide_approval` e `is_admin`; 4 funciones SECURITY DEFINER; todas las tablas con RLS; `tool_executions` solo escribible por el motor. Avisos del asesor: los dos intencionados y la protección de contraseñas filtradas (pendiente en el panel).
