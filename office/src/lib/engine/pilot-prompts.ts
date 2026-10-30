@@ -6,7 +6,7 @@
 
 import type { AgentDefinition } from "../agents/registry";
 import { composeSystemPrompt } from "../agents/prompts";
-import type { DocumentSummary, RelatedTask, TaskRow } from "./store";
+import type { DocumentSummary, MissionCompany, RelatedTask, TaskRow } from "./store";
 
 const PILOT_COMMON = `Modo piloto de la oficina:
 - Todo lo que produces es un BORRADOR interno. No hay herramientas para contactar, enviar, publicar, lanzar campañas ni gastar: no las pidas ni digas que lo has hecho.
@@ -18,8 +18,10 @@ const PILOT_GUIDES: Record<string, string> = {
 
 Tu papel en el piloto: coordinar a Marcus (investigación comercial y CRM) y Sofia (estrategia de marketing). Eres el único que delega. La misión tiene un presupuesto de 1 $ y un máximo de 5 empresas: pide a Marcus como mucho 5.
 - Fase de planificación: lee la memoria, prepara un plan breve y delega con «tasks__delegate» una subtarea clara para cada agente (qué entregar, criterios, límites). Si Sofia necesita los resultados de Marcus, indica el task_id de Marcus en depends_on. Cuando hayas delegado, explica el plan en texto y termina tu turno sin herramientas: el sistema te despertará cuando el equipo termine.
-- Fase de síntesis: revisa lo que entregó cada agente. Comprueba que los datos tienen fuente y que no hay cifras inventadas. Si falta algo imprescindible puedes pedir UNA corrección (una nueva subtarea concreta); si no, redacta el informe final.
-- Nunca inventes resultados del equipo: usa solo lo que aparece en sus entregas. Si una subtarea falló, dilo y valora su impacto.
+- Si la misión parte de fichas ya existentes del CRM, pide a Marcus que COMPLETE solo lo pendiente de esas fichas (sin volver a investigar lo verificado ni crear duplicados) y a Sofia que trabaje con ellas aunque Marcus falle.
+- Fase de síntesis: revisa lo que entregó cada agente y la sección «FICHAS DEL CRM DE LA MISIÓN». Comprueba que los datos tienen fuente y que no hay cifras inventadas. Si falta algo imprescindible puedes pedir UNA corrección (una nueva subtarea concreta); si no, redacta el informe final.
+- Nunca inventes resultados del equipo: usa solo sus entregas y las fichas del CRM de la misión (son datos reales con fuente aunque la subtarea que las creó haya fallado).
+- Distingue siempre: subtarea FALLIDA (error; puede haber dejado fichas o documentos) y subtarea COMPLETADA SIN RESULTADOS (terminó bien pero no aportó nada). Nunca digas que no hay empresas identificadas si la sección de fichas tiene alguna.
 - El informe final es tu respuesta de texto (se guarda solo). Debe estar priorizado: mejores oportunidades primero, con su motivo y su fuente, y un plan de actuación con lo que requiere aprobación del administrador.`,
   marcus: `${PILOT_COMMON}
 
@@ -30,12 +32,14 @@ Reglas de investigación (obligatorias):
 - Si dos fuentes se contradicen, indícalo y cita ambas.
 - No crees contactos personales en el CRM ni guardes emails. Solo fichas de empresa con datos públicos.
 - Antes de crear fichas, consulta el CRM («crm__read») para no duplicar.
-- Límites de la misión: como máximo 5 empresas (el sistema rechaza la sexta ficha) y unas 15 búsquedas web en total. Prioriza calidad: 5 empresas bien documentadas valen más que 20 dudosas.
+- Si te llegan fichas existentes de la misión: NO investigues de nuevo lo que ya está VERIFICADO con fuente. Completa solo lo PENDIENTE con «crm__write» indicando su company_id y una versión completa y actualizada de notes (VERIFICADO / ESTIMADO / PENDIENTE). No crees fichas nuevas de empresas que ya existen.
+- Límites de la misión: como máximo 5 empresas EN TOTAL, contando las fichas reutilizadas (el sistema rechaza el exceso), y unas 15 búsquedas web. Prioriza calidad.
+- En cada turno solo tienes UNA herramienta web disponible (búsqueda o lectura de una URL); se alternan entre turnos. Planifica en consecuencia.
 - Guarda una ficha comercial por empresa con «content__draft» (kind client_file) o un único informe con todas, y termina con un resumen de lo encontrado.`,
   sofia: `${PILOT_COMMON}
 
 Reglas de estrategia (obligatorias):
-- Trabaja con los resultados de Marcus que te llegan en el mensaje y con la memoria. No tienes acceso a internet: no cites fuentes que no aparezcan ahí.
+- Trabaja con las fichas del CRM de la misión, los resultados de Marcus que te llegan en el mensaje y la memoria. Si la subtarea de Marcus falló, trabaja igualmente con las fichas que existan. No tienes acceso a internet: no cites fuentes que no aparezcan ahí.
 - Separa siempre PREVISIÓN (hipótesis, estimación) de RESULTADO REAL (dato que ya existe en la memoria o en las fichas). Nunca presentes una previsión como resultado.
 - Los presupuestos son estimaciones: indica de qué supuestos salen.
 - Cualquier campaña o gasto es una propuesta para aprobación; no se ejecuta nada.
@@ -53,18 +57,41 @@ function today(now: Date): string {
 
 const clip = (s: string | null | undefined, n: number) => (!s ? "" : s.length > n ? `${s.slice(0, n)}\n…(recortado)` : s);
 
-function teamSection(children: RelatedTask[], docs: DocumentSummary[], perDoc: number): string {
+function teamSection(children: RelatedTask[], docs: DocumentSummary[], companies: MissionCompany[], perDoc: number): string {
   return children
     .map((c) => {
       const own = docs.filter((d) => d.task_id === c.id);
+      const fichas = companies.filter((x) => x.created_in_task === c.id).length;
+      const counts = `Documentos: ${own.length} · fichas del CRM creadas: ${fichas}`;
+      const noText = !(c.result ?? "").trim() || c.result?.trim() === "(Sin texto de respuesta.)";
+      const empty = c.status === "completed" && own.length === 0 && fichas === 0 && noText;
       const body =
         c.status === "completed"
-          ? `Resultado:\n${clip(c.result, 6000)}`
-          : `ESTADO: ${c.status}. Error: ${c.error ?? "sin detalle"}`;
+          ? `ESTADO: ${empty ? "COMPLETADA SIN RESULTADOS" : "COMPLETADA"}. ${counts}.\nResultado:\n${clip(c.result, 6000) || "(sin texto)"}`
+          : c.status === "failed"
+            ? `ESTADO: FALLIDA. Motivo: ${c.error ?? "sin detalle"}. ${counts} (antes del fallo; ver «FICHAS DEL CRM DE LA MISIÓN»).`
+            : `ESTADO: ${c.status}. ${counts}.`;
       const attached = own.map((d) => `#### Documento «${d.title}» (${d.kind})\n${clip(d.content, perDoc)}`).join("\n\n");
       return `### ${c.agent_id} · ${c.title} (task_id ${c.id})\n${body}${attached ? `\n\n${attached}` : ""}`;
     })
     .join("\n\n");
+}
+
+/** Fichas completas: ID, empresa, fuentes, verificado, estimado y pendiente (están en need_detected y notes). */
+export function companiesSection(companies: MissionCompany[], reuseIds: string[]): string {
+  if (companies.length === 0) return "FICHAS DEL CRM DE LA MISIÓN (0): todavía no hay ninguna.";
+  const items = companies.map((x) => {
+    const origin = reuseIds.includes(x.id) ? "reutilizada de una misión anterior" : `creada en esta misión por ${x.created_by}`;
+    return [
+      `### ${x.name} · ${x.city ?? "sin ciudad"} (id ${x.id}) · ${origin}`,
+      `Web: ${x.website ?? "—"} · Instagram: ${x.instagram ?? "—"} · Teléfono: ${x.phone ?? "—"}`,
+      `Necesidad detectada: ${x.need_detected ?? "—"}`,
+      x.recommended_service ? `Servicio recomendado: ${x.recommended_service}` : "",
+      x.notes ? `Notas (verificado / estimado / pendiente): ${x.notes}` : "",
+      `Fuentes: ${x.source}`,
+    ].filter(Boolean).join("\n");
+  });
+  return `FICHAS DEL CRM DE LA MISIÓN (${companies.length}):\n\n${items.join("\n\n")}`;
 }
 
 export interface PromptContext {
@@ -72,22 +99,35 @@ export interface PromptContext {
   children: RelatedTask[];
   dependencies: RelatedTask[];
   documents: DocumentSummary[];
+  /** Fichas del CRM de la misión (creadas en ella + reutilizadas). */
+  companies?: MissionCompany[];
+  reuseIds?: string[];
+  maxCompanies?: number;
   now?: Date;
 }
 
 export function initialPrompt(c: PromptContext): string {
   const { task } = c;
   const date = `Fecha de hoy: ${today(c.now ?? new Date())}.`;
+  const companies = c.companies ?? [];
+  const reuse = c.reuseIds ?? [];
+  const max = c.maxCompanies ?? 5;
+  const fichas = companiesSection(companies, reuse);
+  const quota = `Tope de la misión: ${max} empresas en total; ya hay ${companies.length}${reuse.length ? ` (${reuse.length} reutilizadas)` : ""}.`;
+
   if (task.input.kind === "mission" && task.input.phase === "synthesis") {
-    return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}\n\nTu plan anterior:\n${clip(task.result, 4000)}\n\nENTREGAS DEL EQUIPO:\n\n${teamSection(c.children, c.documents, 12_000)}\n\nRevisa las entregas. Si falta algo imprescindible y todavía puedes, delega UNA corrección concreta y termina tu turno. Si no, escribe ahora el informe final priorizado (será tu respuesta).`;
+    return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}\n\nTu plan anterior:\n${clip(task.result, 4000)}\n\nENTREGAS DEL EQUIPO:\n\n${teamSection(c.children, c.documents, companies, 12_000)}\n\n${fichas}\n\nRevisa las entregas y las fichas. Si falta algo imprescindible y todavía puedes, delega UNA corrección concreta y termina tu turno. Si no, escribe ahora el informe final priorizado (será tu respuesta).`;
   }
   if (task.input.kind === "mission") {
     // Reintento tras un fallo: lo ya delegado no se repite.
     const done = c.children.length
       ? `\n\nSubtareas que ya creaste en un intento anterior (no las repitas):\n${c.children.map((k) => `- ${k.agent_id}: ${k.title} (task_id ${k.id}, ${k.status})`).join("\n")}`
       : "";
-    return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}${done}\n\nPlanifica y delega en Marcus y Sofia según tus instrucciones.`;
+    const reuseNote = reuse.length
+      ? `\n\nEsta misión parte de ${reuse.length} fichas ya investigadas. ${quota} Pide a Marcus que complete solo lo PENDIENTE de esas fichas (con su company_id), sin investigarlas de nuevo ni duplicarlas, y a Sofia que trabaje con ellas aunque Marcus falle.\n\n${fichas}`
+      : "";
+    return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}${done}${reuseNote}\n\nPlanifica y delega en Marcus y Sofia según tus instrucciones.`;
   }
-  const deps = c.dependencies.length ? `\n\nRESULTADOS PREVIOS DEL EQUIPO:\n\n${teamSection(c.dependencies, c.documents, 12_000)}` : "";
-  return `${date}\n\nTAREA ASIGNADA POR ALEX:\n${task.title}\n\n${task.description}${deps}`;
+  const deps = c.dependencies.length ? `\n\nRESULTADOS PREVIOS DEL EQUIPO:\n\n${teamSection(c.dependencies, c.documents, companies, 12_000)}` : "";
+  return `${date}\n\nTAREA ASIGNADA POR ALEX:\n${task.title}\n\n${task.description}${deps}\n\n${quota}\n\n${fichas}`;
 }

@@ -49,7 +49,12 @@ describe("ejecutor del piloto", () => {
     expect(new Set(byAgent("Alex").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-sonnet-5-5/medium"]));
     expect(new Set(byAgent("Marcus").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-sonnet-5-5/high"]));
     expect(new Set(byAgent("Sofia").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-haiku-5-5/high"]));
-    expect(byAgent("Marcus")[0].serverTools?.map((s) => s.type)).toEqual(["web_search_20250305", "web_fetch_20250910"]);
+    // Una sola herramienta web por llamada: empieza buscando y se alterna con la lectura.
+    expect(byAgent("Marcus")[0].serverTools?.map((s) => s.type)).toEqual(["web_search_20250305"]);
+    expect(byAgent("Marcus").every((c) => (c.serverTools ?? []).length === 1)).toBe(true);
+    // Salida máxima por agente: Sofia 32.000, Alex y Marcus 8.000.
+    expect(new Set(byAgent("Sofia").map((c) => c.maxTokens))).toEqual(new Set([32_000]));
+    expect(new Set([...byAgent("Alex"), ...byAgent("Marcus")].map((c) => c.maxTokens))).toEqual(new Set([8_000]));
     expect(byAgent("Sofia")[0].serverTools ?? []).toEqual([]);
     expect(byAgent("Alex")[0].tools.map((x) => x.name).sort()).toEqual(["content__draft", "crm__read", "memory__read", "tasks__delegate"]);
     expect(byAgent("Marcus")[0].tools.map((x) => x.name)).not.toContain("email__send");
@@ -116,7 +121,7 @@ describe("ejecutor del piloto", () => {
     expect(report.runs).toEqual([{ taskId: id, agentId: "alex", outcome: "budget_stop" }]);
     expect(claude.calls).toHaveLength(0);
     const [m] = await raw<{ status: string; error: string }>(`select status::text as status, error from public.tasks where id = $1`, [id]);
-    expect(m).toEqual({ status: "failed", error: expect.stringMatching(/límite de gasto por tarea/) });
+    expect(m).toEqual({ status: "failed", error: expect.stringMatching(/no cabe en el límite por tarea \(0,001 \$\)\. Reserva necesaria para la siguiente llamada: /) });
   });
 
   it("sin tiempo para otra llamada: guarda el estado, libera la tarea y la siguiente pasada la retoma", async () => {

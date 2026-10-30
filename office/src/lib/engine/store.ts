@@ -57,6 +57,41 @@ export interface CompanyRow {
   is_demo: boolean;
 }
 
+/** Ficha del CRM tal como la reciben Alex y Sofia (sin recortar lo verificado ni lo pendiente). */
+export interface MissionCompany {
+  id: string;
+  name: string;
+  city: string | null;
+  website: string | null;
+  instagram: string | null;
+  phone: string | null;
+  need_detected: string | null;
+  recommended_service: string | null;
+  notes: string | null;
+  source: string;
+  created_by: string;
+  created_in_task: string | null;
+}
+
+export interface CompanyPatch {
+  website?: string;
+  instagram?: string;
+  phone?: string;
+  need_detected?: string;
+  recommended_service?: string;
+  notes?: string;
+  /** Fuentes nuevas: se AÑADEN a las existentes, nunca se sustituyen. */
+  addSources: string[];
+}
+
+/** Situación del presupuesto para explicar una parada con cifras. */
+export interface BudgetSnapshot {
+  limits: { monthly: number | null; task: number | null; mission: number | null; synthesisReserve: number };
+  real: { month: number; mission: number; task: number };
+  open: { month: number; mission: number; task: number };
+  uncertain: { month: number; mission: number; task: number };
+}
+
 export type Reservation =
   | { ok: true; reservation_id: string; searches: number }
   | { ok: false; reason: "uncertain" | "monthly_budget" | "mission_budget" | "task_budget" };
@@ -81,6 +116,12 @@ export interface EngineStore {
   companiesCreatedBy(agentId: string, since: string): Promise<CompanyRow[]>;
   findCompany(name: string, city: string | null): Promise<CompanyRow | null>;
   insertCompany(row: Omit<CompanyRow, "id" | "stage" | "is_demo"> & { notes: string | null; phone: string | null; created_by: string; created_in_task: string }): Promise<string>;
+  updateCompany(id: string, patch: CompanyPatch): Promise<void>;
+  /** Fichas de la misión: creadas en ella (aunque la subtarea fallara) + reutilizadas. */
+  missionCompanies(missionId: string, reuseIds: string[]): Promise<MissionCompany[]>;
+  /** Ajustes del piloto (tope de empresas…). */
+  pilotSettings(): Promise<{ max_companies?: number } & Record<string, unknown>>;
+  budgetSnapshot(missionId: string, taskId: string): Promise<BudgetSnapshot>;
   createDocument(row: {
     title: string; kind: string; content: string; task_id: string; run_id: string; agent_id: string;
     client_id: string | null; source: string; created_by: string;
@@ -88,7 +129,7 @@ export interface EngineStore {
 
   activity(runId: string, worker: string, status: AgentStatus, event: "thinking" | "tool_executing" | "researching", detail?: string): Promise<void>;
   /** Reserva atómica antes de llamar a Claude; renueva el lease. */
-  reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number): Promise<Reservation>;
+  reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number): Promise<Reservation>;
   /** Coste real de la llamada (siempre se guarda) y estado (si se conserva el lease). */
   recordCall(input: {
     runId: string; worker: string; reservationId: string; state: unknown; model: string; inputTokens: number;

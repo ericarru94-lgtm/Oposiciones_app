@@ -9,6 +9,7 @@ const missionSchema = z.object({
   title: z.string().trim().min(3, "Pon un título (mínimo 3 caracteres).").max(200),
   description: z.string().trim().min(20, "Describe el encargo (mínimo 20 caracteres).").max(8000),
   nonce: z.string().uuid(),
+  reuse: z.boolean(),
 });
 
 export type MissionState = { message: string | null };
@@ -21,7 +22,12 @@ export type MissionState = { message: string | null };
 export async function createMission(_prev: MissionState, form: FormData): Promise<MissionState> {
   const viewer = await requireViewer();
   if (viewer.mode !== "admin") return { message: "Conecta Supabase para crear encargos." };
-  const parsed = missionSchema.safeParse({ title: form.get("title"), description: form.get("description"), nonce: form.get("nonce") });
+  const parsed = missionSchema.safeParse({
+    title: form.get("title"),
+    description: form.get("description"),
+    nonce: form.get("nonce"),
+    reuse: form.get("reuse") === "on",
+  });
   if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "Revisa el encargo." };
 
   const supabase = await createSupabaseServerClient();
@@ -29,6 +35,19 @@ export async function createMission(_prev: MissionState, form: FormData): Promis
   const { data: existing } = await supabase.from("tasks").select("id").eq("idempotency_key", key).maybeSingle();
   let id = existing?.id as string | undefined;
   if (!id) {
+    // Fichas ya investigadas por misiones anteriores (máx. 5, el tope de la misión).
+    let reuseIds: string[] = [];
+    if (parsed.data.reuse) {
+      const { data: prev } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("stage", "researched")
+        .eq("is_demo", false)
+        .not("created_in_task", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      reuseIds = (prev ?? []).map((r) => r.id as string);
+    }
     const { data, error } = await supabase
       .from("tasks")
       .insert({
@@ -39,7 +58,7 @@ export async function createMission(_prev: MissionState, form: FormData): Promis
         priority: "normal",
         created_by: "admin",
         idempotency_key: key,
-        input: { kind: "mission", phase: "planning", round: 1 },
+        input: { kind: "mission", phase: "planning", round: 1, ...(reuseIds.length ? { reuse_company_ids: reuseIds } : {}) },
         // El encargo espera a su equipo: margen de un día para todo el ciclo.
         timeout_seconds: 86_400,
       })
@@ -53,7 +72,7 @@ export async function createMission(_prev: MissionState, form: FormData): Promis
       action: "mission.created",
       entity_type: "task",
       entity_id: id,
-      details: { title: parsed.data.title },
+      details: { title: parsed.data.title, reused_companies: reuseIds.length },
     });
   }
   redirect(`/tareas/${id}`);

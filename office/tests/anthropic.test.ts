@@ -42,6 +42,16 @@ describe("cliente real de Claude (sin red)", () => {
     expect(req.tools).toContainEqual({ type: "web_search_20260209", name: "web_search", max_uses: 5 });
   });
 
+  it("envía la salida máxima y el tiempo de cada agente (Sofia: 32.000 tokens y 240 s), sin que el SDK lo rechace", async () => {
+    let signalTimeout: number | null = null;
+    const { client, calls } = fakeClient(() => message());
+    const spy = vi.spyOn(client.beta.messages, "create");
+    await new AnthropicModelClient(client).create({ ...base, model: "claude-haiku-5-5", maxTokens: 32_000, timeoutMs: 240_000 });
+    expect(calls[0].body.max_tokens).toBe(32_000);
+    signalTimeout = (spy.mock.calls[0][1] as { timeout?: number } | undefined)?.timeout ?? null;
+    expect(signalTimeout).toBe(240_000);
+  });
+
   it("devuelve bloques intactos, consumo completo y modelo que respondió", async () => {
     const { client, calls } = fakeClient(() => message());
     const r = await new AnthropicModelClient(client).create({ ...base, model: "claude-sonnet-5-5" });

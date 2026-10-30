@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentStatus } from "../domain/status";
 import { createSupabaseServiceClient } from "../supabase/server";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type CallRecord, type Reservation, type TaskRow } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow } from "./store";
 
 // EngineStore de producción: mismas operaciones que SqlEngineStore, a través
 // de la API de Supabase con la clave secreta (solo servidor).
@@ -76,6 +76,68 @@ export class SupabaseEngineStore implements EngineStore {
     const r = must(await this.db.from("companies").insert({ ...row, stage: "researched" }).select("id").single(), "companies");
     return (r as { id: string }).id;
   }
+  async updateCompany(id: string, p: CompanyPatch) {
+    const current = must(await this.db.from("companies").select("source").eq("id", id).single(), "companies") as { source: string };
+    const sources = [...new Set([...current.source.split(" | "), ...p.addSources].map((x) => x.trim()).filter(Boolean))];
+    const patch: Record<string, unknown> = { source: sources.join(" | ") };
+    for (const k of ["website", "instagram", "phone", "need_detected", "recommended_service", "notes"] as const) {
+      if (p[k] !== undefined) patch[k] = p[k];
+    }
+    must(await this.db.from("companies").update(patch).eq("id", id).select("id").single(), "companies");
+  }
+  async missionCompanies(missionId: string, reuseIds: string[]) {
+    const ids = await this.missionTaskIds(missionId);
+    const cols = "id, name, city, website, instagram, phone, need_detected, recommended_service, notes, source, created_by, created_in_task, created_at";
+    const created = must(await this.db.from("companies").select(cols).in("created_in_task", ids), "companies") as (MissionCompany & { created_at: string })[];
+    const reused = reuseIds.length
+      ? (must(await this.db.from("companies").select(cols).in("id", reuseIds), "companies") as (MissionCompany & { created_at: string })[])
+      : [];
+    const byId = new Map([...reused, ...created].map((c) => [c.id, c]));
+    return [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)).map(({ created_at: _, ...c }) => c);
+  }
+  async pilotSettings() {
+    const r = must(await this.db.from("settings").select("value").eq("key", "pilot").maybeSingle(), "settings") as { value: Record<string, unknown> } | null;
+    return r?.value ?? {};
+  }
+  async budgetSnapshot(missionId: string, taskId: string): Promise<BudgetSnapshot> {
+    const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+    const ids = await this.missionTaskIds(missionId);
+    const [settings, usage, resv] = await Promise.all([
+      this.db.from("settings").select("key, value").in("key", ["limits", "pilot"]),
+      this.db.from("ai_usage").select("cost_usd, task_id, created_at").or(`created_at.gte.${monthStart},task_id.in.(${ids.join(",")})`),
+      this.db.from("ai_reservations").select("estimate_usd, task_id, mission_id, status, created_at").in("status", ["open", "uncertain"]),
+    ]);
+    const set = (k: string) => ((must(settings, "settings") as { key: string; value: Record<string, unknown> }[]).find((x) => x.key === k)?.value ?? {});
+    const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
+    const rows = must(usage, "ai_usage") as { cost_usd: number; task_id: string; created_at: string }[];
+    const rs = must(resv, "ai_reservations") as { estimate_usd: number; task_id: string; mission_id: string; status: string; created_at: string }[];
+    const sum = <T,>(xs: T[], f: (x: T) => number) => xs.reduce((a, x) => a + f(x), 0);
+    const scope = (status: string) => {
+      const of = rs.filter((r) => r.status === status);
+      return {
+        month: sum(of.filter((r) => r.created_at >= monthStart), (r) => Number(r.estimate_usd)),
+        mission: sum(of.filter((r) => r.mission_id === missionId), (r) => Number(r.estimate_usd)),
+        task: sum(of.filter((r) => r.task_id === taskId), (r) => Number(r.estimate_usd)),
+      };
+    };
+    return {
+      limits: {
+        monthly: num(set("limits").monthly_ai_budget_usd), task: num(set("limits").task_ai_budget_usd),
+        mission: num(set("limits").mission_ai_budget_usd), synthesisReserve: Number(set("pilot").synthesis_reserve_usd ?? 0),
+      },
+      real: {
+        month: sum(rows.filter((r) => r.created_at >= monthStart), (r) => Number(r.cost_usd)),
+        mission: sum(rows.filter((r) => ids.includes(r.task_id)), (r) => Number(r.cost_usd)),
+        task: sum(rows.filter((r) => r.task_id === taskId), (r) => Number(r.cost_usd)),
+      },
+      open: scope("open"),
+      uncertain: scope("uncertain"),
+    };
+  }
+  private async missionTaskIds(missionId: string) {
+    const kids = must(await this.db.from("tasks").select("id").eq("parent_task_id", missionId), "tasks") as { id: string }[];
+    return [missionId, ...kids.map((k) => k.id)];
+  }
   async createDocument(row: Parameters<EngineStore["createDocument"]>[0]) {
     const r = must(await this.db.from("documents").insert(row).select("id").single(), "documents");
     return (r as { id: string }).id;
@@ -83,9 +145,9 @@ export class SupabaseEngineStore implements EngineStore {
   async activity(runId: string, worker: string, status: AgentStatus, event: string, detail?: string) {
     await this.rpc("set_run_activity", { p_run_id: runId, p_worker: worker, p_status: status, p_event: event, p_detail: detail ?? null });
   }
-  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number) {
+  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number) {
     return this.rpc<Reservation>("reserve_budget", {
-      p_run_id: runId, p_worker: worker, p_model: model, p_estimate_usd: estimateUsd, p_searches: searches, p_lease_seconds: 240,
+      p_run_id: runId, p_worker: worker, p_model: model, p_estimate_usd: estimateUsd, p_searches: searches, p_lease_seconds: leaseSeconds,
     });
   }
   async recordCall(i: Parameters<EngineStore["recordCall"]>[0]) {

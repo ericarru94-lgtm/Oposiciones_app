@@ -89,6 +89,9 @@ export interface StepInput {
   serverTools?: ServerToolSpec[];
   /** Instrucciones de sistema completas (por defecto, reglas comunes + agente). */
   system?: string;
+  /** Salida máxima y tiempo máximo por llamada para este agente. */
+  maxTokens?: number;
+  timeoutMs?: number;
   maxSteps?: number;
 }
 
@@ -203,6 +206,8 @@ export function buildModelRequest(input: StepInput): ModelRequest {
     messages: input.state.messages,
     tools: toolSpecsFor(input.agent, input.gateway, input.toolSchemas),
     serverTools: input.serverTools,
+    maxTokens: input.maxTokens,
+    timeoutMs: input.timeoutMs,
   };
 }
 

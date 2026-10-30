@@ -14,13 +14,14 @@
 
 import { randomUUID } from "node:crypto";
 import { PILOT_AGENT_IDS, getAgent } from "../agents/registry";
-import { ENGINE, SEARCH_RESULT_TOKENS_ASSUMED, SERVER_TOOLS, SERVER_TOOL_OVERHEAD_TOKENS, pilotScope, type ServerToolId } from "./config";
+import { ENGINE, SEARCH_RESULT_TOKENS_ASSUMED, SERVER_TOOLS, SERVER_TOOL_OVERHEAD_TOKENS, callLimits, pilotScope, type ServerToolId } from "./config";
+import { budgetStopMessage } from "./budget-message";
 import { buildModelRequest, callModel, initialState, resolveLocal, type RunState, type StepInput } from "./loop";
 import { estimateTokens, reserveUsd } from "./cost";
 import { PILOT_SCHEMAS, pilotGateway } from "./pilot-tools";
 import { initialPrompt, pilotSystemPrompt } from "./pilot-prompts";
 import type { ClaimedRun, EngineStore } from "./store";
-import type { ModelClient, ModelRequest } from "./types";
+import type { ContentBlock, ModelClient, ModelRequest } from "./types";
 
 export interface TickDeps {
   store: EngineStore;
@@ -41,9 +42,6 @@ function isRunState(x: unknown): x is RunState {
 }
 
 const STOP_MESSAGE = {
-  monthly_budget: "Se ha alcanzado el límite mensual de gasto en IA. La tarea se ha detenido.",
-  mission_budget: "Se ha alcanzado el límite de gasto de la misión. La tarea se ha detenido.",
-  task_budget: "Se ha alcanzado el límite de gasto por tarea. La tarea se ha detenido.",
   uncertain:
     "Una llamada anterior a Claude quedó con resultado incierto (el proceso se cortó o se perdió la respuesta). Cuenta como gastada y no se repite automáticamente.",
 } as const;
@@ -62,8 +60,12 @@ export async function runTick(deps: TickDeps): Promise<TickReport> {
     const claimed = await deps.store.claim(worker, ENGINE.leaseSeconds, ENGINE.maxParallelRuns);
     if (!claimed) break;
     try {
-      const outcome = await runClaimed(deps, worker, claimed, () => timeLeft() > reserve);
+      // Cada paso exige tiempo para la llamada completa de ese agente + 20 s.
+      const outcome = await runClaimed(deps, worker, claimed, (callMs) => timeLeft() > Math.max(reserve, callMs + 20_000));
       report.runs.push({ taskId: claimed.taskId, agentId: claimed.agentId, outcome });
+      // Sin tiempo para la llamada de ese agente: se termina la pasada (si no,
+      // volvería a coger la misma tarea en bucle). La siguiente pasada la retoma.
+      if (outcome === "yielded") break;
     } catch (error) {
       // El estado guardado está a salvo; el lease caduca y otra pasada la retoma.
       console.error("engine run", claimed.taskId, error);
@@ -74,7 +76,7 @@ export async function runTick(deps: TickDeps): Promise<TickReport> {
   return report;
 }
 
-async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canStep: () => boolean): Promise<string> {
+async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canStep: (callMs: number) => boolean): Promise<string> {
   const { store } = deps;
   const def = getAgent(run.agentId);
   if (!def || !(PILOT_AGENT_IDS as readonly string[]).includes(run.agentId)) {
@@ -89,6 +91,12 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     return "parent_stopped";
   }
   const allowedServerTools = agent.tools.filter((t): t is ServerToolId => Object.hasOwn(SERVER_TOOLS, t));
+  const limits = callLimits(agent.id);
+
+  // Misión y fichas del CRM de la misión (creadas en ella, aunque la subtarea
+  // que las creó fallara, + las reutilizadas de una misión anterior).
+  const mission = task.parent_task_id ? await store.getTask(task.parent_task_id) : task;
+  const reuseIds = reuseIdsOf(mission.input);
 
   let state: RunState;
   const saved = await store.loadRunState(run.runId);
@@ -100,10 +108,12 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     const dependencies = isMission ? [] : await store.dependencies(task.id);
     const related = (isMission ? children : dependencies).map((t) => t.id);
     const documents = await store.documentsOfTasks(related);
-    state = initialState(initialPrompt({ task, children, dependencies, documents }));
+    const companies = await store.missionCompanies(mission.id, reuseIds);
+    const maxCompanies = Number((await store.pilotSettings()).max_companies ?? 5);
+    state = initialState(initialPrompt({ task, children, dependencies, documents, companies, reuseIds, maxCompanies }));
   }
 
-  const gateway = pilotGateway({ store, runId: run.runId, taskId: task.id, worker, clientId: task.client_id });
+  const gateway = pilotGateway({ store, runId: run.runId, taskId: task.id, worker, clientId: task.client_id, missionId: mission.id, reuseIds });
   const base: Omit<StepInput, "state"> = {
     agent, runId: run.runId, taskId: task.id, client: deps.client, gateway,
     engine: store.enginePort(run.runId, worker), toolSchemas: PILOT_SCHEMAS,
@@ -124,7 +134,7 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     }
     if (local.kind === "completed") return finish(store, worker, run, task, local.result);
 
-    if (!canStep()) {
+    if (!canStep(limits.timeoutMs)) {
       // Sin tiempo para otra llamada: se guarda y se libera para la siguiente pasada.
       await store.saveRunState(run.runId, worker, state, true);
       return "yielded";
@@ -132,29 +142,37 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     if (local.changed) await store.saveRunState(run.runId, worker, state, false);
 
     // ── 1. Reserva atómica (y renovación del lease) ──
+    // Una sola herramienta web por llamada: búsqueda O lectura (máx. 2 pasadas).
     // La actividad se marca antes: entre la reserva y la llamada no hay nada
     // que pueda fallar y dejar una reserva incierta sin haber llamado.
-    const wanted = allowedServerTools.includes("web.search") ? SERVER_TOOLS["web.search"].max_uses : 0;
-    const fetches = allowedServerTools.includes("web.fetch") ? SERVER_TOOLS["web.fetch"].max_uses : 0;
-    const searching = wanted + fetches > 0;
+    const web = nextWebTool(state, allowedServerTools, reuseIds.length > 0);
+    const searching = web !== null;
     await store.activity(run.runId, worker, searching ? "researching" : "thinking", searching ? "researching" : "thinking", task.title);
-    const draft = buildModelRequest({ ...base, state, serverTools: serverToolsFor(allowedServerTools, wanted) });
+    const draft = buildModelRequest({ ...base, state, serverTools: serverToolsFor(web), maxTokens: limits.maxTokens });
     const promptTokens = (await promptTokensOf(deps.client, draft)) + (searching ? SERVER_TOOL_OVERHEAD_TOKENS : 0);
     const estimate = reserveUsd(agent.model, promptTokens, {
-      maxOutputTokens: ENGINE.maxTokens, searches: wanted, fetches,
-      fetchTokens: SERVER_TOOLS["web.fetch"].max_content_tokens, searchResultTokens: SEARCH_RESULT_TOKENS_ASSUMED,
+      maxOutputTokens: limits.maxTokens,
+      searches: web === "web.search" ? 1 : 0,
+      fetches: web === "web.fetch" ? 1 : 0,
+      fetchTokens: SERVER_TOOLS["web.fetch"].max_content_tokens,
+      searchResultTokens: SEARCH_RESULT_TOKENS_ASSUMED,
     });
-    const reservation = await store.reserve(run.runId, worker, agent.model, estimate, wanted);
+    const reservation = await store.reserve(run.runId, worker, agent.model, estimate, web === "web.search" ? 1 : 0, limits.leaseSeconds);
     if (!reservation.ok) {
-      await store.failRun(run.runId, worker, STOP_MESSAGE[reservation.reason], false);
+      const message =
+        reservation.reason === "uncertain"
+          ? STOP_MESSAGE.uncertain
+          : budgetStopMessage(reservation.reason, estimate, await store.budgetSnapshot(mission.id, task.id), task.parent_task_id !== null);
+      await store.failRun(run.runId, worker, message, false);
       return reservation.reason === "uncertain" ? "uncertain" : "budget_stop";
     }
-    // Si quedan menos búsquedas en la misión, se ofrecen menos (la reserva ya las cubría).
-    const serverTools = serverToolsFor(allowedServerTools, reservation.searches);
+    // Sin búsquedas restantes en la misión: se ofrece la lectura (su reserva es menor que la de búsqueda).
+    const offered = web === "web.search" && reservation.searches === 0 ? (allowedServerTools.includes("web.fetch") ? "web.fetch" : null) : web;
+    const serverTools = serverToolsFor(offered);
 
     // ── 2. Llamada ──
-    const request = buildModelRequest({ ...base, state, serverTools });
-    const call = await callModel({ ...base, state, serverTools }, request);
+    const request = buildModelRequest({ ...base, state, serverTools, maxTokens: limits.maxTokens, timeoutMs: limits.timeoutMs });
+    const call = await callModel({ ...base, state, serverTools, maxTokens: limits.maxTokens, timeoutMs: limits.timeoutMs }, request);
     if (call.kind === "error") {
       if (call.billing === "unknown") {
         await store.closeReservation(run.runId, reservation.reservation_id, true);
@@ -199,10 +217,31 @@ async function promptTokensOf(client: ModelClient, req: ModelRequest): Promise<n
   return estimateTokens([req.system, req.messages, req.tools]);
 }
 
-function serverToolsFor(allowed: ServerToolId[], searches: number) {
-  return allowed
-    .filter((t) => t !== "web.search" || searches > 0)
-    .map((t) => (t === "web.search" ? { ...SERVER_TOOLS[t], max_uses: searches } : { ...SERVER_TOOLS[t] }));
+function serverToolsFor(tool: ServerToolId | null) {
+  return tool ? [{ ...SERVER_TOOLS[tool] }] : [];
+}
+
+function reuseIdsOf(input: Record<string, unknown>): string[] {
+  const ids = input.reuse_company_ids;
+  return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [];
+}
+
+/**
+ * Herramienta web de la siguiente llamada (solo una): se alternan búsqueda y
+ * lectura según la última usada. Si se parte de fichas reutilizadas (con sus
+ * URL), se empieza leyendo; si no, buscando.
+ */
+export function nextWebTool(state: RunState, allowed: ServerToolId[], startWithFetch: boolean): ServerToolId | null {
+  if (allowed.length === 0) return null;
+  let last: string | null = null;
+  for (const m of state.messages) {
+    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+    for (const b of m.content as ContentBlock[]) if (b.type === "server_tool_use") last = String(b.name);
+  }
+  const want: ServerToolId =
+    last === "web_search" ? "web.fetch" : last === "web_fetch" ? "web.search" : startWithFetch ? "web.fetch" : "web.search";
+  if (allowed.includes(want)) return want;
+  return allowed[0];
 }
 
 async function finish(store: EngineStore, worker: string, run: ClaimedRun, task: Awaited<ReturnType<EngineStore["getTask"]>>, result: string): Promise<string> {
@@ -215,7 +254,8 @@ async function finish(store: EngineStore, worker: string, run: ClaimedRun, task:
       return "waiting_agents";
     }
     await saveOnce(store, run, task, `Informe final: ${task.title}`, "report", text);
-  } else if ((await store.documentsOfTasks([task.id])).length === 0) {
+  } else if (result.trim() && (await store.documentsOfTasks([task.id])).length === 0) {
+    // Sin texto no se guarda un documento vacío: la subtarea queda «completada sin resultados».
     await saveOnce(store, run, task, `Entrega: ${task.title}`, "report", text);
   }
   await store.completeRun(run.runId, worker, text);

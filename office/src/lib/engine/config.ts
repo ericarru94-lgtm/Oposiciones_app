@@ -28,11 +28,31 @@ export const ENGINE = {
 } as const;
 
 /**
+ * Límites por llamada según el agente. Sofia (Haiku, esfuerzo alto) necesita
+ * más salida porque el pensamiento cuenta como salida: 32.000 tokens. Para
+ * que una respuesta larga no se trate como «incierta» por tiempo agotado, su
+ * llamada tiene 240 s y su lease 285 s (por debajo de los 300 s de Vercel).
+ * El paso solo empieza si queda tiempo para la llamada completa + 20 s.
+ */
+export interface CallLimits {
+  maxTokens: number;
+  timeoutMs: number;
+  leaseSeconds: number;
+}
+const DEFAULT_CALL: CallLimits = { maxTokens: ENGINE.maxTokens, timeoutMs: ENGINE.requestTimeoutMs, leaseSeconds: ENGINE.leaseSeconds };
+export const CALL_LIMITS: Record<string, CallLimits> = {
+  sofia: { maxTokens: 32_000, timeoutMs: 240_000, leaseSeconds: 285 },
+};
+export function callLimits(agentId: string): CallLimits {
+  return CALL_LIMITS[agentId] ?? DEFAULT_CALL;
+}
+
+/**
  * Herramientas de servidor de Anthropic (solo lectura). Versiones BÁSICAS, sin
  * filtrado dinámico: el filtrado ejecuta código en iteraciones internas que
- * max_uses no limita, y cada iteración vuelve a cobrar el contexto. Con 1
- * búsqueda + 1 lectura por llamada, una llamada tiene como máximo 3 pasadas
- * del modelo, y la reserva puede acotarse.
+ * max_uses no limita, y cada iteración vuelve a cobrar el contexto.
+ * Cada llamada ofrece UNA sola herramienta web (búsqueda O lectura, nunca
+ * ambas): como máximo 2 pasadas del modelo por llamada.
  */
 export const SERVER_TOOLS = {
   "web.search": { type: "web_search_20250305", name: "web_search", max_uses: 1 },

@@ -67,7 +67,10 @@ describe("presupuesto", () => {
     ]);
     expect(claude.calls.filter((c) => who(c) === "Marcus")).toHaveLength(0);
     const marcus = await raw<{ error: string }>(`select error from public.tasks where agent_id = 'marcus'`);
-    expect(marcus[0].error).toMatch(/límite de gasto de la misión/);
+    // Mensaje con cifras: reserva necesaria, gasto real, reservas y saldo; no dice que se gastó 0,35 $.
+    expect(marcus[0].error).toMatch(/no cabe en el límite de la misión \(0,35 \$, de los que 0,25 \$ quedan reservados para el informe de Alex\)/);
+    expect(marcus[0].error).toMatch(/Reserva necesaria para la siguiente llamada: 0,\d+ \$\. Gasto real acumulado: 0,\d+ \$ · reservas abiertas: 0,00 \$ · reservas inciertas: 0,00 \$\. Saldo disponible: 0,\d+ \$\./);
+    expect(marcus[0].error).toMatch(/lo que no cabe es la reserva prudente/);
     expect((await status(id)).status).toBe("completed"); // Alex informa con lo que hay
     const [m] = await raw<{ v: string }>(`select public.committed_usd('mission', $1)::text as v`, [id]);
     expect(Number(m.v)).toBeLessThanOrEqual(0.35);

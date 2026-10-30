@@ -11,17 +11,39 @@ import type { EngineStore } from "./store";
 
 const url = z.string().trim().url().refine((u) => /^https?:\/\//i.test(u), "La fuente debe ser una URL http(s).");
 
-const CrmWrite = z.object({
-  name: z.string().trim().min(2).max(200).describe("Nombre comercial real de la empresa, tal como aparece en su fuente."),
-  city: z.string().trim().min(2).max(100).describe("Ciudad (por ejemplo, Barcelona)."),
-  website: url.optional().describe("Web oficial, solo si la has comprobado."),
-  instagram: z.string().trim().max(200).optional().describe("Usuario o URL de Instagram, solo si lo has comprobado."),
-  phone: z.string().trim().max(40).optional().describe("Teléfono público de la empresa (nunca de una persona)."),
-  need_detected: z.string().trim().min(10).max(2000).describe("Oportunidad de mejora detectada, separando lo verificado de lo estimado."),
-  recommended_service: z.string().trim().max(500).optional(),
-  notes: z.string().trim().max(4000).optional().describe("Datos verificados, estimados y no encontrados; contradicciones entre fuentes."),
-  sources: z.array(url).min(1).max(10).describe("URL de cada fuente consultada para esta ficha."),
-});
+// Teléfono público de empresa: hasta 100 caracteres, solo cifras y separadores
+// habituales, entre 6 y 30 cifras (permite dos números o una extensión).
+const phone = z
+  .string()
+  .trim()
+  .max(100)
+  .regex(/^[0-9+()\s./,;-]+$/, "Solo cifras y separadores (+ ( ) - . / , ;).")
+  .refine((v) => {
+    const digits = v.replace(/\D/g, "").length;
+    return digits >= 6 && digits <= 30;
+  }, "Debe tener entre 6 y 30 cifras.");
+
+// Crear una ficha nueva o, con company_id, COMPLETAR una ficha existente de
+// esta misión (sin duplicarla). Las fuentes nuevas se añaden a las anteriores.
+const CrmWrite = z
+  .object({
+    company_id: z.string().uuid().optional().describe("Para completar una ficha ya existente de la misión. Sin él se crea una nueva."),
+    name: z.string().trim().min(2).max(200).optional().describe("Nombre comercial real (obligatorio al crear)."),
+    city: z.string().trim().min(2).max(100).optional().describe("Ciudad (obligatoria al crear)."),
+    website: url.optional().describe("Web oficial, solo si la has comprobado."),
+    instagram: z.string().trim().max(200).optional().describe("Usuario o URL de Instagram, solo si lo has comprobado."),
+    phone: phone.optional().describe("Teléfono público de la empresa (nunca de una persona)."),
+    need_detected: z.string().trim().min(10).max(2000).optional().describe("Oportunidad detectada (obligatoria al crear), separando VERIFICADO / ESTIMADO / PENDIENTE."),
+    recommended_service: z.string().trim().max(500).optional(),
+    notes: z.string().trim().max(4000).optional().describe("Versión COMPLETA y actualizada: VERIFICADO, ESTIMADO, PENDIENTE y contradicciones."),
+    sources: z.array(url).min(1).max(10).describe("URL de cada fuente consultada para estos datos."),
+  })
+  .superRefine((d, ctx) => {
+    if (d.company_id) return;
+    for (const k of ["name", "city", "need_detected"] as const) {
+      if (!d[k]) ctx.addIssue({ code: "custom", path: [k], message: "Obligatorio al crear una ficha nueva." });
+    }
+  });
 
 const DOC_KINDS = ["report", "strategy", "proposal", "script", "creative", "client_file", "technical", "other"] as const;
 const Draft = z.object({
@@ -61,6 +83,9 @@ export interface PilotContext {
   taskId: string;
   worker: string;
   clientId: string | null;
+  /** Misión y fichas reutilizadas: definen qué fichas se pueden completar y el tope de empresas. */
+  missionId?: string;
+  reuseIds?: string[];
 }
 
 export function pilotGateway(c: PilotContext): ToolGateway {
@@ -103,17 +128,40 @@ export function pilotGateway(c: PilotContext): ToolGateway {
       return { content: "No guardes direcciones de email ni contactos personales en el CRM durante el piloto.", isError: true };
     }
     await busy("Actualizar CRM");
-    const existing = await store.findCompany(d.name, d.city);
+    const missionId = c.missionId ?? c.taskId;
+    const scope = await store.missionCompanies(missionId, c.reuseIds ?? []);
+
+    if (d.company_id) {
+      const target = scope.find((x) => x.id === d.company_id);
+      if (!target) {
+        return { content: `La ficha ${d.company_id} no pertenece a esta misión: solo se pueden completar las fichas de la misión.`, isError: true };
+      }
+      await store.updateCompany(target.id, {
+        website: d.website, instagram: d.instagram, phone: d.phone, need_detected: d.need_detected,
+        recommended_service: d.recommended_service, notes: d.notes, addSources: d.sources,
+      });
+      return { content: `Ficha «${target.name}» completada (id ${target.id}); fuentes añadidas a las anteriores.`, providerRef: target.id };
+    }
+
+    const existing = await store.findCompany(d.name!, d.city!);
     if (existing) {
-      return { content: `«${existing.name}» ya está en el CRM (id ${existing.id}); no se ha duplicado. Fuente original: ${existing.source}` };
+      const inScope = scope.some((x) => x.id === existing.id);
+      return {
+        content: `«${existing.name}» ya está en el CRM (id ${existing.id}); no se ha duplicado.${inScope ? " Para añadir datos, usa company_id." : ""} Fuente original: ${existing.source}`,
+      };
+    }
+    // Tope de empresas de la misión, contando las fichas reutilizadas.
+    const max = Number((await store.pilotSettings()).max_companies ?? 5);
+    if (scope.length >= max) {
+      return { content: `Se alcanzó el máximo de ${max} empresas en esta misión (incluidas las reutilizadas). Completa las existentes en lugar de crear nuevas.`, isError: true };
     }
     const id = await store.insertCompany({
-      name: d.name,
-      city: d.city,
+      name: d.name!,
+      city: d.city!,
       website: d.website ?? null,
       instagram: d.instagram ?? null,
       phone: d.phone ?? null,
-      need_detected: d.need_detected,
+      need_detected: d.need_detected!,
       recommended_service: d.recommended_service ?? null,
       notes: d.notes ?? null,
       source: d.sources.join(" | "),

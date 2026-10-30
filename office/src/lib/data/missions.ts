@@ -111,11 +111,12 @@ export async function getMission(viewer: Viewer, id: string): Promise<MissionDet
   const rows = [...cost.values()];
   const sum = (k: keyof CostRow) => rows.reduce((s, r) => s + Number(r[k] ?? 0), 0);
 
-  // Fichas creadas dentro de esta misión.
+  // Fichas de esta misión: creadas en ella + reutilizadas de misiones anteriores.
+  const reuse = ((m.input as { reuse_company_ids?: unknown } | null)?.reuse_company_ids as string[] | undefined ?? []).filter((x) => /^[0-9a-f-]{36}$/i.test(x));
   const { data: companies } = await supabase
     .from("companies")
     .select("id, name, city, website, instagram, need_detected, source, created_at")
-    .in("created_in_task", ids)
+    .or(`created_in_task.in.(${ids.join(",")})${reuse.length ? `,id.in.(${reuse.join(",")})` : ""}`)
     .order("created_at");
 
   return {

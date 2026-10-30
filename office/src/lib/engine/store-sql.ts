@@ -4,7 +4,7 @@
 
 import type { AgentStatus } from "../domain/status";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type CallRecord, type Reservation, type TaskRow } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow } from "./store";
 
 export type Query = <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>;
 
@@ -68,6 +68,55 @@ export class SqlEngineStore implements EngineStore {
       [row.name, row.city, row.website, row.instagram, row.phone, row.need_detected, row.recommended_service, row.notes, row.source, row.created_by, row.created_in_task]);
     return r.id;
   }
+  async updateCompany(id: string, p: CompanyPatch) {
+    await this.q(
+      `update public.companies set
+         website = coalesce($2, website), instagram = coalesce($3, instagram), phone = coalesce($4, phone),
+         need_detected = coalesce($5, need_detected), recommended_service = coalesce($6, recommended_service),
+         notes = coalesce($7, notes),
+         source = (select string_agg(distinct s, ' | ') from unnest(string_to_array(source, ' | ') || $8::text[]) s)
+       where id = $1`,
+      [id, p.website ?? null, p.instagram ?? null, p.phone ?? null, p.need_detected ?? null, p.recommended_service ?? null, p.notes ?? null, p.addSources]);
+  }
+  missionCompanies(missionId: string, reuseIds: string[]) {
+    return this.q<MissionCompany>(
+      `select id, name, city, website, instagram, phone, need_detected, recommended_service, notes, source, created_by, created_in_task
+         from public.companies
+        where created_in_task in (select id from public.tasks where id = $1 or parent_task_id = $1) or id = any($2::uuid[])
+        order by created_at`, [missionId, reuseIds]);
+  }
+  async pilotSettings() {
+    const [r] = await this.q<{ value: Record<string, unknown> }>(`select value from public.settings where key = 'pilot'`);
+    return r?.value ?? {};
+  }
+  async budgetSnapshot(missionId: string, taskId: string): Promise<BudgetSnapshot> {
+    const [r] = await this.q<{ s: BudgetSnapshot }>(
+      `with lim as (select value v from public.settings where key = 'limits'),
+            pil as (select value v from public.settings where key = 'pilot'),
+            mt as (select id from public.tasks where id = $1 or parent_task_id = $1),
+            u as (select cost_usd, task_id, created_at from public.ai_usage),
+            rs as (select estimate_usd, task_id, mission_id, status, created_at from public.ai_reservations)
+       select jsonb_build_object(
+         'limits', jsonb_build_object(
+            'monthly', (select nullif(v ->> 'monthly_ai_budget_usd', '')::numeric from lim),
+            'task', (select nullif(v ->> 'task_ai_budget_usd', '')::numeric from lim),
+            'mission', (select nullif(v ->> 'mission_ai_budget_usd', '')::numeric from lim),
+            'synthesisReserve', coalesce((select (v ->> 'synthesis_reserve_usd')::numeric from pil), 0)),
+         'real', jsonb_build_object(
+            'month', (select coalesce(sum(cost_usd), 0) from u where created_at >= date_trunc('month', now())),
+            'mission', (select coalesce(sum(cost_usd), 0) from u where task_id in (select id from mt)),
+            'task', (select coalesce(sum(cost_usd), 0) from u where task_id = $2)),
+         'open', jsonb_build_object(
+            'month', (select coalesce(sum(estimate_usd), 0) from rs where status = 'open' and created_at >= date_trunc('month', now())),
+            'mission', (select coalesce(sum(estimate_usd), 0) from rs where status = 'open' and mission_id = $1),
+            'task', (select coalesce(sum(estimate_usd), 0) from rs where status = 'open' and task_id = $2)),
+         'uncertain', jsonb_build_object(
+            'month', (select coalesce(sum(estimate_usd), 0) from rs where status = 'uncertain' and created_at >= date_trunc('month', now())),
+            'mission', (select coalesce(sum(estimate_usd), 0) from rs where status = 'uncertain' and mission_id = $1),
+            'task', (select coalesce(sum(estimate_usd), 0) from rs where status = 'uncertain' and task_id = $2))
+       ) as s`, [missionId, taskId]);
+    return numbers(r.s);
+  }
   async createDocument(row: Parameters<EngineStore["createDocument"]>[0]) {
     const [r] = await this.q<{ id: string }>(
       `insert into public.documents (title, kind, content, task_id, run_id, agent_id, client_id, source, created_by)
@@ -78,8 +127,8 @@ export class SqlEngineStore implements EngineStore {
   async activity(runId: string, worker: string, status: AgentStatus, event: string, detail?: string) {
     await this.q(`select public.set_run_activity($1, $2, $3::agent_status, $4, $5)`, [runId, worker, status, event, detail ?? null]);
   }
-  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number): Promise<Reservation> {
-    const [r] = await this.q<{ r: Reservation }>(`select public.reserve_budget($1, $2, $3, $4, $5, 240) as r`, [runId, worker, model, estimateUsd, searches]);
+  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number): Promise<Reservation> {
+    const [r] = await this.q<{ r: Reservation }>(`select public.reserve_budget($1, $2, $3, $4, $5, $6) as r`, [runId, worker, model, estimateUsd, searches, leaseSeconds]);
     return r.r;
   }
   async recordCall(i: Parameters<EngineStore["recordCall"]>[0]): Promise<CallRecord> {
@@ -141,4 +190,16 @@ export class SqlEngineStore implements EngineStore {
       },
     };
   }
+}
+
+/** Los numeric de PostgreSQL llegan como texto: se convierten a número. */
+export function numbers(s: BudgetSnapshot): BudgetSnapshot {
+  const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  const scope = (o: Record<string, unknown>) => ({ month: Number(o.month ?? 0), mission: Number(o.mission ?? 0), task: Number(o.task ?? 0) });
+  return {
+    limits: { monthly: n(s.limits.monthly), task: n(s.limits.task), mission: n(s.limits.mission), synthesisReserve: Number(s.limits.synthesisReserve ?? 0) },
+    real: scope(s.real as unknown as Record<string, unknown>),
+    open: scope(s.open as unknown as Record<string, unknown>),
+    uncertain: scope(s.uncertain as unknown as Record<string, unknown>),
+  };
 }

@@ -23,7 +23,7 @@ export function buildRequest(req: ModelRequest): Anthropic.Beta.Messages.Message
   const serverTools = (req.serverTools ?? []) as unknown as Anthropic.Beta.Messages.BetaToolUnion[];
   return {
     model: req.model,
-    max_tokens: ENGINE.maxTokens,
+    max_tokens: req.maxTokens ?? ENGINE.maxTokens,
     system: req.system,
     messages: req.messages as unknown as Anthropic.Beta.Messages.BetaMessageParam[],
     tools: [...clientTools, ...serverTools],
@@ -57,7 +57,7 @@ export class AnthropicModelClient implements ModelClient {
   async create(req: ModelRequest): Promise<ModelResponse> {
     let msg: Anthropic.Beta.Messages.BetaMessage;
     try {
-      msg = await this.client.beta.messages.create(buildRequest(req));
+      msg = await this.client.beta.messages.create(buildRequest(req), req.timeoutMs ? { timeout: req.timeoutMs } : undefined);
     } catch (error) {
       throw toModelError(error);
     }

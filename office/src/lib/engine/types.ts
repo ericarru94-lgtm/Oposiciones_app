@@ -52,6 +52,9 @@ export interface ModelRequest {
   tools: ToolSpec[];
   /** Herramientas de servidor (búsqueda/lectura web) ya filtradas por permisos. */
   serverTools?: ServerToolSpec[];
+  /** Salida máxima y tiempo máximo de esta llamada (por defecto, los de ENGINE). */
+  maxTokens?: number;
+  timeoutMs?: number;
 }
 
 export interface ModelResponse {

@@ -28,6 +28,12 @@ export function MissionForm({ disabled, reason }: { disabled: boolean; reason: s
         Encargo para Alex
         <textarea ref={description} name="description" required rows={6} maxLength={8000} disabled={disabled} className={input} />
       </label>
+      <label className="flex items-start gap-2 text-xs text-muted">
+        <input type="checkbox" name="reuse" defaultChecked disabled={disabled} className="mt-0.5" />
+        <span>
+          Reutilizar las fichas ya investigadas del CRM (máx. 5). Marcus solo completará lo pendiente y no creará duplicados.
+        </span>
+      </label>
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
