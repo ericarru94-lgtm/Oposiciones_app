@@ -1,6 +1,8 @@
 # Procedimiento · migración 0007, publicación y primera misión real
 
-Preparado el 30/10/2026. **Nada de esto se ejecuta sin la autorización explícita del administrador.** Cada paso indica quién lo hace y cómo se comprueba.
+Preparado el 30/10/2026. **Nada de esto se ejecuta sin la autorización explícita del administrador.**
+
+**Estado (30/10, con autorización):** pasos 1–3 hechos. Comprobación previa limpia (hasta 0006, 0 tareas, 0 empresas, 0 gasto); 0007 aplicada como `budget_reservations` y verificada; versión 707978d publicada (`dpl_4gjGYrL745V8DUVpVTJjp7iV3gwC`). Pendientes: pasos 4–8 (administrador). Cada paso indica quién lo hace y cómo se comprueba.
 
 ## Condiciones aprobadas para la primera misión
 - Búsqueda web activada **solo para Marcus** (versiones básicas, 1 búsqueda + 1 lectura por llamada).
