@@ -45,3 +45,23 @@ Versión 4ddb2b8, 5 fichas reutilizadas. Coste real 0,171 $ (8 llamadas, 0 búsq
 - Marcus recibe SIEMPRE búsqueda y lectura (1 + 1 por llamada, orden fijo): lista de herramientas idéntica en todas las llamadas de una ejecución. Reserva de 3 pasadas sin suponer caché. Si se agotan las 15 búsquedas de la misión, la tarea se detiene (no se cambia la lista).
 - Documentos del equipo hasta 40.000 caracteres para Alex y para las subtareas dependientes.
 - Prueba nueva con un Claude simulado que aplica la misma comprobación que la API (400 si cambia la lista): reproduce el fallo con 4ddb2b8 y pasa con la corrección. 137 pruebas en verde.
+
+---
+
+# Tercera misión real · resultado (30/10/2026, 18:11–18:15, versión 01432bd)
+
+**Primera misión completa de principio a fin.** Coste real 0,3212 $ (Claude 0,3112 + 1 búsqueda 0,01), 11 llamadas. Sin errores 400, sin sobrecostes, sin llamadas inciertas, sin duplicados (5 empresas). Gasto del mes: 0,78 $ de 10 $.
+
+| Agente | Resultado | Llamadas | Coste real | Reservado por llamada |
+|---|---|---|---|---|
+| Alex | Planificó, delegó y entregó el informe final | 4 | 0,133 $ | 0,10–0,13 $ |
+| Marcus | Completó Serotonin (5 fuentes, teléfono, sedes) y marcó BodyMind como web bloqueada; informe de 2.512 caracteres | 3 | 0,175 $ | 0,34–0,48 $ |
+| Sofia | Estrategia de 13.800 caracteres, sin cortes | 4 | 0,013 $ | ~0,02 $ |
+
+**Funciona**: lista de herramientas constante (sin 400), fichas para todos, documentos completos para Alex, completar fichas sin duplicar con fuentes acumuladas, reservas y liquidación.
+
+**Problemas observados**
+1. Marcus terminó tras 3 llamadas pensando que «el límite de lecturas del turno» le impedía seguir (leer la web de Vita). El límite es por llamada, no por tarea, y el presupuesto permitía al menos una llamada más.
+2. Alex no puso a Sofia como dependiente de Marcus (las instrucciones le pedían que trabajase «aunque Marcus falle»). Sofia empezó cuando Marcus ya había terminado y recibió la ficha actualizada de Serotonin, pero no el informe de Marcus.
+3. Alex afirmó que Sofia trabajó sin lo nuevo de Serotonin: es incorrecto (comprobado en el mensaje inicial de Sofia).
+4. Las reservas de Marcus siguen siendo 3–17× su coste real.
