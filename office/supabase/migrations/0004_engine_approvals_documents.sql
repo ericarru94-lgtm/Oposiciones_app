@@ -18,24 +18,17 @@
 
 -- ═══════════════════════ 1. Permisos de escritura ═══════════════════════
 
--- Tablas que el administrador solo lee: las escribe el servidor.
-do $$
-declare t text;
-begin
-  foreach t in array array['task_events', 'approvals', 'ai_usage'] loop
-    execute format('drop policy "admin: acceso completo" on public.%I', t);
-    execute format(
-      'create policy "admin: solo lectura" on public.%I for select to authenticated
-         using ((select public.is_admin()))', t);
-  end loop;
-end;
-$$;
+-- Tablas que el administrador solo lee: las escribe el servidor. Se retiran
+-- los permisos de escritura (sin borrar políticas, así la migración no
+-- contiene operaciones destructivas).
+revoke insert, update, delete, truncate on public.task_events, public.approvals, public.ai_usage
+  from anon, authenticated;
 
--- El administrador solo puede registrar actividad a su propio nombre.
-drop policy "admin: añadir actividad" on public.activity_log;
-create policy "admin: añadir actividad" on public.activity_log
+-- El administrador solo puede registrar actividad a su propio nombre
+-- (política restrictiva que se suma a la existente).
+create policy "actividad: autor = usuario" on public.activity_log as restrictive
   for insert to authenticated
-  with check ((select public.is_admin()) and actor_type = 'admin' and actor_id = (select auth.uid())::text);
+  with check (actor_type = 'admin' and actor_id = (select auth.uid())::text);
 
 -- Agentes: el estado en tiempo real lo escribe el motor. Desde el navegador
 -- solo se puede cambiar el modelo, el esfuerzo y si está activo.
@@ -142,8 +135,9 @@ create index ai_usage_run_idx on public.ai_usage (run_id);
 
 -- ════════════════════════════ 4. Aprobaciones ════════════════════════════
 
-alter table public.approvals rename column payload to arguments;
+-- «payload» (fase 1, sin uso) queda obsoleta; los argumentos van en «arguments».
 alter table public.approvals
+  add column arguments jsonb not null default '{}',
   add column run_id uuid references public.agent_runs (id) on delete cascade,
   add column tool_use_id text,
   add column action text not null default 'execute',

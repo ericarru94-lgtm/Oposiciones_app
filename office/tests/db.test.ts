@@ -113,6 +113,6 @@ describe("Row Level Security", () => {
         db.exec(`insert into public.approvals (agent_id, tool_id, risk, summary)
                  values ('marcus', 'email.send', 'external_action', 'x')`),
       ),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied/);
   });
 });

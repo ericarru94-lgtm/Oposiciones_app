@@ -116,7 +116,7 @@ describe("escrituras del navegador", () => {
     ).rejects.toThrow(/permission denied/);
     await expect(
       t.as(ADMIN, () => q(`insert into public.ai_usage (model, cost_usd) values ('x', 0)`)),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied/);
   });
 
   it("el registro de actividad solo acepta el propio usuario como autor", async () => {
