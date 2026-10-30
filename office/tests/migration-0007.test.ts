@@ -32,7 +32,7 @@ it("0007 sobre 0001–0006 con datos: transaccional, sin tocar datos, y la versi
     const after = (await c.query(`select (select count(*) from public.companies) c, (select value from public.settings where key='limits') l, (select value from public.settings where key='pilot') p`)).rows[0];
     expect(after.c).toBe(before.c);
     expect(after.l).toEqual({ ...before.l, mission_ai_budget_usd: 1 });
-    expect(after.p).toMatchObject({ agents: ["alex", "marcus", "sofia"], max_companies: 5, max_searches: 15, synthesis_reserve_usd: 0.25 });
+    expect(after.p).toMatchObject({ agents: ["alex", "marcus", "sofia"], max_companies: 5, max_searches: 15, synthesis_reserve_usd: 0.25, stop_on_cost_overrun: true });
     // Código anterior (record_step de 0006) sigue funcionando: rollback de Vercel seguro.
     await c.query(`set role service_role`);
     await c.query(`insert into public.tasks (title, agent_id, status, input) values ('x', 'alex', 'assigned', '{"kind":"mission"}')`).catch(() => {});

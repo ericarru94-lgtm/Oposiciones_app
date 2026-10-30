@@ -16,13 +16,14 @@
 -- 5. Lease renovado en cada reserva; reintentos transitorios sin perder la
 --    conversación (defer_run); reparto de tareas serializado.
 -- 6. Topes de misión en la base de datos: 5 fichas del CRM y 15 búsquedas.
--- 7. Detener una misión (solo el servidor, a petición del administrador).
+-- 7. Detener una misión (solo el servidor, a petición del administrador o
+--    automáticamente si una llamada cuesta más que su reserva).
 
 -- ═══════════════════════ 1. Configuración ═══════════════════════
 update public.settings set value = '{"mission_ai_budget_usd": 1}'::jsonb || value
  where key = 'limits' and not (value ? 'mission_ai_budget_usd');
 update public.settings
-   set value = '{"max_companies": 5, "max_searches": 15, "synthesis_reserve_usd": 0.25}'::jsonb || value
+   set value = '{"max_companies": 5, "max_searches": 15, "synthesis_reserve_usd": 0.25, "stop_on_cost_overrun": true}'::jsonb || value
  where key = 'pilot';
 
 -- ═══════════════════════ 2. Datos ═══════════════════════
@@ -229,6 +230,16 @@ begin
          server_tool_requests = ar.server_tool_requests + p_server_tool_requests,
          cost_usd = ar.cost_usd + v_cost
    where ar.id = p_run_id;
+
+  -- Política del piloto: un sobrecoste detiene TODA la misión (decisión del
+  -- administrador). El gasto ya está registrado; no se hace ninguna llamada más.
+  if v_cost > r.estimate_usd
+     and coalesce((select (value ->> 'stop_on_cost_overrun')::boolean from public.settings where key = 'pilot'), true) then
+    perform public.cancel_mission(r.mission_id,
+      'Detenida automáticamente por sobrecoste: una llamada costó ' || round(v_cost, 4) || ' $ y la reserva era de '
+      || round(r.estimate_usd, 4) || ' $.');
+    return jsonb_build_object('continue', false, 'reason', 'cost_overrun');
+  end if;
 
   -- ¿Sigue teniendo la tarea este trabajador?
   select x.* into t from public.tasks x join public.agent_runs ar on ar.task_id = x.id

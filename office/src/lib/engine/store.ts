@@ -63,7 +63,7 @@ export type Reservation =
 
 export interface CallRecord {
   continue: boolean;
-  reason?: "lease_lost";
+  reason?: "lease_lost" | "cost_overrun";
   budget_warning?: boolean;
 }
 

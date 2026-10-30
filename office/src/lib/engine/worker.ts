@@ -181,7 +181,8 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       serverToolRequests: call.usage.webSearchRequests, claudeUsd: call.claudeUsd, searchUsd: call.searchUsd,
       agentStatus: call.researched ? "researching" : "working",
     });
-    if (!rec.continue) return "lease_lost"; // el gasto ya está registrado; otra pasada decide
+    // El gasto ya está registrado. Sobrecoste → la base de datos ya ha detenido la misión.
+    if (!rec.continue) return rec.reason ?? "lease_lost";
     // 4. En la siguiente vuelta: herramientas, fallo definitivo o fin.
   }
 }

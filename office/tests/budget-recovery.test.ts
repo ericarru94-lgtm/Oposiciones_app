@@ -234,25 +234,34 @@ describe("reserva conservadora", () => {
       .toBeCloseTo((150_000 * 0.5 * 1.25 + 8_000 * 2.5) / 1e6, 5);
   });
 
-  it("el contador exacto se usa para la reserva y un sobrecoste queda registrado como aviso", async () => {
+  it("el contador exacto se usa para la reserva; un sobrecoste se registra y detiene toda la misión", async () => {
     const id = await mission();
     const counted: number[] = [];
+    let calls = 0;
     const client: ModelClient = {
       async countTokens() { counted.push(1); return 100; }, // prompt diminuto → reserva mínima
       async create(req: ModelRequest): Promise<ModelResponse> {
-        // Gasta más de lo reservado (simula resultados web más grandes de lo supuesto).
-        return { content: [{ type: "text", text: "plan" }], stopReason: "end_turn", model: req.model,
+        calls++;
+        // Primera llamada: Alex delega en Marcus. Gasta más de lo reservado (resultados más grandes de lo supuesto).
+        return { content: [{ type: "tool_use", id: "d1", name: "tasks__delegate", input: { agent: "marcus", title: "Investigar", instructions: "Fichas con fuentes." } }],
+          stopReason: "tool_use", model: req.model,
           usage: { inputTokens: 200_000, outputTokens: 1_000, cacheReadTokens: 0, cacheWriteTokens: 0, webSearchRequests: 0 } };
       },
     };
-    await runTick({ store: store(), client });
+    const report = await runTick({ store: store(), client });
+    expect(report.runs.map((r) => `${r.agentId}:${r.outcome}`)).toEqual(["alex:cost_overrun"]);
     expect(counted).toHaveLength(1);
+    expect(calls).toBe(1); // ninguna llamada más
     const [r] = await reservations();
     expect(Number(r.actual_usd)).toBeGreaterThan(Number(r.estimate_usd));
-    const ev = await raw<{ type: string }>(`select type from public.task_events where task_id = $1 and type = 'cost_overrun'`, [id]);
-    expect(ev).toHaveLength(1);
-    // El gasto real (no la reserva) es lo que cuenta a partir de ahora.
+    expect(await raw(`select 1 from public.task_events where task_id = $1 and type = 'cost_overrun'`, [id])).toHaveLength(1);
+    expect(await status(id)).toEqual({ status: "failed", error: expect.stringMatching(/sobrecoste/) });
+    // La respuesta no llegó a ejecutar sus herramientas: no hay subtareas.
+    expect(await raw(`select 1 from public.tasks where parent_task_id = $1`, [id])).toHaveLength(0);
+    // El gasto real (no la reserva) queda contabilizado y otra pasada no hace nada.
     const [m] = await raw<{ v: string }>(`select public.committed_usd('mission', $1)::text as v`, [id]);
     expect(Number(m.v)).toBeCloseTo(Number(r.actual_usd));
+    expect((await runTick({ store: store(), client })).runs).toEqual([]);
+    expect(calls).toBe(1);
   });
 });
