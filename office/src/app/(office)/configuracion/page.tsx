@@ -2,13 +2,16 @@ import { APPROVAL_REQUIRED_RISKS, RISK_LABEL } from "@/lib/agents/permissions";
 import { MODELS } from "@/lib/agents/registry";
 import { requireViewer } from "@/lib/auth/session";
 import { listAgents } from "@/lib/data/agents";
+import { getBudgetStatus } from "@/lib/data/budget";
 import { defaultModel, integrationStatus, readEnv } from "@/lib/env";
+import { LimitsForm } from "./limits-form";
 
 export default async function SettingsPage() {
   const viewer = await requireViewer();
   const env = readEnv();
   const integrations = integrationStatus(env);
-  const agents = await listAgents(viewer);
+  const [agents, budget] = await Promise.all([listAgents(viewer), getBudgetStatus(viewer)]);
+  const usd = (v: number) => `${v.toLocaleString("es-ES", { maximumFractionDigits: 2 })} $`;
 
   return (
     <div className="space-y-8">
@@ -78,15 +81,21 @@ export default async function SettingsPage() {
           <h2 className="font-display font-semibold">Límites de gasto de IA</h2>
           <dl className="mt-3 space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-muted">Mensual</dt>
-              <dd>{env.AI_MONTHLY_BUDGET_USD ? `${env.AI_MONTHLY_BUDGET_USD} $` : "Sin definir"}</dd>
+              <dt className="text-muted">Gastado este mes</dt>
+              <dd>{budget ? usd(budget.monthSpentUsd) : "—"}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted">Por tarea</dt>
-              <dd>{env.AI_TASK_BUDGET_USD ? `${env.AI_TASK_BUDGET_USD} $` : "Sin definir"}</dd>
+              <dt className="text-muted">Estado</dt>
+              <dd className={budget?.exceeded ? "text-signal" : "text-online"}>
+                {budget ? (budget.exceeded ? "Límite alcanzado: agentes parados" : "Dentro del límite") : "—"}
+              </dd>
             </div>
           </dl>
-          <p className="mt-3 text-xs text-muted">Se aplicarán al ejecutar agentes (fase 3) y se verán en el centro de mando (fase 6).</p>
+          <LimitsForm monthly={budget?.monthlyLimitUsd ?? null} task={budget?.taskLimitUsd ?? null} disabled={!budget} />
+          <p className="mt-3 text-xs text-muted">
+            Al llegar al límite mensual, el motor deja de empezar o continuar tareas. El límite por tarea corta una
+            ejecución cuando la supera. Fija también un tope en la consola de Anthropic.
+          </p>
         </div>
         <div className="rounded-2xl border border-line bg-surface p-5">
           <h2 className="font-display font-semibold">Siempre requieren tu aprobación</h2>

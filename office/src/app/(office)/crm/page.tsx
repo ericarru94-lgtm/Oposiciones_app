@@ -1,6 +1,8 @@
 import { Upcoming } from "@/components/upcoming";
+import { requireViewer } from "@/lib/auth/session";
 
-export default function Page() {
+export default async function Page() {
+  await requireViewer();
   return (
     <Upcoming
       href="/crm"

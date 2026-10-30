@@ -1,5 +1,7 @@
 # HE SIGNAL AI OFFICE · Arquitectura
 
+> Actualizado tras la auditoría de la fase 1: ver [`AUDITORIA-FASE-1.md`](AUDITORIA-FASE-1.md) (seguridad, aprobaciones, motor, límites reales y costes revisados) y [`FASE-2-DISENO-3D.md`](FASE-2-DISENO-3D.md).
+
 Última actualización: 30/10/2026 (fase 1).
 
 ## 1. Análisis del entorno

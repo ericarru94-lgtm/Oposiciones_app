@@ -1,63 +1,24 @@
 // Ejecuta la migración y el seed reales en un PostgreSQL embebido (PGlite)
 // con un esquema `auth` mínimo que imita a Supabase, y comprueba RLS.
-import { readdirSync, readFileSync } from "node:fs";
-import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildSeedSql } from "@/lib/db/seed";
 import { AGENTS } from "@/lib/agents/registry";
 import { GLOBAL_MEMORY } from "@/lib/agents/company-memory";
+import { ADMIN, INTRUDER, createTestDb, type TestDb } from "./helpers/db";
 
-const ADMIN = "11111111-1111-1111-1111-111111111111";
-const INTRUDER = "22222222-2222-2222-2222-222222222222";
 const ALLOWLISTED = "33333333-3333-3333-3333-333333333333";
 
-const SUPABASE_STUB = `
-  create role anon nologin;
-  create role authenticated nologin;
-  create role service_role nologin bypassrls;
-  create schema auth;
-  create table auth.users (id uuid primary key, email text);
-  create function auth.uid() returns uuid language sql stable as
-    $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-  grant usage on schema auth to anon, authenticated, service_role;
-  grant execute on function auth.uid() to anon, authenticated, service_role;
-  create publication supabase_realtime;
-`;
-
-const GRANTS = `
-  grant usage on schema public to anon, authenticated, service_role;
-  grant all on all tables in schema public to authenticated, service_role;
-  grant all on all sequences in schema public to authenticated, service_role;
-  revoke update, delete, truncate on public.activity_log from authenticated, anon;
-`;
-
-let db: PGlite;
-
-async function as<T>(userId: string, fn: () => Promise<T>): Promise<T> {
-  await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub', '${userId}', false);`);
-  try {
-    return await fn();
-  } finally {
-    await db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false);`);
-  }
-}
+let t: TestDb;
+let db: TestDb["db"];
+const as: TestDb["as"] = (u, fn) => t.as(u, fn);
 
 beforeAll(async () => {
-  db = new PGlite();
-  await db.exec(SUPABASE_STUB);
-  for (const file of readdirSync("supabase/migrations").sort()) {
-    await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
-  }
-  await db.exec(GRANTS);
-  await db.exec(buildSeedSql());
-  await db.exec(`
-    insert into auth.users values ('${ADMIN}', 'admin@hesignal.test'), ('${INTRUDER}', 'otro@test.dev');
-    insert into public.admins (user_id, email) values ('${ADMIN}', 'admin@hesignal.test');
-  `);
+  t = await createTestDb();
+  db = t.db;
 });
 
 afterAll(async () => {
-  await db?.close();
+  await t?.close();
 });
 
 describe("migración y seed", () => {
@@ -146,12 +107,12 @@ describe("Row Level Security", () => {
     ).rejects.toThrow(/row-level security/);
   });
 
-  it("las aprobaciones decididas deben llevar fecha", async () => {
+  it("el administrador no puede crear ni modificar aprobaciones directamente", async () => {
     await expect(
       as(ADMIN, () =>
-        db.exec(`insert into public.approvals (agent_id, tool_id, risk, summary, status)
-                 values ('marcus', 'email.send', 'external_action', 'x', 'approved')`),
+        db.exec(`insert into public.approvals (agent_id, tool_id, risk, summary)
+                 values ('marcus', 'email.send', 'external_action', 'x')`),
       ),
-    ).rejects.toThrow(/check constraint/);
+    ).rejects.toThrow(/row-level security/);
   });
 });

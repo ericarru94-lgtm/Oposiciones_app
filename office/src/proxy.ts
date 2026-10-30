@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // no la tenga. La comprobación de administrador se repite en el servidor
 // (lib/auth/session.ts) y en la base de datos (RLS).
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+const PUBLIC_PATHS = ["/login"];
 
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
   });
 
   const { data } = await supabase.auth.getClaims();
-  const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.includes(request.nextUrl.pathname);
   if (!data?.claims && !isPublic) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";

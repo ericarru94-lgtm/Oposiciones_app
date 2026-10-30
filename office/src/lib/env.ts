@@ -11,10 +11,6 @@ const optional = z
   .transform((v) => (v === "" ? undefined : v))
   .optional();
 
-const positiveNumber = optional
-  .transform((v) => (v === undefined ? undefined : Number(v)))
-  .refine((v) => v === undefined || (Number.isFinite(v) && v > 0), "Debe ser un número positivo");
-
 const schema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: optional.pipe(z.url().optional()),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optional,
@@ -22,8 +18,6 @@ const schema = z.object({
   ADMIN_EMAIL: optional.pipe(z.email().optional()),
   ANTHROPIC_API_KEY: optional,
   DEFAULT_AGENT_MODEL: optional,
-  AI_MONTHLY_BUDGET_USD: positiveNumber,
-  AI_TASK_BUDGET_USD: positiveNumber,
   N8N_BASE_URL: optional.pipe(z.url().optional()),
   N8N_API_KEY: optional,
   N8N_WEBHOOK_SECRET: optional,

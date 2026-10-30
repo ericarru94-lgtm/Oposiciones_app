@@ -27,9 +27,7 @@ describe("entorno", () => {
     expect(status.find((s) => s.id === "n8n")?.configured).toBe(false);
   });
 
-  it("valida límites de gasto y modelo por defecto", () => {
-    expect(readEnv({ AI_MONTHLY_BUDGET_USD: "25" }).AI_MONTHLY_BUDGET_USD).toBe(25);
-    expect(() => readEnv({ AI_MONTHLY_BUDGET_USD: "-3" })).toThrow();
+  it("valida el email del administrador y el modelo por defecto", () => {
     expect(() => readEnv({ ADMIN_EMAIL: "no-es-email" })).toThrow();
     expect(defaultModel(readEnv({ DEFAULT_AGENT_MODEL: "modelo-raro" }))).toBe("claude-opus-5-5");
     expect(defaultModel(readEnv({ DEFAULT_AGENT_MODEL: "claude-sonnet-5-5" }))).toBe("claude-sonnet-5-5");

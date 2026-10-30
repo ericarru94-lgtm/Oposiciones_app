@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { AGENTS, DEPARTMENTS, MODELS, estimateCostUsd } from "@/lib/agents/registry";
+import { AGENTS, DEPARTMENTS, MODELS } from "@/lib/agents/registry";
 import { TOOLS, isToolId } from "@/lib/agents/tools";
 import { evaluateToolUse, riskRequiresApproval } from "@/lib/agents/permissions";
 import { composeSystemPrompt } from "@/lib/agents/prompts";
@@ -48,9 +48,6 @@ describe("registro de agentes", () => {
     expect(readFileSync("supabase/seed.sql", "utf8")).toBe(buildSeedSql());
   });
 
-  it("calcula el coste con los precios del modelo", () => {
-    expect(estimateCostUsd("claude-opus-5-5", 1_000_000, 100_000)).toBeCloseTo(6);
-  });
 });
 
 describe("permisos", () => {
@@ -77,14 +74,10 @@ describe("permisos", () => {
     expect(evaluateToolUse(marcus, "email.send").decision).toBe("unavailable");
   });
 
-  it("pide aprobación cuando una herramienta arriesgada está disponible", () => {
-    const fake = { id: "x", name: "X", tools: ["email.send" as const] };
-    const original = TOOLS["email.send"].availability;
-    (TOOLS["email.send"] as { availability: unknown }).availability = { state: "available" };
-    try {
-      expect(evaluateToolUse(fake, "email.send").decision).toBe("needs_approval");
-    } finally {
-      (TOOLS["email.send"] as { availability: unknown }).availability = original;
-    }
+  it("pide aprobación cuando una herramienta arriesgada está conectada", () => {
+    const connected = new Set(["email.send", "crm.read"]);
+    expect(evaluateToolUse(marcus, "email.send", connected).decision).toBe("needs_approval");
+    expect(evaluateToolUse(marcus, "crm.read", connected).decision).toBe("allow");
+    expect(evaluateToolUse(marcus, "web.search", connected).decision).toBe("unavailable");
   });
 });

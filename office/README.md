@@ -4,10 +4,12 @@ Oficina virtual con nueve empleados de IA para dirigir HE Signal Agency.
 
 - Arquitectura, costes y fases: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
 - Instalación paso a paso: [`docs/INSTALACION.md`](docs/INSTALACION.md)
+- Auditoría de la fase 1: [`docs/AUDITORIA-FASE-1.md`](docs/AUDITORIA-FASE-1.md) · Diseño 3D: [`docs/FASE-2-DISENO-3D.md`](docs/FASE-2-DISENO-3D.md)
 
 ## Estructura
 - `src/lib/agents/` · los 9 empleados (`registry.ts`), herramientas y riesgos (`tools.ts`), permisos (`permissions.ts`), reglas comunes (`prompts.ts`) y memoria inicial (`company-memory.ts`)
 - `src/lib/domain/status.ts` · estados de agentes y máquina de estados de tareas
+- `src/lib/engine/` · bucle manual del agente (`loop.ts`), puerta única de herramientas con aprobaciones (`gateway.ts`) y costes (`cost.ts`)
 - `src/lib/data/` · acceso a datos (solo servidor)
 - `src/app/` · interfaz (Next.js App Router); `src/proxy.ts` protege las rutas
 - `supabase/` · migración con RLS y seed generado (`npm run db:seed`)

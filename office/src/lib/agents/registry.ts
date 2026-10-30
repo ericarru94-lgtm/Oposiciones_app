@@ -21,11 +21,42 @@ export const DEPARTMENTS = {
 } as const;
 export type DepartmentId = keyof typeof DEPARTMENTS;
 
+// Precios oficiales de Anthropic por millón de tokens (tabla de modelos de
+// la documentación de Claude, consultada el 30/10/2026). Las escrituras de
+// caché cuestan 1,25× la entrada (TTL de 5 minutos). Haiku 5.5 tiene un
+// segundo tramo cuando el prompt supera 100.000 tokens. El precio de lectura
+// de caché de Haiku 5.5 no aparece en la tabla: se estima en 0,1× la entrada.
 export const MODELS = {
-  "claude-opus-5-5": { label: "Claude Opus 5.5", inputUsdPerMTok: 4, outputUsdPerMTok: 20 },
-  "claude-sonnet-5-5": { label: "Claude Sonnet 5.5", inputUsdPerMTok: 2, outputUsdPerMTok: 10 },
-  "claude-haiku-5-5": { label: "Claude Haiku 5.5", inputUsdPerMTok: 0.1, outputUsdPerMTok: 0.5 },
-} as const;
+  "claude-opus-5-5": {
+    label: "Claude Opus 5.5",
+    inputUsdPerMTok: 4,
+    outputUsdPerMTok: 20,
+    cacheReadUsdPerMTok: 0.2,
+    longContext: null,
+  },
+  "claude-sonnet-5-5": {
+    label: "Claude Sonnet 5.5",
+    inputUsdPerMTok: 2,
+    outputUsdPerMTok: 10,
+    cacheReadUsdPerMTok: 0.2,
+    longContext: null,
+  },
+  "claude-haiku-5-5": {
+    label: "Claude Haiku 5.5",
+    inputUsdPerMTok: 0.1,
+    outputUsdPerMTok: 0.5,
+    cacheReadUsdPerMTok: 0.01,
+    longContext: { thresholdTokens: 100_000, inputUsdPerMTok: 0.5, outputUsdPerMTok: 2.5 },
+  },
+} as const satisfies Record<string, ModelPricing>;
+
+export interface ModelPricing {
+  label: string;
+  inputUsdPerMTok: number;
+  outputUsdPerMTok: number;
+  cacheReadUsdPerMTok: number;
+  longContext: { thresholdTokens: number; inputUsdPerMTok: number; outputUsdPerMTok: number } | null;
+}
 export type ModelId = keyof typeof MODELS;
 export const DEFAULT_MODEL: ModelId = "claude-opus-5-5";
 
@@ -352,9 +383,4 @@ export const AGENT_IDS = AGENTS.map((a) => a.id);
 
 export function getAgent(id: string): AgentDefinition | undefined {
   return AGENTS.find((a) => a.id === id);
-}
-
-export function estimateCostUsd(model: ModelId, inputTokens: number, outputTokens: number): number {
-  const m = MODELS[model];
-  return (inputTokens * m.inputUsdPerMTok + outputTokens * m.outputUsdPerMTok) / 1_000_000;
 }
