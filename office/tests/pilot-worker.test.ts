@@ -3,7 +3,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SqlEngineStore, type Query } from "@/lib/engine/store-sql";
 import { runTick } from "@/lib/engine/worker";
-import type { ContentBlock, ModelClient, ModelRequest, ModelResponse } from "@/lib/engine/types";
+import type { ModelClient } from "@/lib/engine/types";
+import { ScriptedClaude, lastToolResults, who } from "./helpers/scripted-claude";
 import { createTestDb, type TestDb } from "./helpers/db";
 
 let t: TestDb;
@@ -20,7 +21,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.exec(`delete from public.documents; delete from public.tasks; delete from public.ai_usage;
     delete from public.companies where created_by <> 'admin';
-    update public.settings set value = '{"monthly_ai_budget_usd": 10, "task_ai_budget_usd": 1}' where key = 'limits';
+    update public.settings set value = '{"monthly_ai_budget_usd": 10, "task_ai_budget_usd": 1, "mission_ai_budget_usd": 1}' where key = 'limits';
     update public.agents set status = 'available', current_task_id = null;`);
 });
 
@@ -32,54 +33,6 @@ async function mission() {
     [MISSION],
   );
   return m.id;
-}
-
-const usage = { inputTokens: 1000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0, webSearchRequests: 0 };
-const say = (text: string, model: string): ModelResponse => ({ content: [{ type: "text", text }], stopReason: "end_turn", usage, model });
-const use = (id: string, name: string, input: Record<string, unknown>, model: string): ModelResponse => ({
-  content: [{ type: "tool_use", id, name, input }], stopReason: "tool_use", usage, model,
-});
-
-function lastToolResults(req: ModelRequest): string {
-  const last = req.messages.at(-1);
-  return Array.isArray(last?.content) ? (last.content as ContentBlock[]).map((b) => String(b.content ?? "")).join("\n") : "";
-}
-const who = (req: ModelRequest) => /Eres (\w+),/.exec(req.system)?.[1] ?? "?";
-
-/** Guion: Alex delega → Marcus investiga y guarda → Sofia hace la estrategia → Alex sintetiza. */
-class ScriptedClaude implements ModelClient {
-  calls: ModelRequest[] = [];
-  async create(req: ModelRequest): Promise<ModelResponse> {
-    this.calls.push(structuredClone(req));
-    const turn = (req.messages.length + 1) / 2; // 1, 2, 3… dentro de cada ejecución
-    const first = String(req.messages[0].content);
-    switch (who(req)) {
-      case "Alex":
-        if (first.includes("ENTREGAS DEL EQUIPO")) return say("# Informe final\n1. Gimnasio Real Uno (fuente: https://gym-uno.example/)", req.model);
-        if (turn === 1) return use("tu-m", "tasks__delegate", { agent: "marcus", title: "Investigar gimnasios", instructions: "Fichas con fuentes verificables." }, req.model);
-        if (turn === 2) {
-          const marcusId = /task_id ([0-9a-f-]{36})/.exec(lastToolResults(req))![1];
-          return use("tu-s", "tasks__delegate", { agent: "sofia", title: "Estrategia de captación", instructions: "Estrategia a partir de las fichas.", depends_on: [marcusId] }, req.model);
-        }
-        return say("Plan: Marcus investiga y Sofia prepara la estrategia.", req.model);
-      case "Marcus":
-        if (turn === 1)
-          return {
-            content: [
-              { type: "tool_use", id: "m1", name: "crm__write", input: { name: "Gimnasio Real Uno", city: "Barcelona", need_detected: "No tiene reserva online (verificado en su web).", sources: ["https://gym-uno.example/"] } },
-              { type: "tool_use", id: "m2", name: "email__send", input: { to: "info@gym-uno.example" } },
-              { type: "tool_use", id: "m3", name: "tasks__delegate", input: { agent: "sofia", title: "x", instructions: "subdelegación" } },
-            ],
-            stopReason: "tool_use", usage: { ...usage, webSearchRequests: 2 }, model: req.model,
-          };
-        if (turn === 2) return use("m4", "content__draft", { title: "Ficha · Gimnasio Real Uno", kind: "client_file", content: "VERIFICADO: sin reserva online (https://gym-uno.example/). ESTIMADO: tiempo de respuesta alto." }, req.model);
-        return say("Fichas listas: 1 empresa con fuente.", req.model);
-      case "Sofia":
-        if (turn === 1) return use("s1", "content__draft", { title: "Estrategia de captación", kind: "strategy", content: "PREVISIÓN: 2 reuniones al mes. RESULTADO REAL: ninguno todavía. Presupuesto estimado 0 €." }, req.model);
-        return say("Estrategia lista.", req.model);
-    }
-    throw new Error(`Llamada inesperada de ${who(req)}`);
-  }
 }
 
 describe("ejecutor del piloto", () => {
@@ -155,14 +108,13 @@ describe("ejecutor del piloto", () => {
     expect((await raw(`select 1 from public.documents`)).length).toBe(3);
   });
 
-  it("límite por tarea: se detiene tras el primer paso pagado y no hace más llamadas", async () => {
-    await t.db.exec(`update public.settings set value = '{"monthly_ai_budget_usd": 10, "task_ai_budget_usd": 0.001}' where key = 'limits'`);
+  it("límite por tarea: si la reserva no cabe, no se llama a Claude", async () => {
+    await t.db.exec(`update public.settings set value = '{"monthly_ai_budget_usd": 10, "task_ai_budget_usd": 0.001, "mission_ai_budget_usd": 1}' where key = 'limits'`);
     const id = await mission();
     const claude = new ScriptedClaude();
     const report = await runTick({ store: store(), client: claude });
-    // La subtarea que Alex llegó a delegar se cancela sin llamar al modelo.
-    expect(report.runs.map((r) => `${r.agentId}:${r.outcome}`)).toEqual(["alex:budget_stop", "marcus:parent_stopped"]);
-    expect(claude.calls).toHaveLength(1);
+    expect(report.runs).toEqual([{ taskId: id, agentId: "alex", outcome: "budget_stop" }]);
+    expect(claude.calls).toHaveLength(0);
     const [m] = await raw<{ status: string; error: string }>(`select status::text as status, error from public.tasks where id = $1`, [id]);
     expect(m).toEqual({ status: "failed", error: expect.stringMatching(/límite de gasto por tarea/) });
   });

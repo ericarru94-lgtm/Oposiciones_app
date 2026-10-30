@@ -34,3 +34,18 @@ describe("máquina de estados de tareas", () => {
     expect(agentStatusForTask("failed")).toBe("error");
   });
 });
+
+import { missionPhase } from "@/lib/domain/mission-state";
+
+describe("estado visible de una misión", () => {
+  const now = new Date("2026-10-30T12:00:00Z");
+  const task = (o: Partial<Parameters<typeof missionPhase>[0]> = {}) => ({ status: "assigned", lockedUntil: null, runAfter: null, heartbeatAt: null, error: null, ...o });
+  it("trabajando solo si hay un lease vigente; si no, lista para reanudar o reintento programado", () => {
+    expect(missionPhase(task({ status: "in_progress", lockedUntil: "2026-10-30T12:03:00Z" }), [], now).kind).toBe("working");
+    expect(missionPhase(task({ status: "in_progress", lockedUntil: "2026-10-30T11:59:00Z" }), [], now).kind).toBe("ready");
+    expect(missionPhase(task({ status: "in_progress", runAfter: "2026-10-30T12:01:00Z" }), [], now)).toEqual({ kind: "retry", at: "2026-10-30T12:01:00Z" });
+    expect(missionPhase(task(), [task({ status: "completed" }), task()], now).kind).toBe("ready");
+    expect(missionPhase(task({ status: "failed", error: "Detenida" }), [], now)).toEqual({ kind: "stopped", reason: "Detenida" });
+    expect(missionPhase(task({ status: "completed" }), [], now).kind).toBe("completed");
+  });
+});

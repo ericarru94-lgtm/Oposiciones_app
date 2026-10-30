@@ -32,8 +32,8 @@ export default async function TasksPage() {
         <h2 className="font-display font-semibold">Nuevo encargo</h2>
         {budget && (
           <p className="mt-1 text-xs text-muted">
-            Gastado este mes: {usd(budget.monthSpentUsd)} de {budget.monthlyLimitUsd === null ? "sin límite" : usd(budget.monthlyLimitUsd)} · límite por tarea{" "}
-            {budget.taskLimitUsd === null ? "sin límite" : usd(budget.taskLimitUsd)}
+            Gastado o reservado este mes: {usd(budget.monthSpentUsd)} de {budget.monthlyLimitUsd === null ? "sin límite" : usd(budget.monthlyLimitUsd)} · por misión{" "}
+            {budget.missionLimitUsd === null ? "sin límite" : usd(budget.missionLimitUsd)} · por tarea {budget.taskLimitUsd === null ? "sin límite" : usd(budget.taskLimitUsd)} · máx. 5 empresas
           </p>
         )}
         <div className="mt-4">

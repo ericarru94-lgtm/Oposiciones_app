@@ -1,12 +1,22 @@
 // Ejecutor del piloto: una «pasada» (tick) dentro del límite de una función
-// de Vercel Hobby. Reclama tareas, ejecuta pasos del bucle con reserva de
-// tiempo y deja todo el estado en la base de datos. Si se corta, el lease
-// caduca y otra pasada la retoma (recover_stale / claim_next_task).
+// de Vercel Hobby. Todo el estado vive en la base de datos; el navegador solo
+// pide pasadas. Por cada llamada a Claude:
+//
+//   1. reserve_budget  reserva atómica de gasto (mensual, misión, tarea) y
+//                      renovación del lease. Sin saldo → la tarea se detiene.
+//   2. callModel       la llamada (timeout 150 s < lease 240 s).
+//   3. record_call     coste real (Claude y búsquedas) y respuesta guardados
+//                      ANTES de ejecutar herramientas.
+//   4. resolveLocal    herramientas idempotentes por tool_use_id.
+//
+// Respuesta perdida o proceso cortado en mitad de una llamada → la reserva
+// queda «incierta» (cuenta como gastada) y la llamada NO se repite sola.
 
 import { randomUUID } from "node:crypto";
 import { PILOT_AGENT_IDS, getAgent } from "../agents/registry";
 import { ENGINE, SERVER_TOOLS, pilotScope, type ServerToolId } from "./config";
-import { initialState, runStep, type RunState, type StepOutcome } from "./loop";
+import { buildModelRequest, callModel, initialState, resolveLocal, type RunState, type StepInput } from "./loop";
+import { estimateTokens, reserveUsd } from "./cost";
 import { PILOT_SCHEMAS, pilotGateway } from "./pilot-tools";
 import { initialPrompt, pilotSystemPrompt } from "./pilot-prompts";
 import type { ClaimedRun, EngineStore } from "./store";
@@ -30,9 +40,12 @@ function isRunState(x: unknown): x is RunState {
   return !!x && typeof x === "object" && Array.isArray((x as RunState).messages) && (x as RunState).messages.length > 0;
 }
 
-const BUDGET_MESSAGE = {
+const STOP_MESSAGE = {
   monthly_budget: "Se ha alcanzado el límite mensual de gasto en IA. La tarea se ha detenido.",
+  mission_budget: "Se ha alcanzado el límite de gasto de la misión. La tarea se ha detenido.",
   task_budget: "Se ha alcanzado el límite de gasto por tarea. La tarea se ha detenido.",
+  uncertain:
+    "Una llamada anterior a Claude quedó con resultado incierto (el proceso se cortó o se perdió la respuesta). Cuenta como gastada y no se repite automáticamente.",
 } as const;
 
 export async function runTick(deps: TickDeps): Promise<TickReport> {
@@ -48,8 +61,15 @@ export async function runTick(deps: TickDeps): Promise<TickReport> {
   while (timeLeft() > reserve) {
     const claimed = await deps.store.claim(worker, ENGINE.leaseSeconds, ENGINE.maxParallelRuns);
     if (!claimed) break;
-    const outcome = await runClaimed(deps, worker, claimed, () => timeLeft() > reserve);
-    report.runs.push({ taskId: claimed.taskId, agentId: claimed.agentId, outcome });
+    try {
+      const outcome = await runClaimed(deps, worker, claimed, () => timeLeft() > reserve);
+      report.runs.push({ taskId: claimed.taskId, agentId: claimed.agentId, outcome });
+    } catch (error) {
+      // El estado guardado está a salvo; el lease caduca y otra pasada la retoma.
+      console.error("engine run", claimed.taskId, error);
+      report.runs.push({ taskId: claimed.taskId, agentId: claimed.agentId, outcome: "error" });
+      break;
+    }
   }
   return report;
 }
@@ -68,9 +88,7 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     await store.failRun(run.runId, worker, "El encargo principal se ha detenido; esta subtarea no se ejecuta.", false);
     return "parent_stopped";
   }
-  const serverTools = agent.tools
-    .filter((t): t is ServerToolId => Object.hasOwn(SERVER_TOOLS, t))
-    .map((t) => ({ ...SERVER_TOOLS[t] }));
+  const allowedServerTools = agent.tools.filter((t): t is ServerToolId => Object.hasOwn(SERVER_TOOLS, t));
 
   let state: RunState;
   const saved = await store.loadRunState(run.runId);
@@ -86,48 +104,87 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
   }
 
   const gateway = pilotGateway({ store, runId: run.runId, taskId: task.id, worker, clientId: task.client_id });
+  const base: Omit<StepInput, "state"> = {
+    agent, runId: run.runId, taskId: task.id, client: deps.client, gateway,
+    engine: store.enginePort(run.runId, worker), toolSchemas: PILOT_SCHEMAS,
+    system: pilotSystemPrompt(def), maxSteps: ENGINE.maxStepsPerRun,
+  };
 
   while (true) {
-    await store.activity(run.runId, worker, serverTools.length ? "researching" : "thinking", serverTools.length ? "researching" : "thinking", task.title);
+    // ── Herramientas pendientes, aprobaciones y fin (sin llamar a Claude) ──
+    const local = await resolveLocal({ ...base, state });
+    state = local.state;
+    if (local.kind === "waiting_approval") {
+      await store.pauseForApproval(run.runId, worker, state);
+      return "waiting_approval";
+    }
+    if (local.kind === "failed") {
+      await store.failRun(run.runId, worker, local.error, false);
+      return "failed";
+    }
+    if (local.kind === "completed") return finish(store, worker, run, task, local.result);
 
-    const outcome: StepOutcome = await runStep({
-      agent, runId: run.runId, taskId: task.id, state, client: deps.client, gateway,
-      engine: store.enginePort(run.runId, worker), toolSchemas: PILOT_SCHEMAS, serverTools,
-      system: pilotSystemPrompt(def), maxSteps: ENGINE.maxStepsPerRun,
+    if (!canStep()) {
+      // Sin tiempo para otra llamada: se guarda y se libera para la siguiente pasada.
+      await store.saveRunState(run.runId, worker, state, true);
+      return "yielded";
+    }
+    if (local.changed) await store.saveRunState(run.runId, worker, state, false);
+
+    // ── 1. Reserva atómica (y renovación del lease) ──
+    const wanted = allowedServerTools.includes("web.search") ? SERVER_TOOLS["web.search"].max_uses : 0;
+    const fetches = allowedServerTools.includes("web.fetch") ? SERVER_TOOLS["web.fetch"].max_uses : 0;
+    const draft = buildModelRequest({ ...base, state, serverTools: serverToolsFor(allowedServerTools, wanted) });
+    const estimate = reserveUsd(agent.model, estimateTokens([draft.system, draft.messages, draft.tools, draft.serverTools]), {
+      maxOutputTokens: ENGINE.maxTokens, searches: wanted, fetches, fetchTokens: SERVER_TOOLS["web.fetch"].max_content_tokens,
     });
-    state = outcome.state;
+    const reservation = await store.reserve(run.runId, worker, agent.model, estimate, wanted);
+    if (!reservation.ok) {
+      await store.failRun(run.runId, worker, STOP_MESSAGE[reservation.reason], false);
+      return reservation.reason === "uncertain" ? "uncertain" : "budget_stop";
+    }
+    const serverTools = serverToolsFor(allowedServerTools, reservation.searches);
+    const searching = serverTools.length > 0;
+    await store.activity(run.runId, worker, searching ? "researching" : "thinking", searching ? "researching" : "thinking", task.title);
 
-    // Sin tiempo para otra llamada: el paso se guarda y la tarea se libera
-    // para que la siguiente pasada la retome sin contarla como abandonada.
-    const yieldNow = outcome.kind === "continue" && !canStep();
-    if (outcome.model) {
-      const rec = await store.recordStep({
-        runId: run.runId, worker, state, model: outcome.model,
-        inputTokens: outcome.usage.inputTokens, outputTokens: outcome.usage.outputTokens,
-        cacheReadTokens: outcome.usage.cacheReadTokens, cacheWriteTokens: outcome.usage.cacheWriteTokens,
-        serverToolRequests: outcome.usage.webSearchRequests,
-        costUsd: outcome.costUsd, agentStatus: outcome.researched ? "researching" : "working", release: yieldNow,
-      });
-      if (!rec.continue && rec.reason) {
-        // El paso ya está pagado y registrado; no se hace ninguna llamada más.
-        await store.failRun(run.runId, worker, BUDGET_MESSAGE[rec.reason], false);
-        return "budget_stop";
+    // ── 2. Llamada ──
+    const request = buildModelRequest({ ...base, state, serverTools });
+    const call = await callModel({ ...base, state, serverTools }, request);
+    if (call.kind === "error") {
+      if (call.billing === "unknown") {
+        await store.closeReservation(run.runId, reservation.reservation_id, true);
+        await store.failRun(run.runId, worker, `${call.error} ${STOP_MESSAGE.uncertain}`, false);
+        return "uncertain";
       }
+      await store.closeReservation(run.runId, reservation.reservation_id, false);
+      const retries = state.transientRetries ?? 0;
+      if (call.retryable && retries < ENGINE.maxTransientRetries) {
+        state = { ...state, transientRetries: retries + 1 };
+        await store.deferRun(run.runId, worker, state, 30 * 2 ** retries, call.error);
+        return "deferred";
+      }
+      await store.failRun(run.runId, worker, call.error, false);
+      return "failed";
     }
 
-    switch (outcome.kind) {
-      case "continue":
-        if (yieldNow) return "yielded";
-        continue;
-      case "waiting_approval":
-        await store.pauseForApproval(run.runId, worker, state);
-        return "waiting_approval";
-      case "failed":
-        return (await store.failRun(run.runId, worker, outcome.error, outcome.retryable)) === "failed" ? "failed" : "retry_scheduled";
-      case "completed":
-        return finish(store, worker, run, task, outcome.result);
-    }
+    // ── 3. Coste real y respuesta guardados antes de tocar herramientas ──
+    state = { ...call.state, transientRetries: 0 };
+    const rec = await store.recordCall({
+      runId: run.runId, worker, reservationId: reservation.reservation_id, state, model: call.model,
+      inputTokens: call.usage.inputTokens, outputTokens: call.usage.outputTokens,
+      cacheReadTokens: call.usage.cacheReadTokens, cacheWriteTokens: call.usage.cacheWriteTokens,
+      serverToolRequests: call.usage.webSearchRequests, claudeUsd: call.claudeUsd, searchUsd: call.searchUsd,
+      agentStatus: call.researched ? "researching" : "working",
+    });
+    if (!rec.continue) return "lease_lost"; // el gasto ya está registrado; otra pasada decide
+    // 4. En la siguiente vuelta: herramientas, fallo definitivo o fin.
   }
+}
+
+function serverToolsFor(allowed: ServerToolId[], searches: number) {
+  return allowed
+    .filter((t) => t !== "web.search" || searches > 0)
+    .map((t) => (t === "web.search" ? { ...SERVER_TOOLS[t], max_uses: searches } : { ...SERVER_TOOLS[t] }));
 }
 
 async function finish(store: EngineStore, worker: string, run: ClaimedRun, task: Awaited<ReturnType<EngineStore["getTask"]>>, result: string): Promise<string> {

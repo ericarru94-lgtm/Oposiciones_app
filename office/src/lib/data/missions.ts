@@ -27,6 +27,9 @@ export interface MissionTask {
   costUsd: number;
   modelCalls: number;
   searches: number;
+  lockedUntil: string | null;
+  runAfter: string | null;
+  heartbeatAt: string | null;
 }
 
 export interface MissionDetail {
@@ -36,9 +39,10 @@ export interface MissionDetail {
   documents: { id: string; title: string; kind: string; agentId: string | null; taskId: string | null; content: string | null; createdAt: string }[];
   companies: { id: string; name: string; city: string | null; website: string | null; instagram: string | null; needDetected: string | null; source: string; createdAt: string }[];
   totals: { costUsd: number; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; searches: number; calls: number };
+  budget: { claudeUsd: number; searchUsd: number; reservedUsd: number; uncertainUsd: number; limitUsd: number | null; synthesisReserveUsd: number; maxCompanies: number; maxSearches: number };
 }
 
-const TASK_COLS = "id, title, description, agent_id, status, result, error, input, created_at, parent_task_id";
+const TASK_COLS = "id, title, description, agent_id, status, result, error, input, created_at, parent_task_id, locked_until, run_after, heartbeat_at";
 type CostRow = { task_id: string; model_calls: number; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; server_tool_requests: number; cost_usd: number };
 
 export async function listMissions(viewer: Viewer): Promise<MissionRow[]> {
@@ -82,11 +86,18 @@ export async function getMission(viewer: Viewer, id: string): Promise<MissionDet
   const all = [m, ...(kids ?? [])];
   const ids = all.map((t) => t.id as string);
 
-  const [events, docs, costs] = await Promise.all([
+  const [events, docs, costs, usage, reservations, settings] = await Promise.all([
     supabase.from("task_events").select("id, task_id, agent_id, type, to_status, message, created_at").in("task_id", ids).order("created_at", { ascending: false }).limit(200),
     supabase.from("documents").select("id, title, kind, agent_id, task_id, content, created_at").in("task_id", ids).order("created_at"),
     supabase.from("task_costs").select("*").in("task_id", ids),
+    supabase.from("ai_usage").select("claude_cost_usd, search_cost_usd").in("task_id", ids),
+    supabase.from("ai_reservations").select("status, estimate_usd").eq("mission_id", id).in("status", ["open", "uncertain"]),
+    supabase.from("settings").select("key, value").in("key", ["limits", "pilot"]),
   ]);
+  const setting = (k: string) => (settings.data ?? []).find((x) => x.key === k)?.value as Record<string, unknown> | undefined;
+  const numOr = (v: unknown, d: number | null) => (v === null || v === undefined || v === "" ? d : Number(v));
+  const sumOf = <T,>(rows: T[] | null, f: (r: T) => unknown) => (rows ?? []).reduce((acc, r) => acc + Number(f(r) ?? 0), 0);
+  const resv = (reservations.data ?? []) as { status: string; estimate_usd: number }[];
   const cost = new Map<string, CostRow>((costs.data as CostRow[] | null ?? []).map((c) => [c.task_id, c]));
   const toTask = (t: typeof m): MissionTask => {
     const c = cost.get(t.id);
@@ -94,17 +105,17 @@ export async function getMission(viewer: Viewer, id: string): Promise<MissionDet
       id: t.id, title: t.title, description: t.description, agentId: t.agent_id, status: t.status,
       result: t.result, error: t.error, phase: (t.input as { phase?: string } | null)?.phase ?? null, createdAt: t.created_at,
       costUsd: Number(c?.cost_usd ?? 0), modelCalls: Number(c?.model_calls ?? 0), searches: Number(c?.server_tool_requests ?? 0),
+      lockedUntil: t.locked_until, runAfter: t.run_after, heartbeatAt: t.heartbeat_at,
     };
   };
   const rows = [...cost.values()];
   const sum = (k: keyof CostRow) => rows.reduce((s, r) => s + Number(r[k] ?? 0), 0);
 
-  // Fichas creadas por los agentes del encargo desde que empezó.
+  // Fichas creadas dentro de esta misión.
   const { data: companies } = await supabase
     .from("companies")
     .select("id, name, city, website, instagram, need_detected, source, created_at")
-    .in("created_by", ["marcus", "sofia", "alex"])
-    .gte("created_at", m.created_at)
+    .in("created_in_task", ids)
     .order("created_at");
 
   return {
@@ -116,6 +127,16 @@ export async function getMission(viewer: Viewer, id: string): Promise<MissionDet
     totals: {
       costUsd: sum("cost_usd"), inputTokens: sum("input_tokens"), outputTokens: sum("output_tokens"),
       cacheReadTokens: sum("cache_read_tokens"), cacheWriteTokens: sum("cache_write_tokens"), searches: sum("server_tool_requests"), calls: sum("model_calls"),
+    },
+    budget: {
+      claudeUsd: sumOf(usage.data, (r) => r.claude_cost_usd),
+      searchUsd: sumOf(usage.data, (r) => r.search_cost_usd),
+      reservedUsd: sumOf(resv.filter((r) => r.status === "open"), (r) => r.estimate_usd),
+      uncertainUsd: sumOf(resv.filter((r) => r.status === "uncertain"), (r) => r.estimate_usd),
+      limitUsd: numOr(setting("limits")?.mission_ai_budget_usd, null),
+      synthesisReserveUsd: numOr(setting("pilot")?.synthesis_reserve_usd, 0)!,
+      maxCompanies: numOr(setting("pilot")?.max_companies, 5)!,
+      maxSearches: numOr(setting("pilot")?.max_searches, 15)!,
     },
   };
 }

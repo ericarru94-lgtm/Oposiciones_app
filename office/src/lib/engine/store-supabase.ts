@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentStatus } from "../domain/status";
 import { createSupabaseServiceClient } from "../supabase/server";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type StepRecord, type TaskRow } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type CallRecord, type Reservation, type TaskRow } from "./store";
 
 // EngineStore de producción: mismas operaciones que SqlEngineStore, a través
 // de la API de Supabase con la clave secreta (solo servidor).
@@ -83,16 +83,27 @@ export class SupabaseEngineStore implements EngineStore {
   async activity(runId: string, worker: string, status: AgentStatus, event: string, detail?: string) {
     await this.rpc("set_run_activity", { p_run_id: runId, p_worker: worker, p_status: status, p_event: event, p_detail: detail ?? null });
   }
-  async heartbeat(runId: string, worker: string) {
-    await this.rpc("heartbeat_run", { p_run_id: runId, p_worker: worker, p_lease_seconds: 240 });
-  }
-  async recordStep(i: Parameters<EngineStore["recordStep"]>[0]) {
-    return this.rpc<StepRecord>("record_step", {
-      p_run_id: i.runId, p_worker: i.worker, p_state: i.state, p_model: i.model,
-      p_input_tokens: i.inputTokens, p_output_tokens: i.outputTokens, p_cache_read_tokens: i.cacheReadTokens,
-      p_cache_write_tokens: i.cacheWriteTokens, p_server_tool_requests: i.serverToolRequests, p_cost_usd: i.costUsd,
-      p_agent_status: i.agentStatus, p_release: i.release,
+  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number) {
+    return this.rpc<Reservation>("reserve_budget", {
+      p_run_id: runId, p_worker: worker, p_model: model, p_estimate_usd: estimateUsd, p_searches: searches, p_lease_seconds: 240,
     });
+  }
+  async recordCall(i: Parameters<EngineStore["recordCall"]>[0]) {
+    return this.rpc<CallRecord>("record_call", {
+      p_run_id: i.runId, p_worker: i.worker, p_reservation_id: i.reservationId, p_state: i.state, p_model: i.model,
+      p_input_tokens: i.inputTokens, p_output_tokens: i.outputTokens, p_cache_read_tokens: i.cacheReadTokens,
+      p_cache_write_tokens: i.cacheWriteTokens, p_server_tool_requests: i.serverToolRequests,
+      p_claude_cost_usd: i.claudeUsd, p_search_cost_usd: i.searchUsd, p_agent_status: i.agentStatus,
+    });
+  }
+  async closeReservation(runId: string, reservationId: string, uncertain: boolean) {
+    await this.rpc("close_reservation", { p_run_id: runId, p_reservation_id: reservationId, p_uncertain: uncertain });
+  }
+  async saveRunState(runId: string, worker: string, state: unknown, release: boolean) {
+    await this.rpc("save_run_state", { p_run_id: runId, p_worker: worker, p_state: state, p_release: release });
+  }
+  async deferRun(runId: string, worker: string, state: unknown, seconds: number, reason: string) {
+    await this.rpc("defer_run", { p_run_id: runId, p_worker: worker, p_state: state, p_seconds: seconds, p_reason: reason });
   }
   async pauseForApproval(runId: string, worker: string, state: unknown) {
     await this.rpc("pause_for_approval", { p_run_id: runId, p_worker: worker, p_state: state });

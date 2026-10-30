@@ -1,15 +1,25 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-// Mientras el encargo tiene trabajo pendiente y esta página está abierta,
-// pide pasadas del motor al servidor (una cada vez) y refresca los datos.
-// El servidor decide todo; aquí solo se muestra lo que hay en la base de datos.
+// Mientras la misión tenga trabajo y esta página esté abierta, pide pasadas
+// del motor al servidor y refresca los datos. No guarda nada: todo el estado
+// está en la base de datos, así que cerrar la página solo pausa el trabajo.
 export function EngineRunner({ active }: { active: boolean }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "running" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const wake = useRef<() => void>(() => {});
+
+  const sleep = (ms: number) =>
+    new Promise<void>((resolve) => {
+      const id = setTimeout(resolve, ms);
+      wake.current = () => {
+        clearTimeout(id);
+        resolve();
+      };
+    });
 
   useEffect(() => {
     if (!active) return;
@@ -18,7 +28,8 @@ export function EngineRunner({ active }: { active: boolean }) {
     (async () => {
       while (!stopped) {
         if (document.visibilityState !== "visible") {
-          await new Promise((r) => setTimeout(r, 3_000));
+          setState("idle");
+          await sleep(3_000);
           continue;
         }
         setState("running");
@@ -28,30 +39,43 @@ export function EngineRunner({ active }: { active: boolean }) {
           if (!res.ok) {
             setState("error");
             setMessage(body.error ?? `Error ${res.status}`);
-            await new Promise((r) => setTimeout(r, 30_000));
+            await sleep(30_000);
           } else {
             setMessage(null);
             router.refresh();
-            // Sin trabajo disponible (esperando dependencias o reintento): espera un poco más.
-            await new Promise((r) => setTimeout(r, body.runs?.length ? 2_000 : 15_000));
+            // Sin trabajo disponible ahora (esperando o reintento programado): espera más.
+            await sleep(body.runs?.length ? 2_000 : 15_000);
           }
         } catch {
           setState("error");
           setMessage("Sin conexión con el servidor.");
-          await new Promise((r) => setTimeout(r, 30_000));
+          await sleep(30_000);
         }
       }
     })();
     return () => {
       stopped = true;
       clearInterval(refresh);
+      wake.current();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, router]);
+
+  const resumeNow = useCallback(() => wake.current(), []);
 
   if (!active) return null;
   return (
-    <p role="status" className={`text-xs ${state === "error" ? "text-signal" : "text-muted"}`}>
-      {state === "error" ? `Motor detenido: ${message}. Se reintentará en 30 s.` : "El equipo está trabajando. Mantén esta página abierta; los datos se actualizan solos."}
-    </p>
+    <div className="flex flex-wrap items-center gap-3">
+      <p role="status" className={`text-xs ${state === "error" ? "text-signal" : "text-muted"}`}>
+        {state === "error"
+          ? `No se ha podido contactar con el motor: ${message}. Se reintentará en 30 s.`
+          : state === "idle"
+            ? "Página en segundo plano: el trabajo está en pausa."
+            : "Conectado al motor. Mantén esta página abierta mientras trabajan."}
+      </p>
+      <button type="button" onClick={resumeNow} className="rounded-lg border border-line px-3 py-1.5 text-xs hover:border-cobalt">
+        Reanudar ahora
+      </button>
+    </div>
   );
 }

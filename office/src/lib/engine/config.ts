@@ -5,8 +5,8 @@ import type { AgentDefinition, ModelId } from "../agents/registry";
 import type { ToolId } from "../agents/tools";
 
 export const ENGINE = {
-  /** Tokens máximos de salida por llamada (sin streaming cabe en un paso). */
-  maxTokens: 16_000,
+  /** Tokens máximos de salida por llamada (cabe en un paso y acota la reserva). */
+  maxTokens: 8_000,
   /** Tiempo máximo de una llamada. Sin reintentos del SDK: los gestiona el motor. */
   requestTimeoutMs: 150_000,
   sdkMaxRetries: 0,
@@ -17,6 +17,8 @@ export const ENGINE = {
   leaseSeconds: 240,
   maxParallelRuns: 2,
   maxStepsPerRun: 30,
+  /** Errores transitorios sin cobro (429, 529…) reintentados en la misma ejecución. */
+  maxTransientRetries: 3,
   /**
    * Política ante un rechazo de seguridad del modelo: NINGÚN respaldo
    * automático (ni a un modelo más caro ni a otro). La tarea falla, queda
@@ -27,8 +29,8 @@ export const ENGINE = {
 
 /** Herramientas de servidor de Anthropic (se ejecutan en Anthropic, solo lectura). */
 export const SERVER_TOOLS = {
-  "web.search": { type: "web_search_20260209", name: "web_search", max_uses: 5 },
-  "web.fetch": { type: "web_fetch_20260209", name: "web_fetch", max_uses: 5, max_content_tokens: 20_000 },
+  "web.search": { type: "web_search_20260209", name: "web_search", max_uses: 3 },
+  "web.fetch": { type: "web_fetch_20260209", name: "web_fetch", max_uses: 2, max_content_tokens: 10_000 },
 } as const;
 export type ServerToolId = keyof typeof SERVER_TOOLS;
 

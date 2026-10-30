@@ -5,13 +5,35 @@ import { getAgent } from "@/lib/agents/registry";
 import { requireViewer } from "@/lib/auth/session";
 import { getMission, type MissionTask } from "@/lib/data/missions";
 import { OFFICE_EVENT_LABEL, toOfficeEvent } from "@/lib/domain/events";
+import { missionPhase, type MissionPhase } from "@/lib/domain/mission-state";
 import { TASK_STATUS_LABEL, agentStatusForTask } from "@/lib/domain/status";
+import { CancelForm } from "./cancel-form";
 import { EngineRunner } from "./engine-runner";
 
 const usd = (v: number) => `${v.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} $`;
 const n = (v: number) => v.toLocaleString("es-ES");
 const name = (id: string | null) => (id ? (getAgent(id)?.name ?? id) : "—");
-const OPEN = new Set(["pending", "assigned", "in_progress"]);
+const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" }) : "—");
+
+function PhaseBanner({ phase }: { phase: MissionPhase }) {
+  const [tone, text] = ((): [string, string] => {
+    switch (phase.kind) {
+      case "completed":
+        return ["border-online/40 text-online", "Terminada. Todo queda en borrador."];
+      case "stopped":
+        return ["border-signal/50 text-signal", `Detenida: ${phase.reason ?? "sin detalle"}`];
+      case "working":
+        return ["border-cobalt/50 text-cobalt-soft", `Trabajando ahora · última actividad ${time(phase.lastActivity)}`];
+      case "retry":
+        return ["border-warn/50 text-warn", `En espera: reintento programado a las ${time(phase.at)}`];
+      case "ready":
+        return ["border-warn/50 text-warn", "En pausa: hay trabajo listo. Se reanuda solo mientras esta página esté abierta."];
+      case "waiting":
+        return ["border-line text-muted", "Esperando a que el equipo termine sus tareas."];
+    }
+  })();
+  return <p className={`rounded-xl border bg-ink px-4 py-3 text-sm ${tone}`}>{text}</p>;
+}
 
 function TaskCard({ t }: { t: MissionTask }) {
   return (
@@ -36,7 +58,9 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
   const detail = await getMission(viewer, id);
   if (!detail) notFound();
   const { mission, children, events, documents, companies, totals } = detail;
-  const active = [mission, ...children].some((t) => OPEN.has(t.status));
+  const phase = missionPhase(mission, children);
+  const active = phase.kind !== "completed" && phase.kind !== "stopped";
+  const spent = detail.budget.claudeUsd + detail.budget.searchUsd;
   const finalReport = documents.find((d) => d.taskId === mission.id && d.kind === "report");
 
   return (
@@ -48,7 +72,9 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
           {TASK_STATUS_LABEL[mission.status]}
           {mission.phase === "synthesis" && mission.status !== "completed" ? " · Alex revisa las entregas" : ""}
         </p>
+        <PhaseBanner phase={phase} />
         <EngineRunner active={active} />
+        {active && <CancelForm missionId={mission.id} />}
       </div>
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -57,11 +83,23 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="rounded-2xl border border-line bg-surface p-5">
-        <h2 className="font-display font-semibold">Coste real</h2>
-        <p className="mt-2 text-sm">{usd(totals.costUsd)} en {totals.calls} llamadas a Claude</p>
+        <h2 className="font-display font-semibold">Coste real de la misión</h2>
+        <p className="mt-2 text-sm">
+          {usd(spent)}
+          {detail.budget.limitUsd !== null && <> de {usd(detail.budget.limitUsd)}</>} · Claude {usd(detail.budget.claudeUsd)} · búsquedas web {usd(detail.budget.searchUsd)}
+        </p>
+        {(detail.budget.reservedUsd > 0 || detail.budget.uncertainUsd > 0) && (
+          <p className="mt-1 text-xs text-warn">
+            {detail.budget.reservedUsd > 0 && <>Reservado para llamadas en curso: {usd(detail.budget.reservedUsd)}. </>}
+            {detail.budget.uncertainUsd > 0 && <>Llamadas con resultado incierto (cuentan como gastadas): {usd(detail.budget.uncertainUsd)}.</>}
+          </p>
+        )}
         <p className="mt-1 text-xs text-muted">
-          Tokens: {n(totals.inputTokens)} de entrada · {n(totals.outputTokens)} de salida · {n(totals.cacheReadTokens)} leídos de caché ·{" "}
-          {n(totals.cacheWriteTokens)} escritos en caché · {totals.searches} búsquedas web (0,01 $ cada una, incluidas)
+          {totals.calls} llamadas · tokens: {n(totals.inputTokens)} de entrada · {n(totals.outputTokens)} de salida · {n(totals.cacheReadTokens)} leídos de caché ·{" "}
+          {n(totals.cacheWriteTokens)} escritos en caché · {totals.searches} de {detail.budget.maxSearches} búsquedas · {companies.length} de {detail.budget.maxCompanies} empresas
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Antes de cada llamada se reserva el coste máximo posible y luego se ajusta al real. {usd(detail.budget.synthesisReserveUsd)} quedan siempre reservados para el informe de Alex.
         </p>
       </section>
 

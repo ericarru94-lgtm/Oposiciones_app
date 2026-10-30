@@ -91,7 +91,7 @@ export default async function SettingsPage() {
               </dd>
             </div>
           </dl>
-          <LimitsForm monthly={budget?.monthlyLimitUsd ?? null} task={budget?.taskLimitUsd ?? null} disabled={!budget} />
+          <LimitsForm monthly={budget?.monthlyLimitUsd ?? null} task={budget?.taskLimitUsd ?? null} mission={budget?.missionLimitUsd ?? null} disabled={!budget} />
           <p className="mt-3 text-xs text-muted">
             Al llegar al límite mensual, el motor deja de empezar o continuar tareas. El límite por tarea corta una
             ejecución cuando la supera. Fija también un tope en la consola de Anthropic.

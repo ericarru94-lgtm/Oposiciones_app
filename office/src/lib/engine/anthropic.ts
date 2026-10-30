@@ -62,23 +62,28 @@ export class AnthropicModelClient implements ModelClient {
   }
 }
 
-/** Errores reintentables: límite de uso, sobrecarga, 5xx, red y tiempo agotado. */
+/**
+ * Errores reintentables: límite de uso, sobrecarga y algunos 5xx. Si no se
+ * recibió respuesta (red, tiempo agotado) o el servidor falló a medias (500),
+ * el cobro es desconocido: la llamada no se repetirá automáticamente.
+ */
 export function toModelError(error: unknown): ModelError {
   if (error instanceof Anthropic.APIConnectionError) {
-    return new ModelError("No se pudo conectar con Claude.", true); // incluye tiempo agotado
+    return new ModelError("Sin respuesta de Claude (conexión o tiempo agotado). Puede que la llamada se haya procesado.", true, "unknown");
   }
   if (error instanceof Anthropic.RateLimitError) {
-    return new ModelError("Claude ha limitado las peticiones (429).", true);
+    return new ModelError("Claude ha limitado las peticiones (429).", true, "none");
   }
   if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-    return new ModelError("La clave de la API de Anthropic no es válida o no tiene permisos.", false);
+    return new ModelError("La clave de la API de Anthropic no es válida o no tiene permisos.", false, "none");
   }
   if (error instanceof Anthropic.BadRequestError || error instanceof Anthropic.NotFoundError) {
-    return new ModelError(`Petición rechazada por la API: ${error.message}`, false);
+    return new ModelError(`Petición rechazada por la API: ${error.message}`, false, "none");
   }
   if (error instanceof Anthropic.APIError) {
     const status = error.status ?? 0;
-    return new ModelError(`Error de la API de Claude (${status}).`, status >= 500 || status === 408 || status === 409);
+    const rejected = status === 529 || status === 503 || status === 408 || status === 409;
+    return new ModelError(`Error de la API de Claude (${status}).`, status >= 500 || rejected, rejected ? "none" : "unknown");
   }
-  return new ModelError((error as Error)?.message ?? "Error desconocido.", true);
+  return new ModelError((error as Error)?.message ?? "Error desconocido.", true, "unknown");
 }

@@ -106,4 +106,39 @@ describe("concurrencia real (PostgreSQL 18)", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.length).toBe(4);
   });
+
+  it("límite de tareas simultáneas exacto aunque lleguen ocho pasadas a la vez", async () => {
+    const root = await connect("postgres");
+    await root.query(`update public.tasks set locked_until = null, locked_by = null, status = 'completed'`);
+    await root.query(`insert into public.tasks (title, agent_id, status)
+                      select 'Límite ' || a, a, 'assigned' from unnest(array['alex','marcus','sofia','oscar','victoria']) a`);
+    const workers = await Promise.all(Array.from({ length: 8 }, () => connect()));
+    const results = await Promise.all(workers.map((w, i) => w.query(`select * from public.claim_next_task($1, 240, 2)`, [`lim-${i}`])));
+    expect(results.flatMap((r) => r.rows)).toHaveLength(2);
+  });
+
+  it("reservas simultáneas: nunca se supera el presupuesto aunque comprueben el saldo a la vez", async () => {
+    const root = await connect("postgres");
+    await root.query(`update public.tasks set locked_until = null, locked_by = null, status = 'completed'`);
+    await root.query(`delete from public.ai_reservations; delete from public.ai_usage;
+      update public.settings set value = '{"monthly_ai_budget_usd": 0.5, "task_ai_budget_usd": 1, "mission_ai_budget_usd": 1}' where key = 'limits'`);
+    const agents = ["alex", "marcus", "sofia", "oscar", "victoria", "daniel"];
+    await root.query(`insert into public.tasks (title, agent_id, status, input)
+                      select 'Reserva ' || a, a, 'assigned', '{"kind": "mission"}' from unnest($1::text[]) a`, [agents]);
+    const svc = await connect();
+    const runs: { run_id: string; w: string }[] = [];
+    for (let i = 0; i < agents.length; i++) {
+      const { rows } = await svc.query(`select * from public.claim_next_task($1, 240, 20)`, [`res-${i}`]);
+      runs.push({ run_id: rows[0].run_id, w: `res-${i}` });
+    }
+    // Seis llamadas de 0,15 $ a la vez con 0,50 $ de saldo: caben tres.
+    const conns = await Promise.all(runs.map(() => connect()));
+    const results = await Promise.all(
+      conns.map((c, i) => c.query(`select public.reserve_budget($1, $2, 'claude-sonnet-5-5', 0.15, 0) as r`, [runs[i].run_id, runs[i].w])),
+    );
+    const ok = results.filter((r) => r.rows[0].r.ok);
+    expect(ok).toHaveLength(3);
+    const { rows } = await root.query(`select sum(estimate_usd)::numeric as s from public.ai_reservations where status = 'open'`);
+    expect(Number(rows[0].s)).toBeLessThanOrEqual(0.5);
+  });
 });

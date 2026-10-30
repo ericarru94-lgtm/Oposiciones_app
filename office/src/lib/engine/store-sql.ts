@@ -4,7 +4,7 @@
 
 import type { AgentStatus } from "../domain/status";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type StepRecord, type TaskRow } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type CallRecord, type Reservation, type TaskRow } from "./store";
 
 export type Query = <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>;
 
@@ -63,9 +63,9 @@ export class SqlEngineStore implements EngineStore {
   }
   async insertCompany(row: Parameters<EngineStore["insertCompany"]>[0]) {
     const [r] = await this.q<{ id: string }>(
-      `insert into public.companies (name, city, website, instagram, phone, need_detected, recommended_service, notes, source, created_by, stage)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'researched') returning id`,
-      [row.name, row.city, row.website, row.instagram, row.phone, row.need_detected, row.recommended_service, row.notes, row.source, row.created_by]);
+      `insert into public.companies (name, city, website, instagram, phone, need_detected, recommended_service, notes, source, created_by, created_in_task, stage)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'researched') returning id`,
+      [row.name, row.city, row.website, row.instagram, row.phone, row.need_detected, row.recommended_service, row.notes, row.source, row.created_by, row.created_in_task]);
     return r.id;
   }
   async createDocument(row: Parameters<EngineStore["createDocument"]>[0]) {
@@ -78,15 +78,25 @@ export class SqlEngineStore implements EngineStore {
   async activity(runId: string, worker: string, status: AgentStatus, event: string, detail?: string) {
     await this.q(`select public.set_run_activity($1, $2, $3::agent_status, $4, $5)`, [runId, worker, status, event, detail ?? null]);
   }
-  async heartbeat(runId: string, worker: string) {
-    await this.q(`select public.heartbeat_run($1, $2, 240)`, [runId, worker]);
-  }
-  async recordStep(i: Parameters<EngineStore["recordStep"]>[0]): Promise<StepRecord> {
-    const [r] = await this.q<{ r: StepRecord }>(
-      `select public.record_step($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::agent_status, $12) as r`,
-      [i.runId, i.worker, JSON.stringify(i.state), i.model, i.inputTokens, i.outputTokens, i.cacheReadTokens,
-        i.cacheWriteTokens, i.serverToolRequests, i.costUsd, i.agentStatus, i.release]);
+  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number): Promise<Reservation> {
+    const [r] = await this.q<{ r: Reservation }>(`select public.reserve_budget($1, $2, $3, $4, $5, 240) as r`, [runId, worker, model, estimateUsd, searches]);
     return r.r;
+  }
+  async recordCall(i: Parameters<EngineStore["recordCall"]>[0]): Promise<CallRecord> {
+    const [r] = await this.q<{ r: CallRecord }>(
+      `select public.record_call($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::agent_status) as r`,
+      [i.runId, i.worker, i.reservationId, JSON.stringify(i.state), i.model, i.inputTokens, i.outputTokens, i.cacheReadTokens,
+        i.cacheWriteTokens, i.serverToolRequests, i.claudeUsd, i.searchUsd, i.agentStatus]);
+    return r.r;
+  }
+  async closeReservation(runId: string, reservationId: string, uncertain: boolean) {
+    await this.q(`select public.close_reservation($1, $2, $3)`, [runId, reservationId, uncertain]);
+  }
+  async saveRunState(runId: string, worker: string, state: unknown, release: boolean) {
+    await this.q(`select public.save_run_state($1, $2, $3, $4)`, [runId, worker, JSON.stringify(state), release]);
+  }
+  async deferRun(runId: string, worker: string, state: unknown, seconds: number, reason: string) {
+    await this.q(`select public.defer_run($1, $2, $3, $4, $5)`, [runId, worker, JSON.stringify(state), seconds, reason]);
   }
   async pauseForApproval(runId: string, worker: string, state: unknown) {
     await this.q(`select public.pause_for_approval($1, $2, $3)`, [runId, worker, JSON.stringify(state)]);

@@ -57,9 +57,13 @@ export interface CompanyRow {
   is_demo: boolean;
 }
 
-export interface StepRecord {
+export type Reservation =
+  | { ok: true; reservation_id: string; searches: number }
+  | { ok: false; reason: "uncertain" | "monthly_budget" | "mission_budget" | "task_budget" };
+
+export interface CallRecord {
   continue: boolean;
-  reason?: "monthly_budget" | "task_budget";
+  reason?: "lease_lost";
   budget_warning?: boolean;
 }
 
@@ -76,19 +80,24 @@ export interface EngineStore {
   companies(limit: number): Promise<CompanyRow[]>;
   companiesCreatedBy(agentId: string, since: string): Promise<CompanyRow[]>;
   findCompany(name: string, city: string | null): Promise<CompanyRow | null>;
-  insertCompany(row: Omit<CompanyRow, "id" | "stage" | "is_demo"> & { notes: string | null; phone: string | null; created_by: string }): Promise<string>;
+  insertCompany(row: Omit<CompanyRow, "id" | "stage" | "is_demo"> & { notes: string | null; phone: string | null; created_by: string; created_in_task: string }): Promise<string>;
   createDocument(row: {
     title: string; kind: string; content: string; task_id: string; run_id: string; agent_id: string;
     client_id: string | null; source: string; created_by: string;
   }): Promise<string>;
 
   activity(runId: string, worker: string, status: AgentStatus, event: "thinking" | "tool_executing" | "researching", detail?: string): Promise<void>;
-  heartbeat(runId: string, worker: string): Promise<void>;
-  recordStep(input: {
-    runId: string; worker: string; state: unknown; model: string; inputTokens: number; outputTokens: number;
-    cacheReadTokens: number; cacheWriteTokens: number; serverToolRequests: number; costUsd: number;
-    agentStatus: AgentStatus; release: boolean;
-  }): Promise<StepRecord>;
+  /** Reserva atómica antes de llamar a Claude; renueva el lease. */
+  reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number): Promise<Reservation>;
+  /** Coste real de la llamada (siempre se guarda) y estado (si se conserva el lease). */
+  recordCall(input: {
+    runId: string; worker: string; reservationId: string; state: unknown; model: string; inputTokens: number;
+    outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; serverToolRequests: number;
+    claudeUsd: number; searchUsd: number; agentStatus: AgentStatus;
+  }): Promise<CallRecord>;
+  closeReservation(runId: string, reservationId: string, uncertain: boolean): Promise<void>;
+  saveRunState(runId: string, worker: string, state: unknown, release: boolean): Promise<void>;
+  deferRun(runId: string, worker: string, state: unknown, seconds: number, reason: string): Promise<void>;
   pauseForApproval(runId: string, worker: string, state: unknown): Promise<void>;
   completeRun(runId: string, worker: string, result: string): Promise<string>;
   failRun(runId: string, worker: string, error: string, retryable: boolean): Promise<string>;

@@ -118,6 +118,7 @@ export function pilotGateway(c: PilotContext): ToolGateway {
       notes: d.notes ?? null,
       source: d.sources.join(" | "),
       created_by: ctx.agentId,
+      created_in_task: c.taskId,
     });
     return { content: `Ficha creada en el CRM (id ${id}, etapa «investigada»).`, providerRef: id };
   });

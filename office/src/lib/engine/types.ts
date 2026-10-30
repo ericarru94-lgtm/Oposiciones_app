@@ -66,10 +66,16 @@ export interface ModelClient {
   create(request: ModelRequest): Promise<ModelResponse>;
 }
 
+/**
+ * billing: «none» = la API rechazó la petición sin procesarla (no se cobra);
+ * «unknown» = no se sabe si Claude llegó a procesarla (p. ej. respuesta
+ * perdida): se trata como gastada y no se repite automáticamente.
+ */
 export class ModelError extends Error {
   constructor(
     message: string,
     readonly retryable: boolean,
+    readonly billing: "none" | "unknown" = "unknown",
   ) {
     super(message);
   }

@@ -34,7 +34,7 @@ describe("cliente real de Claude (sin red)", () => {
       ...base, model: "claude-sonnet-5-5",
       serverTools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
     });
-    expect(req).toMatchObject({ output_config: { effort: "medium" }, cache_control: { type: "ephemeral" }, max_tokens: 16000 });
+    expect(req).toMatchObject({ output_config: { effort: "medium" }, cache_control: { type: "ephemeral" }, max_tokens: 8000 });
     expect(req).not.toHaveProperty("fallbacks");
     expect(req).not.toHaveProperty("betas");
     expect(req).not.toHaveProperty("thinking");
@@ -52,9 +52,9 @@ describe("cliente real de Claude (sin red)", () => {
     expect(calls[0].body.model).toBe("claude-sonnet-5-5");
   });
 
-  it("clasifica errores: 429 y 529 reintentables, 400 y 401 no", async () => {
-    const statuses: [number, boolean][] = [[429, true], [529, true], [400, false], [401, false]];
-    for (const [status, retryable] of statuses) {
+  it("clasifica errores: 429 y 529 reintentables sin cobro, 400 y 401 no; 500 de cobro desconocido", async () => {
+    const statuses: [number, boolean, string][] = [[429, true, "none"], [529, true, "none"], [400, false, "none"], [401, false, "none"], [500, true, "unknown"]];
+    for (const [status, retryable, billing] of statuses) {
       const { client } = fakeClient(() =>
         new Response(JSON.stringify({ type: "error", error: { type: "x", message: "m" } }), {
           status, headers: { "content-type": "application/json" },
@@ -62,6 +62,7 @@ describe("cliente real de Claude (sin red)", () => {
       );
       await expect(new AnthropicModelClient(client).create({ ...base, model: "claude-haiku-5-5" })).rejects.toMatchObject({
         retryable,
+        billing,
       });
     }
   });
