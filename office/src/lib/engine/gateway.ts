@@ -3,9 +3,15 @@
 // Los manejadores solo existen dentro de una instancia de ToolGateway (campo
 // privado) y la única forma de ejecutarlos es execute(), que aplica siempre
 // la política de permisos. Una herramienta que requiere aprobación solo se
-// ejecuta si la base de datos confirma (consume_approval) que hay una
-// aprobación vigente, de un solo uso, para esta ejecución, esta herramienta,
-// esta acción y exactamente estos argumentos.
+// ejecuta si la base de datos confirma (begin_tool_execution →
+// consume_approval) que hay una aprobación vigente, de un solo uso, para esta
+// ejecución, esta herramienta, esta acción y exactamente estos argumentos.
+//
+// Idempotencia: toda herramienta con efectos (riesgo distinto de «read») se
+// registra en tool_executions ANTES de ejecutarse. Si el proceso se corta
+// después de que el proveedor complete la acción pero antes de guardar el
+// resultado, el reintento encuentra el registro «started» y NO la repite:
+// devuelve «resultado incierto» para que el administrador lo verifique.
 
 import type { AgentDefinition } from "../agents/registry";
 import { evaluateToolUse } from "../agents/permissions";
@@ -14,6 +20,8 @@ import { TOOLS, isToolId, type ToolId } from "../agents/tools";
 export interface ToolOutput {
   content: string;
   isError?: boolean;
+  /** Identificador del proveedor (id del email, del post…) para verificar. */
+  providerRef?: string;
 }
 
 export interface ToolContext {
@@ -26,9 +34,15 @@ export type ToolHandler = (args: Record<string, unknown>, ctx: ToolContext) => P
 
 export type ApprovalState = "pending" | "approved" | "rejected" | "expired";
 
-/** Implementación real: funciones request_approval / consume_approval de Supabase. */
-export interface ApprovalPort {
-  request(input: {
+export type BeginOutcome =
+  | { outcome: "started"; executionId: string }
+  | { outcome: "replay"; status: "succeeded" | "failed"; result: string | null }
+  | { outcome: "uncertain" }
+  | { outcome: "denied" };
+
+/** Implementación real: request_approval, begin/finish_tool_execution de Supabase. */
+export interface EnginePort {
+  requestApproval(input: {
     toolUseId: string;
     toolId: ToolId;
     risk: string;
@@ -36,8 +50,15 @@ export interface ApprovalPort {
     args: Record<string, unknown>;
     summary: string;
   }): Promise<string>;
-  consume(approvalId: string, toolId: ToolId, action: string, args: Record<string, unknown>): Promise<boolean>;
-  state(approvalId: string): Promise<{ state: ApprovalState; note: string | null }>;
+  approvalState(approvalId: string): Promise<{ state: ApprovalState; note: string | null }>;
+  beginExecution(input: {
+    toolUseId: string;
+    toolId: ToolId;
+    action: string;
+    args: Record<string, unknown>;
+    approvalId?: string;
+  }): Promise<BeginOutcome>;
+  finishExecution(executionId: string, succeeded: boolean, result: string, providerRef?: string): Promise<void>;
 }
 
 export interface ToolCall {
@@ -69,7 +90,7 @@ export function actionOf(args: Record<string, unknown>): string {
 export class ToolGateway {
   readonly #handlers = new Map<ToolId, ToolHandler>();
 
-  constructor(private readonly approvals: ApprovalPort) {}
+  constructor(private readonly engine: EnginePort) {}
 
   register(toolId: ToolId, handler: ToolHandler): this {
     if (this.#handlers.has(toolId)) throw new Error(`La herramienta ${toolId} ya está registrada.`);
@@ -89,32 +110,60 @@ export class ToolGateway {
     const toolId = call.toolId as ToolId; // evaluateToolUse ya comprobó que existe
     const action = actionOf(call.args);
 
-    if (decision.decision === "needs_approval") {
-      if (!call.approvalId) {
-        const approvalId = await this.approvals.request({
-          toolUseId: call.toolUseId,
-          toolId,
-          risk: TOOLS[toolId].risk,
-          action,
-          args: call.args,
-          summary: `${call.agent.name} quiere usar «${TOOLS[toolId].name}» (${action}).`,
-        });
-        return { kind: "approval_required", approvalId };
-      }
-      const ok = await this.approvals.consume(call.approvalId, toolId, action, call.args);
-      if (!ok) {
+    // Lecturas: sin efectos, no necesitan registro.
+    if (TOOLS[toolId].risk === "read") {
+      return { kind: "result", output: await this.#run(toolId, call.args, ctx) };
+    }
+
+    if (decision.decision === "needs_approval" && !call.approvalId) {
+      const approvalId = await this.engine.requestApproval({
+        toolUseId: call.toolUseId,
+        toolId,
+        risk: TOOLS[toolId].risk,
+        action,
+        args: call.args,
+        summary: `${call.agent.name} quiere usar «${TOOLS[toolId].name}» (${action}).`,
+      });
+      return { kind: "approval_required", approvalId };
+    }
+
+    const begin = await this.engine.beginExecution({
+      toolUseId: call.toolUseId,
+      toolId,
+      action,
+      args: call.args,
+      approvalId: decision.decision === "needs_approval" ? call.approvalId : undefined,
+    });
+    switch (begin.outcome) {
+      case "denied":
         return {
           kind: "result",
           output: {
             content:
-              "La aprobación no es válida para esta acción (caducada, ya usada o con argumentos distintos). No se ha ejecutado nada.",
+              "La aprobación no es válida para esta acción (caducada, ya usada, de otra ejecución o con argumentos distintos). No se ha ejecutado nada.",
             isError: true,
           },
         };
+      case "replay":
+        return {
+          kind: "result",
+          output: { content: begin.result ?? "Acción ya ejecutada anteriormente.", isError: begin.status === "failed" },
+        };
+      case "uncertain":
+        return {
+          kind: "result",
+          output: {
+            content:
+              "Resultado incierto: esta acción se empezó a ejecutar pero el proceso se interrumpió. No se repetirá automáticamente; el administrador debe comprobar si se completó.",
+            isError: true,
+          },
+        };
+      case "started": {
+        const output = await this.#run(toolId, call.args, ctx);
+        await this.engine.finishExecution(begin.executionId, !output.isError, output.content, output.providerRef);
+        return { kind: "result", output };
       }
     }
-
-    return { kind: "result", output: await this.#run(toolId, call.args, ctx) };
   }
 
   async #run(toolId: ToolId, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolOutput> {

@@ -55,7 +55,11 @@ describe("migración y seed", () => {
 describe("alta del administrador", () => {
   it("solo el email de la lista se convierte en administrador al crear la cuenta", async () => {
     await db.exec(`insert into private.admin_allowlist (email) values ('jefe@hesignal.test')`);
-    await db.exec(`insert into auth.users values ('${ALLOWLISTED}', 'Jefe@HESignal.test')`);
+    // Sin confirmar el email todavía no es administrador.
+    await db.exec(`insert into auth.users (id, email, email_confirmed_at) values ('${ALLOWLISTED}', 'Jefe@HESignal.test', null)`);
+    const before = await db.query(`select 1 from public.admins where user_id = '${ALLOWLISTED}'`);
+    expect(before.rows).toHaveLength(0);
+    await db.exec(`update auth.users set email_confirmed_at = now() where id = '${ALLOWLISTED}'`);
     const { rows } = await db.query<{ email: string }>(
       `select email from public.admins where user_id = '${ALLOWLISTED}'`,
     );
@@ -90,7 +94,7 @@ describe("Row Level Security", () => {
   it("un usuario no puede darse de alta como administrador", async () => {
     await expect(
       as(INTRUDER, () => db.exec(`insert into public.admins (user_id, email) values ('${INTRUDER}', 'otro@test.dev')`)),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied|row-level security/);
   });
 
   it("el registro de actividad no se puede editar ni borrar", async () => {

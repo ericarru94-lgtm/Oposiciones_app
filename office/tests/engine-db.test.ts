@@ -357,7 +357,7 @@ describe("memoria y documentos", () => {
     await expect(
       t.as(ADMIN, () => q(`insert into public.memory_item_versions (memory_item_id, version, category, title, content, source)
                             select id, 99, 'x', 'x', 'x', 'x' from public.memory_items limit 1`)),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied|row-level security/);
   });
 
   it("un agente solo ve la memoria del cliente de su tarea", async () => {
@@ -387,5 +387,145 @@ describe("memoria y documentos", () => {
     await expect(
       q(`insert into public.documents (title, kind, source) values ('Vacío', 'report', 'x')`),
     ).rejects.toThrow(/check constraint/);
+  });
+});
+
+describe("auditoría final: privilegios efectivos", () => {
+  it("anon no tiene ningún privilegio sobre tablas, vistas ni funciones", async () => {
+    const rows = await q<{ obj: string }>(
+      `select c.relname as obj from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        cross join unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p
+        where n.nspname = 'public' and c.relkind in ('r','v') and has_table_privilege('anon', c.oid, p)
+       union
+       select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public' and p.prorettype <> 'trigger'::regtype and has_function_privilege('anon', p.oid, 'execute')`,
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("authenticated no tiene TRUNCATE, REFERENCES ni TRIGGER en ninguna tabla", async () => {
+    const rows = await q<{ t: string }>(
+      `select c.relname || ':' || p as t from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        cross join unnest(array['TRUNCATE','REFERENCES','TRIGGER']) p
+        where n.nspname = 'public' and c.relkind in ('r','v') and has_table_privilege('authenticated', c.oid, p)`,
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("authenticated no puede escribir en tablas que solo escribe el servidor", async () => {
+    const tables = ["admins", "agent_runs", "approvals", "ai_usage", "task_events", "tool_executions",
+      "memory_item_versions", "ai_cost_monthly", "agent_run_stats_monthly"];
+    for (const table of tables) {
+      const [r] = await q<{ w: boolean }>(
+        `select has_table_privilege('authenticated', 'public.${table}', 'INSERT')
+             or has_table_privilege('authenticated', 'public.${table}', 'UPDATE')
+             or has_table_privilege('authenticated', 'public.${table}', 'DELETE') as w`,
+      );
+      expect({ table, ...r }).toEqual({ table, w: false });
+    }
+  });
+
+  it("authenticated solo ejecuta is_admin, decide_approval y ai_budget_status", async () => {
+    const rows = await q<{ name: string }>(
+      `select p.proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname in ('public', 'private') and p.prorettype <> 'trigger'::regtype
+          and has_function_privilege('authenticated', p.oid, 'execute') order by 1`,
+    );
+    expect(rows.map((r) => r.name)).toEqual(["ai_budget_status", "decide_approval", "is_admin"]);
+  });
+
+  it("approvals.payload no se puede usar", async () => {
+    await newTask("emma");
+    const [c] = await claim();
+    await expect(
+      q(`insert into public.approvals (agent_id, run_id, tool_id, risk, summary, payload)
+         values ('emma', $1, 'email.send', 'external_action', 'x', '{"a": 1}')`, [c.run_id]),
+    ).rejects.toThrow(/approvals_payload_unused/);
+  });
+});
+
+describe("auditoría final: aprobaciones y ejecuciones", () => {
+  const ARGS = { action: "send", to: "gimnasio@example.com", body: "Hola" };
+
+  async function approved(agent = "marcus") {
+    await newTask(agent);
+    const [c] = await claim();
+    const [{ id }] = await svc<{ id: string }>(
+      `select public.request_approval($1, 'w1', 'toolu_a', 'email.send', 'external_action', 'send', $2, 'x') as id`,
+      [c.run_id, JSON.stringify(ARGS)],
+    );
+    await svc(`select public.pause_for_approval($1, 'w1', '{}')`, [c.run_id]);
+    await t.as(ADMIN, () => q(`select public.decide_approval($1, true)`, [id]));
+    const [again] = await claim("w1");
+    expect(again.run_id).toBe(c.run_id);
+    return { approvalId: id, runId: c.run_id };
+  }
+  type Begin = { r: { outcome: string; execution_id?: string; result?: string } };
+  const begin = (runId: string, toolUseId: string, args: object, approvalId: string | null, tool = "email.send", action = "send") =>
+    svc<Begin>(`select public.begin_tool_execution($1, 'w1', $2, $3, $4, $5, $6) as r`, [
+      runId, toolUseId, tool, action, JSON.stringify(args), approvalId,
+    ]).then((x) => x[0].r);
+
+  it("aprobación válida: se ejecuta una vez y luego se reproduce el resultado", async () => {
+    const { approvalId, runId } = await approved();
+    const first = await begin(runId, "toolu_a", ARGS, approvalId);
+    expect(first.outcome).toBe("started");
+    await svc(`select public.finish_tool_execution($1, 'w1', true, 'Enviado', 'gmail:123')`, [first.execution_id]);
+    expect(await begin(runId, "toolu_a", ARGS, approvalId)).toMatchObject({ outcome: "replay", result: "Enviado" });
+    // Reutilizar la aprobación en otra llamada: denegado.
+    expect((await begin(runId, "toolu_b", ARGS, approvalId)).outcome).toBe("denied");
+  });
+
+  it("argumentos modificados, otra herramienta u otra ejecución: denegado", async () => {
+    const { approvalId, runId } = await approved();
+    expect((await begin(runId, "x1", { ...ARGS, body: "Otro" }, approvalId)).outcome).toBe("denied");
+    expect((await begin(runId, "x2", ARGS, approvalId, "outreach.contact")).outcome).toBe("denied");
+    expect((await begin(runId, "x3", ARGS, approvalId, "email.send", "schedule")).outcome).toBe("denied");
+    const other = await approved("emma");
+    const foreign = await svc<{ ok: boolean }>(
+      `select public.consume_approval($1, $2, 'email.send', 'send', $3) as ok`,
+      [approvalId, other.runId, JSON.stringify(ARGS)],
+    );
+    expect(foreign[0].ok).toBe(false);
+    expect((await begin(runId, "x4", ARGS, approvalId)).outcome).toBe("started"); // sigue intacta
+  });
+
+  it("aprobación caducada: denegada", async () => {
+    const { approvalId, runId } = await approved();
+    await t.db.exec(`alter table public.approvals disable trigger approvals_guard`);
+    await q(`update public.approvals set expires_at = now() - interval '1 second' where id = $1`, [approvalId]);
+    await t.db.exec(`alter table public.approvals enable trigger approvals_guard`);
+    expect((await begin(runId, "toolu_a", ARGS, approvalId)).outcome).toBe("denied");
+  });
+
+  it("si el proceso se corta tras ejecutar, el reintento no repite la acción", async () => {
+    const { approvalId, runId } = await approved();
+    expect((await begin(runId, "toolu_a", ARGS, approvalId)).outcome).toBe("started");
+    // …el proveedor envía el email, pero finish_tool_execution nunca llega.
+    expect((await begin(runId, "toolu_a", ARGS, approvalId)).outcome).toBe("uncertain");
+    const [e] = await q<{ status: string }>(`select status from public.tool_executions where tool_use_id = 'toolu_a'`);
+    expect(e.status).toBe("unknown");
+  });
+
+  it("sin el lease no se puede empezar ninguna ejecución", async () => {
+    const { approvalId, runId } = await approved();
+    await expect(
+      svc(`select public.begin_tool_execution($1, 'otro', 'toolu_a', 'email.send', 'send', $2, $3)`, [
+        runId, JSON.stringify(ARGS), approvalId,
+      ]),
+    ).rejects.toThrow(/lease perdido/);
+  });
+
+  it("los documentos de otros clientes no llegan a la tarea", async () => {
+    const [a] = await q<{ id: string }>(`insert into public.companies (name, source, is_demo) values ('DEMO Doc A', 'prueba', true) returning id`);
+    const [b] = await q<{ id: string }>(`insert into public.companies (name, source, is_demo) values ('DEMO Doc B', 'prueba', true) returning id`);
+    await q(`insert into public.documents (title, kind, content, source, client_id, is_demo) values
+             ('Propuesta A', 'proposal', 'a', 'prueba', $1, true), ('Propuesta B', 'proposal', 'b', 'prueba', $2, true),
+             ('Guía de marca', 'technical', 'g', 'prueba', null, true)`, [a.id, b.id]);
+    const task = await newTask("marcus", { client_id: a.id });
+    const titles = (await svc<{ title: string }>(`select title from public.documents_for_task($1)`, [task])).map((r) => r.title);
+    expect(titles).toContain("Propuesta A");
+    expect(titles).toContain("Guía de marca");
+    expect(titles).not.toContain("Propuesta B");
   });
 });

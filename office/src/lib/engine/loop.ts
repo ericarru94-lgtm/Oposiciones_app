@@ -12,11 +12,11 @@
 //   3. Evaluación de permisos       7. Continuación en el siguiente paso
 //   4. Aprobación si corresponde    8. Registro (record_step / complete_run…)
 
-import type { AgentDefinition } from "../agents/registry";
+import { MODELS, type AgentDefinition, type ModelId } from "../agents/registry";
 import { composeSystemPrompt } from "../agents/prompts";
 import { TOOLS, type ToolId } from "../agents/tools";
 import { EMPTY_USAGE, addUsage, costUsd, type Usage } from "./cost";
-import { toolIdFromName, toolNameFor, type ApprovalPort, type ToolGateway } from "./gateway";
+import { toolIdFromName, toolNameFor, type EnginePort, type ToolGateway } from "./gateway";
 import {
   ModelError,
   type ContentBlock,
@@ -60,7 +60,7 @@ export interface StepInput {
   state: RunState;
   client: ModelClient;
   gateway: ToolGateway;
-  approvals: ApprovalPort;
+  engine: EnginePort;
   /** Esquemas de entrada de cada herramienta conectada. */
   toolSchemas: Partial<Record<ToolId, Record<string, unknown>>>;
   maxSteps?: number;
@@ -91,7 +91,7 @@ function result(toolUseId: string, content: string, isError = false): ToolResult
 }
 
 export async function runStep(input: StepInput): Promise<StepOutcome> {
-  const { agent, gateway, approvals } = input;
+  const { agent, gateway, engine } = input;
   const ctx = { runId: input.runId, taskId: input.taskId, agentId: agent.id };
   const state: RunState = structuredClone(input.state);
   let usage = EMPTY_USAGE;
@@ -99,7 +99,7 @@ export async function runStep(input: StepInput): Promise<StepOutcome> {
 
   // ── Reanudación: resolver las llamadas que esperaban aprobación ──
   if (state.pending.length > 0) {
-    const decisions = await Promise.all(state.pending.map((p) => approvals.state(p.approvalId)));
+    const decisions = await Promise.all(state.pending.map((p) => engine.approvalState(p.approvalId)));
     if (decisions.some((d) => d.state === "pending")) {
       return { kind: "waiting_approval", state, usage, costUsd: cost };
     }
@@ -144,7 +144,9 @@ export async function runStep(input: StepInput): Promise<StepOutcome> {
   }
   state.steps += 1;
   usage = addUsage(usage, response.usage);
-  cost += costUsd(agent.model, response.usage);
+  // Se factura con el modelo que respondió (puede ser el de respaldo).
+  const billedModel = response.model && Object.hasOwn(MODELS, response.model) ? (response.model as ModelId) : agent.model;
+  cost += costUsd(billedModel, response.usage);
   // Se guarda la respuesta completa, sin tocar los bloques de pensamiento.
   state.messages.push({ role: "assistant", content: response.content });
 
@@ -158,6 +160,8 @@ export async function runStep(input: StepInput): Promise<StepOutcome> {
     case "end_turn":
     case "stop_sequence":
       return { kind: "completed", state, result: textOf(response.content), usage, costUsd: cost };
+    case "other":
+      return { kind: "failed", state, error: "Claude terminó por un motivo no previsto.", retryable: false, usage, costUsd: cost };
     case "tool_use":
       break;
   }

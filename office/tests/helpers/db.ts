@@ -7,6 +7,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { buildSeedSql } from "@/lib/db/seed";
 
 export const ADMIN = "11111111-1111-1111-1111-111111111111";
+export const SUPABASE_STUB_SQL = () => SUPABASE_STUB;
 export const INTRUDER = "22222222-2222-2222-2222-222222222222";
 
 const SUPABASE_STUB = `
@@ -14,7 +15,7 @@ const SUPABASE_STUB = `
   create role authenticated nologin;
   create role service_role nologin bypassrls;
   create schema auth;
-  create table auth.users (id uuid primary key, email text);
+  create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz default now());
   create function auth.uid() returns uuid language sql stable as
     $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant usage on schema auth to anon, authenticated, service_role;
@@ -54,7 +55,7 @@ export async function createTestDb(): Promise<TestDb> {
   }
   await db.exec(buildSeedSql());
   await db.exec(`
-    insert into auth.users values ('${ADMIN}', 'admin@hesignal.test'), ('${INTRUDER}', 'otro@test.dev');
+    insert into auth.users (id, email) values ('${ADMIN}', 'admin@hesignal.test'), ('${INTRUDER}', 'otro@test.dev');
     insert into public.admins (user_id, email) values ('${ADMIN}', 'admin@hesignal.test');
   `);
 

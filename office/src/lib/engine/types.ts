@@ -30,7 +30,7 @@ export interface Message {
   content: string | ContentBlock[];
 }
 
-export type StopReason = "end_turn" | "tool_use" | "max_tokens" | "refusal" | "pause_turn" | "stop_sequence";
+export type StopReason = "end_turn" | "tool_use" | "max_tokens" | "refusal" | "pause_turn" | "stop_sequence" | "other";
 
 export interface ToolSpec {
   name: string;
@@ -50,6 +50,8 @@ export interface ModelResponse {
   content: ContentBlock[];
   stopReason: StopReason;
   usage: Usage;
+  /** Modelo que respondió de verdad (puede ser el de respaldo tras un rechazo). */
+  model?: string;
 }
 
 export interface ModelClient {

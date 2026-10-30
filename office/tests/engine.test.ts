@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { getAgent } from "@/lib/agents/registry";
 import { costUsd, EMPTY_USAGE } from "@/lib/engine/cost";
-import { ToolGateway, toolIdFromName, toolNameFor, type ApprovalPort, type ApprovalState } from "@/lib/engine/gateway";
+import { ToolGateway, toolIdFromName, toolNameFor, type ApprovalState, type BeginOutcome, type EnginePort } from "@/lib/engine/gateway";
 import { initialState, runStep, type RunState } from "@/lib/engine/loop";
 import { ModelError, type ModelClient, type ModelResponse } from "@/lib/engine/types";
 
@@ -18,22 +18,46 @@ function canonical(v: unknown): string {
 }
 const hash = (v: unknown) => createHash("sha256").update(canonical(v)).digest("hex");
 
-class FakeApprovals implements ApprovalPort {
+// Réplica en memoria de request_approval / begin_tool_execution / finish_tool_execution.
+class FakeApprovals implements EnginePort {
   rows = new Map<string, { toolId: string; action: string; hash: string; state: ApprovalState; used: boolean; note: string | null }>();
-  async request(i: { toolUseId: string; toolId: string; action: string; args: Record<string, unknown> }) {
+  executions = new Map<string, { id: string; status: "started" | "succeeded" | "failed" | "unknown"; result: string | null }>();
+  async requestApproval(i: { toolUseId: string; toolId: string; action: string; args: Record<string, unknown> }) {
     const id = `apr-${i.toolUseId}`;
     if (!this.rows.has(id)) this.rows.set(id, { toolId: i.toolId, action: i.action, hash: hash(i.args), state: "pending", used: false, note: null });
     return id;
   }
-  async consume(id: string, toolId: string, action: string, args: Record<string, unknown>) {
-    const r = this.rows.get(id);
-    if (!r || r.state !== "approved" || r.used || r.toolId !== toolId || r.action !== action || r.hash !== hash(args)) return false;
-    r.used = true;
-    return true;
-  }
-  async state(id: string) {
+  async approvalState(id: string) {
     const r = this.rows.get(id)!;
     return { state: r.state, note: r.note };
+  }
+  async beginExecution(i: { toolUseId: string; toolId: string; action: string; args: Record<string, unknown>; approvalId?: string }): Promise<BeginOutcome> {
+    const e = this.executions.get(i.toolUseId);
+    if (e) {
+      if (e.status === "started" || e.status === "unknown") {
+        e.status = "unknown";
+        return { outcome: "uncertain" };
+      }
+      return { outcome: "replay", status: e.status, result: e.result };
+    }
+    if (i.approvalId) {
+      const r = this.rows.get(i.approvalId);
+      if (!r || r.state !== "approved" || r.used || r.toolId !== i.toolId || r.action !== i.action || r.hash !== hash(i.args))
+        return { outcome: "denied" };
+      r.used = true;
+    }
+    const id = `exe-${i.toolUseId}`;
+    this.executions.set(i.toolUseId, { id, status: "started", result: null });
+    return { outcome: "started", executionId: id };
+  }
+  failNextFinish = false;
+  async finishExecution(id: string, ok: boolean, result: string) {
+    if (this.failNextFinish) {
+      this.failNextFinish = false;
+      throw new Error("proceso interrumpido");
+    }
+    const e = [...this.executions.values()].find((x) => x.id === id)!;
+    Object.assign(e, { status: ok ? "succeeded" : "failed", result });
   }
   decide(id: string, state: ApprovalState, note: string | null = null) {
     Object.assign(this.rows.get(id)!, { state, note });
@@ -105,9 +129,44 @@ describe("puerta de herramientas", () => {
     expect(sent).not.toHaveBeenCalled();
     const ok = await gateway.execute({ ...call, approvalId }, ctx);
     expect(ok).toMatchObject({ kind: "result", output: { content: "Enviado a gimnasio@example.com" } });
+    // Misma llamada otra vez: devuelve lo ya hecho, no vuelve a enviar.
     const again = await gateway.execute({ ...call, approvalId }, ctx);
-    expect(again).toMatchObject({ output: { isError: true } });
+    expect(again).toMatchObject({ output: { content: "Enviado a gimnasio@example.com" } });
+    // Otra llamada distinta con la misma aprobación: denegada (un solo uso).
+    const reuse = await gateway.execute({ ...call, toolUseId: "t2", approvalId }, ctx);
+    expect(reuse).toMatchObject({ output: { isError: true } });
     expect(sent).toHaveBeenCalledTimes(1);
+  });
+
+  it("no repite una acción externa si el proceso se corta tras ejecutarla", async () => {
+    const { approvals, gateway, sent } = setup();
+    const call = { agent: marcus, toolUseId: "t9", toolId: "email.send", args: EMAIL };
+    const first = (await gateway.execute(call, ctx)) as { approvalId: string };
+    approvals.decide(first.approvalId, "approved");
+    approvals.failNextFinish = true; // el email sale, pero el resultado no llega a guardarse
+    await expect(gateway.execute({ ...call, approvalId: first.approvalId }, ctx)).rejects.toThrow(/interrumpido/);
+    const retry = await gateway.execute({ ...call, approvalId: first.approvalId }, ctx);
+    expect(retry).toMatchObject({ output: { isError: true, content: expect.stringContaining("Resultado incierto") } });
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+
+  it("un reintento tras completar devuelve el resultado guardado sin repetir", async () => {
+    const { approvals, gateway, sent } = setup();
+    const call = { agent: marcus, toolUseId: "t8", toolId: "email.send", args: EMAIL };
+    const first = (await gateway.execute(call, ctx)) as { approvalId: string };
+    approvals.decide(first.approvalId, "approved");
+    await gateway.execute({ ...call, approvalId: first.approvalId }, ctx);
+    const replay = await gateway.execute({ ...call, approvalId: first.approvalId }, ctx);
+    expect(replay).toMatchObject({ output: { content: "Enviado a gimnasio@example.com" } });
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+
+  it("las lecturas no se registran como ejecuciones", async () => {
+    const { approvals, gateway, crm } = setup();
+    await gateway.execute({ agent: marcus, toolUseId: "r1", toolId: "crm.read", args: {} }, ctx);
+    await gateway.execute({ agent: marcus, toolUseId: "r1", toolId: "crm.read", args: {} }, ctx);
+    expect(crm).toHaveBeenCalledTimes(2);
+    expect(approvals.executions.size).toBe(0);
   });
 
   it("deniega herramientas sin permiso y no simula las no conectadas", async () => {
@@ -130,7 +189,7 @@ describe("puerta de herramientas", () => {
 
 describe("bucle del agente", () => {
   const base = (s: ReturnType<typeof setup>, client: ModelClient, state: RunState) => ({
-    agent: marcus, runId: "run-1", taskId: "task-1", client, gateway: s.gateway, approvals: s.approvals, toolSchemas: {}, state,
+    agent: marcus, runId: "run-1", taskId: "task-1", client, gateway: s.gateway, engine: s.approvals, toolSchemas: {}, state,
   });
 
   it("ejecuta herramientas permitidas, devuelve resultados y termina", async () => {
