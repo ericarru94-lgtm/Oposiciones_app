@@ -54,7 +54,7 @@ describe("presupuesto", () => {
     expect(Number(c.search)).toBeCloseTo(0.02); // 2 búsquedas de Marcus
     expect(Number(c.claude) + Number(c.search)).toBeCloseTo(Number(c.total));
     // Las búsquedas que se ofrecen a Marcus nunca superan su reserva.
-    expect(claude.calls.filter((r) => who(r) === "Marcus").every((r) => r.serverTools?.some((s) => s.name === "web_search" && s.max_uses === 3))).toBe(true);
+    expect(claude.calls.filter((r) => who(r) === "Marcus").every((r) => r.serverTools?.some((s) => s.name === "web_search" && s.max_uses === 1))).toBe(true);
   });
 
   it("límite por misión: las subtareas no pueden comerse la parte reservada al informe de Alex", async () => {
@@ -212,5 +212,47 @@ describe("topes y detención", () => {
     expect(await reservations()).toMatchObject([{ status: "uncertain" }]);
     expect((await raw(`select 1 from public.task_events where type = 'cancelled'`)).length).toBe(2);
     expect((await runTick({ store: store(), client: new ScriptedClaude() })).runs).toEqual([]);
+  });
+});
+
+describe("reserva conservadora", () => {
+  it("cubre el peor caso con los límites del piloto y usa el contador exacto cuando existe", async () => {
+    const { reserveUsd } = await import("@/lib/engine/cost");
+    const { costUsd } = await import("@/lib/engine/cost");
+    const { SERVER_TOOLS, SEARCH_RESULT_TOKENS_ASSUMED, ENGINE } = await import("@/lib/engine/config");
+    expect(SERVER_TOOLS["web.search"].type).toBe("web_search_20250305"); // sin filtrado dinámico
+    for (const P of [5_000, 30_000, 80_000]) {
+      const b = { maxOutputTokens: ENGINE.maxTokens, searches: 1, fetches: 1, fetchTokens: 8_000, searchResultTokens: SEARCH_RESULT_TOKENS_ASSUMED };
+      const r = reserveUsd("claude-sonnet-5-5", P, b);
+      // Peor caso dentro de los supuestos: 3 pasadas sin caché, contexto completo en cada una, salida máxima, 1 búsqueda.
+      const C = P + 8_000 + SEARCH_RESULT_TOKENS_ASSUMED;
+      const worst = costUsd("claude-sonnet-5-5", { inputTokens: 0, cacheWriteTokens: 3 * C, cacheReadTokens: 0, outputTokens: ENGINE.maxTokens, webSearchRequests: 1 });
+      expect(r).toBeGreaterThanOrEqual(worst - 1e-6);
+    }
+    // Haiku por encima de 100.000 tokens usa el tramo caro.
+    expect(reserveUsd("claude-haiku-5-5", 150_000, { maxOutputTokens: 8_000, searches: 0, fetches: 0, fetchTokens: 0, searchResultTokens: 0 }))
+      .toBeCloseTo((150_000 * 0.5 * 1.25 + 8_000 * 2.5) / 1e6, 5);
+  });
+
+  it("el contador exacto se usa para la reserva y un sobrecoste queda registrado como aviso", async () => {
+    const id = await mission();
+    const counted: number[] = [];
+    const client: ModelClient = {
+      async countTokens() { counted.push(1); return 100; }, // prompt diminuto → reserva mínima
+      async create(req: ModelRequest): Promise<ModelResponse> {
+        // Gasta más de lo reservado (simula resultados web más grandes de lo supuesto).
+        return { content: [{ type: "text", text: "plan" }], stopReason: "end_turn", model: req.model,
+          usage: { inputTokens: 200_000, outputTokens: 1_000, cacheReadTokens: 0, cacheWriteTokens: 0, webSearchRequests: 0 } };
+      },
+    };
+    await runTick({ store: store(), client });
+    expect(counted).toHaveLength(1);
+    const [r] = await reservations();
+    expect(Number(r.actual_usd)).toBeGreaterThan(Number(r.estimate_usd));
+    const ev = await raw<{ type: string }>(`select type from public.task_events where task_id = $1 and type = 'cost_overrun'`, [id]);
+    expect(ev).toHaveLength(1);
+    // El gasto real (no la reserva) es lo que cuenta a partir de ahora.
+    const [m] = await raw<{ v: string }>(`select public.committed_usd('mission', $1)::text as v`, [id]);
+    expect(Number(m.v)).toBeCloseTo(Number(r.actual_usd));
   });
 });

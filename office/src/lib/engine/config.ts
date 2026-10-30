@@ -27,11 +27,21 @@ export const ENGINE = {
   refusalFallback: null as ModelId | null,
 } as const;
 
-/** Herramientas de servidor de Anthropic (se ejecutan en Anthropic, solo lectura). */
+/**
+ * Herramientas de servidor de Anthropic (solo lectura). Versiones BÁSICAS, sin
+ * filtrado dinámico: el filtrado ejecuta código en iteraciones internas que
+ * max_uses no limita, y cada iteración vuelve a cobrar el contexto. Con 1
+ * búsqueda + 1 lectura por llamada, una llamada tiene como máximo 3 pasadas
+ * del modelo, y la reserva puede acotarse.
+ */
 export const SERVER_TOOLS = {
-  "web.search": { type: "web_search_20260209", name: "web_search", max_uses: 3 },
-  "web.fetch": { type: "web_fetch_20260209", name: "web_fetch", max_uses: 2, max_content_tokens: 10_000 },
+  "web.search": { type: "web_search_20250305", name: "web_search", max_uses: 1 },
+  "web.fetch": { type: "web_fetch_20250910", name: "web_fetch", max_uses: 1, max_content_tokens: 8_000 },
 } as const;
+/** Supuesto de tamaño de los resultados de UNA búsqueda (la API no permite limitarlo). */
+export const SEARCH_RESULT_TOKENS_ASSUMED = 15_000;
+/** Tokens de las definiciones de herramientas de servidor que el contador no puede medir. */
+export const SERVER_TOOL_OVERHEAD_TOKENS = 2_000;
 export type ServerToolId = keyof typeof SERVER_TOOLS;
 
 /**

@@ -49,7 +49,7 @@ describe("ejecutor del piloto", () => {
     expect(new Set(byAgent("Alex").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-sonnet-5-5/medium"]));
     expect(new Set(byAgent("Marcus").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-sonnet-5-5/high"]));
     expect(new Set(byAgent("Sofia").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-haiku-5-5/high"]));
-    expect(byAgent("Marcus")[0].serverTools?.map((s) => s.type)).toEqual(["web_search_20260209", "web_fetch_20260209"]);
+    expect(byAgent("Marcus")[0].serverTools?.map((s) => s.type)).toEqual(["web_search_20250305", "web_fetch_20250910"]);
     expect(byAgent("Sofia")[0].serverTools ?? []).toEqual([]);
     expect(byAgent("Alex")[0].tools.map((x) => x.name).sort()).toEqual(["content__draft", "crm__read", "memory__read", "tasks__delegate"]);
     expect(byAgent("Marcus")[0].tools.map((x) => x.name)).not.toContain("email__send");

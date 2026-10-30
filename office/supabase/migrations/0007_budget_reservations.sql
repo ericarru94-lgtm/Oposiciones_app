@@ -212,6 +212,14 @@ begin
   values (r.agent_id, r.task_id, p_run_id, p_model, p_input_tokens, p_output_tokens, p_cache_read_tokens,
           p_cache_write_tokens, p_server_tool_requests, v_cost, p_claude_cost_usd, p_search_cost_usd, r.id);
   update public.ai_reservations set status = 'settled', actual_usd = v_cost, closed_at = now() where id = r.id;
+  -- Sobrecoste: el coste real superó la reserva (supuesto de tamaño de búsqueda
+  -- incumplido). Queda registrado y visible; las siguientes reservas ya lo cuentan.
+  if v_cost > r.estimate_usd then
+    insert into public.task_events (task_id, agent_id, type, message, data)
+    values (r.task_id, r.agent_id, 'cost_overrun',
+            'El coste real (' || round(v_cost, 4) || ' $) superó la reserva (' || round(r.estimate_usd, 4) || ' $).',
+            jsonb_build_object('reservation_id', r.id, 'estimate_usd', r.estimate_usd, 'actual_usd', v_cost));
+  end if;
   update public.agent_runs ar
      set steps = ar.steps + 1, model = p_model, heartbeat_at = now(),
          input_tokens = ar.input_tokens + p_input_tokens,

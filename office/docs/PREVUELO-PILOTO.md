@@ -49,3 +49,26 @@
 - Sin segundo plano: el trabajo avanza solo con la página abierta.
 - Una llamada incierta detiene esa tarea; hay que crear otra misión.
 - La reserva de una llamada de Marcus ronda 0,20–0,30 $: con 0,75 $ disponibles para subtareas, Marcus y Sofia tienen margen para pocas llamadas a la vez (se liberan al liquidar).
+
+---
+
+## Validación final de la 0007 y del control de costes (30/10/2026)
+
+Comprobado en la documentación oficial (platform.claude.com, 30/10): Sonnet 5.5 lectura de caché 0,10 $ (la referencia interna que decía 0,20 $ estaba desactualizada); los resultados de búsqueda se cobran como entrada **en cada iteración** del turno; el filtrado dinámico (versiones 20260209) ejecuta código en iteraciones internas que `max_uses` no limita; ningún parámetro limita el tamaño de los resultados de búsqueda; el contador de tokens es gratuito pero no admite herramientas de búsqueda o lectura.
+
+**Problemas encontrados en la reserva anterior**: suponía aciertos de caché en las iteraciones (podía infra-reservar 0,8–1,3 $ por llamada de Marcus), 4.000 tokens por búsqueda y 3 caracteres por token.
+
+**Correcciones**
+- Herramientas web BÁSICAS (`web_search_20250305`, `web_fetch_20250910`), sin filtrado dinámico: 1 búsqueda + 1 lectura (8.000 tokens máx.) por llamada → como máximo 3 pasadas del modelo.
+- Reserva sin suponer caché: `pasadas × (prompt + contenido web) × precio de escritura de caché + salida máxima + búsquedas × 0,01 $`.
+- Prompt medido con el contador oficial gratuito; si falla, 2 caracteres por token. +2.000 tokens por las definiciones de herramientas de servidor.
+- Actividad marcada antes de reservar: entre la reserva y la llamada no queda nada que pueda fallar.
+- Aviso `cost_overrun` cuando el coste real supera la reserva.
+
+**Conceptos de presupuesto**: A estimado (`reserveUsd`), B reservado (`ai_reservations` abiertas), C real confirmado (`ai_usage`), D incierto (reservas `uncertain`, cuentan a su estimación), E disponible = límite − (B + C + D).
+
+**Riesgo residual (no garantizado)**: el tamaño de los resultados de UNA búsqueda (supuesto 15.000 tokens; la documentación muestra ~6.000 en un ejemplo). Si una búsqueda devolviera 45.000 tokens, el exceso en esa llamada sería ≈ 30.000 × 2 pasadas × 2,5 $/M ≈ 0,15 $ (Sonnet). Solo puede ocurrir en la llamada en curso: el coste real se registra y bloquea las siguientes. Peor caso realista de una misión: ≈ 1,15 $. Última red: tope de 15 $ en la consola de Anthropic. Una llamada incierta cuenta a su estimación; si su coste real fuera mayor, la diferencia no se ve hasta conciliar con la consola.
+
+**Resolución manual de llamadas inciertas (propuesta, no implementada)**: el administrador ve la reserva incierta, comprueba el consumo en la consola de Anthropic y la marca «confirmada con coste X» o «sin coste»; nunca se reintenta la llamada: para seguir, se crea una ejecución nueva con una confirmación explícita.
+
+**Migración 0007**: aplicada en simulación sobre 0001–0006 + datos en PostgreSQL 18 (`tests/migration-0007.test.ts`): transaccional (un fallo a mitad no deja nada), no modifica datos (los ajustes nuevos no pisan claves existentes), sin funciones SECURITY DEFINER nuevas, RLS en la tabla nueva, y el código anterior (`record_step`) sigue funcionando → volver a la versión anterior de Vercel es seguro sin deshacer la migración.

@@ -64,6 +64,11 @@ export interface ModelResponse {
 
 export interface ModelClient {
   create(request: ModelRequest): Promise<ModelResponse>;
+  /**
+   * Tokens de entrada exactos de la petición SIN herramientas de servidor
+   * (el contador gratuito de Anthropic no las admite). Opcional.
+   */
+  countTokens?(request: ModelRequest): Promise<number>;
 }
 
 /**

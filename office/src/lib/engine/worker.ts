@@ -14,13 +14,13 @@
 
 import { randomUUID } from "node:crypto";
 import { PILOT_AGENT_IDS, getAgent } from "../agents/registry";
-import { ENGINE, SERVER_TOOLS, pilotScope, type ServerToolId } from "./config";
+import { ENGINE, SEARCH_RESULT_TOKENS_ASSUMED, SERVER_TOOLS, SERVER_TOOL_OVERHEAD_TOKENS, pilotScope, type ServerToolId } from "./config";
 import { buildModelRequest, callModel, initialState, resolveLocal, type RunState, type StepInput } from "./loop";
 import { estimateTokens, reserveUsd } from "./cost";
 import { PILOT_SCHEMAS, pilotGateway } from "./pilot-tools";
 import { initialPrompt, pilotSystemPrompt } from "./pilot-prompts";
 import type { ClaimedRun, EngineStore } from "./store";
-import type { ModelClient } from "./types";
+import type { ModelClient, ModelRequest } from "./types";
 
 export interface TickDeps {
   store: EngineStore;
@@ -132,20 +132,25 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     if (local.changed) await store.saveRunState(run.runId, worker, state, false);
 
     // ── 1. Reserva atómica (y renovación del lease) ──
+    // La actividad se marca antes: entre la reserva y la llamada no hay nada
+    // que pueda fallar y dejar una reserva incierta sin haber llamado.
     const wanted = allowedServerTools.includes("web.search") ? SERVER_TOOLS["web.search"].max_uses : 0;
     const fetches = allowedServerTools.includes("web.fetch") ? SERVER_TOOLS["web.fetch"].max_uses : 0;
+    const searching = wanted + fetches > 0;
+    await store.activity(run.runId, worker, searching ? "researching" : "thinking", searching ? "researching" : "thinking", task.title);
     const draft = buildModelRequest({ ...base, state, serverTools: serverToolsFor(allowedServerTools, wanted) });
-    const estimate = reserveUsd(agent.model, estimateTokens([draft.system, draft.messages, draft.tools, draft.serverTools]), {
-      maxOutputTokens: ENGINE.maxTokens, searches: wanted, fetches, fetchTokens: SERVER_TOOLS["web.fetch"].max_content_tokens,
+    const promptTokens = (await promptTokensOf(deps.client, draft)) + (searching ? SERVER_TOOL_OVERHEAD_TOKENS : 0);
+    const estimate = reserveUsd(agent.model, promptTokens, {
+      maxOutputTokens: ENGINE.maxTokens, searches: wanted, fetches,
+      fetchTokens: SERVER_TOOLS["web.fetch"].max_content_tokens, searchResultTokens: SEARCH_RESULT_TOKENS_ASSUMED,
     });
     const reservation = await store.reserve(run.runId, worker, agent.model, estimate, wanted);
     if (!reservation.ok) {
       await store.failRun(run.runId, worker, STOP_MESSAGE[reservation.reason], false);
       return reservation.reason === "uncertain" ? "uncertain" : "budget_stop";
     }
+    // Si quedan menos búsquedas en la misión, se ofrecen menos (la reserva ya las cubría).
     const serverTools = serverToolsFor(allowedServerTools, reservation.searches);
-    const searching = serverTools.length > 0;
-    await store.activity(run.runId, worker, searching ? "researching" : "thinking", searching ? "researching" : "thinking", task.title);
 
     // ── 2. Llamada ──
     const request = buildModelRequest({ ...base, state, serverTools });
@@ -179,6 +184,18 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     if (!rec.continue) return "lease_lost"; // el gasto ya está registrado; otra pasada decide
     // 4. En la siguiente vuelta: herramientas, fallo definitivo o fin.
   }
+}
+
+/** Tokens exactos con el contador oficial (gratuito); si falla, estimación prudente. */
+async function promptTokensOf(client: ModelClient, req: ModelRequest): Promise<number> {
+  if (client.countTokens) {
+    try {
+      return await client.countTokens({ ...req, serverTools: undefined });
+    } catch {
+      // El contador no admite algunos bloques (resultados web); se estima.
+    }
+  }
+  return estimateTokens([req.system, req.messages, req.tools]);
 }
 
 function serverToolsFor(allowed: ServerToolId[], searches: number) {

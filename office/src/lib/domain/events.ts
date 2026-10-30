@@ -17,6 +17,7 @@ export const OFFICE_EVENTS = [
   "failed",
   "timed_out",
   "cancelled",
+  "cost_overrun",
 ] as const;
 export type OfficeEvent = (typeof OFFICE_EVENTS)[number];
 
@@ -40,6 +41,7 @@ const DB_EVENT_MAP: Record<string, OfficeEvent> = {
   failed: "failed",
   timed_out: "timed_out",
   cancelled: "cancelled",
+  cost_overrun: "cost_overrun",
 };
 
 export function toOfficeEvent(dbType: string, toStatus?: string | null): OfficeEvent | null {
@@ -60,4 +62,5 @@ export const OFFICE_EVENT_LABEL: Record<OfficeEvent, string> = {
   failed: "Error",
   timed_out: "Tiempo agotado",
   cancelled: "Cancelado",
+  cost_overrun: "Aviso: coste por encima de la reserva",
 };

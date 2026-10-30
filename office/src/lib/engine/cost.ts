@@ -56,9 +56,12 @@ export function costParts(model: ModelId, u: Usage): { claude: number; search: n
   return { claude: costUsd(model, u) - search, search };
 }
 
-/** Estimación prudente de tokens: 3 caracteres por token (el español suele dar ~4). */
+/**
+ * Estimación de reserva cuando no se puede contar exactamente: 2 caracteres
+ * por token (el español suele dar ~4; JSON, URL y código, ~2,5–3).
+ */
 export function estimateTokens(payload: unknown): number {
-  return Math.ceil(JSON.stringify(payload).length / 3);
+  return Math.ceil(JSON.stringify(payload).length / 2);
 }
 
 export interface ReserveBounds {
@@ -70,26 +73,31 @@ export interface ReserveBounds {
   fetches: number;
   fetchTokens: number;
   /** Tokens que se suponen por cada resultado de búsqueda. */
-  searchResultTokens?: number;
+  searchResultTokens: number;
 }
 
 /**
- * Reserva conservadora ANTES de llamar: todo el prompt y el contenido web como
- * escritura de caché (1,25×), una relectura del contexto por cada iteración
- * de herramienta de servidor (a precio de lectura de caché), toda la salida
- * permitida y todas las búsquedas permitidas. Se ajusta luego al coste real.
+ * Reserva conservadora ANTES de llamar, sin suponer aciertos de caché.
+ * Con herramientas de servidor el modelo hace una pasada inicial y una más
+ * por cada uso de herramienta; cada pasada vuelve a cobrar todo el contexto:
+ *
+ *   pasadas = 1 + búsquedas + lecturas
+ *   entrada ≤ pasadas × (prompt + contenido web) × precio de escritura de caché (1,25×)
+ *   salida  ≤ max_tokens × precio de salida
+ *   + búsquedas × 0,01 $
+ *
+ * El único supuesto no garantizado es el tamaño de los resultados de búsqueda.
  */
 export function reserveUsd(model: ModelId, promptTokens: number, b: ReserveBounds): number {
   const m = MODELS[model];
-  const content = b.fetches * b.fetchTokens + b.searches * (b.searchResultTokens ?? 4_000);
+  const content = b.fetches * b.fetchTokens + b.searches * b.searchResultTokens;
   const context = promptTokens + content;
   const long = m.longContext && context > m.longContext.thresholdTokens ? m.longContext : null;
   const input = long?.inputUsdPerMTok ?? m.inputUsdPerMTok;
   const output = long?.outputUsdPerMTok ?? m.outputUsdPerMTok;
-  const cacheRead = long ? input * (m.cacheReadUsdPerMTok / m.inputUsdPerMTok) : m.cacheReadUsdPerMTok;
-  const iterations = b.searches + b.fetches;
+  const passes = 1 + b.searches + b.fetches;
   const usd =
-    (context * input * CACHE_WRITE_MULTIPLIER + iterations * context * cacheRead + b.maxOutputTokens * output) / 1_000_000 +
+    (passes * context * input * CACHE_WRITE_MULTIPLIER + b.maxOutputTokens * output) / 1_000_000 +
     b.searches * WEB_SEARCH_USD_PER_REQUEST;
   return Math.max(0.001, Math.ceil(usd * 1_000_000) / 1_000_000);
 }

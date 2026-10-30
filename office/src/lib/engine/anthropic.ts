@@ -39,6 +39,21 @@ export class AnthropicModelClient implements ModelClient {
     this.client = client ?? new Anthropic({ maxRetries: ENGINE.sdkMaxRetries, timeout: ENGINE.requestTimeoutMs });
   }
 
+  /** Contador oficial (gratuito). Sin herramientas de servidor: no las admite. */
+  async countTokens(req: ModelRequest): Promise<number> {
+    const r = await this.client.beta.messages.countTokens({
+      model: req.model,
+      system: req.system,
+      messages: req.messages as unknown as Anthropic.Beta.Messages.BetaMessageParam[],
+      tools: req.tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.input_schema as Anthropic.Beta.Messages.BetaTool.InputSchema,
+      })),
+    });
+    return r.input_tokens;
+  }
+
   async create(req: ModelRequest): Promise<ModelResponse> {
     let msg: Anthropic.Beta.Messages.BetaMessage;
     try {
