@@ -99,7 +99,7 @@ const EMAIL = { action: "send", to: "gimnasio@example.com", subject: "Propuesta"
 describe("costes", () => {
   it("usa los precios oficiales, la caché y la búsqueda web", () => {
     expect(costUsd("claude-opus-5-5", { ...EMPTY_USAGE, inputTokens: 1_000_000, outputTokens: 100_000 })).toBeCloseTo(6);
-    expect(costUsd("claude-sonnet-5-5", { ...EMPTY_USAGE, cacheReadTokens: 1_000_000 })).toBeCloseTo(0.2);
+    expect(costUsd("claude-sonnet-5-5", { ...EMPTY_USAGE, cacheReadTokens: 1_000_000 })).toBeCloseTo(0.1);
     expect(costUsd("claude-sonnet-5-5", { ...EMPTY_USAGE, cacheWriteTokens: 1_000_000 })).toBeCloseTo(2.5);
     expect(costUsd("claude-haiku-5-5", { ...EMPTY_USAGE, webSearchRequests: 3 })).toBeCloseTo(0.03);
   });

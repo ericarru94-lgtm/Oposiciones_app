@@ -28,6 +28,8 @@ export interface ToolContext {
   runId: string;
   taskId: string;
   agentId: string;
+  /** Id de la llamada de Claude (clave de idempotencia de la acción). */
+  toolUseId?: string;
 }
 
 export type ToolHandler = (args: Record<string, unknown>, ctx: ToolContext) => Promise<ToolOutput>;
@@ -112,7 +114,7 @@ export class ToolGateway {
 
     // Lecturas: sin efectos, no necesitan registro.
     if (TOOLS[toolId].risk === "read") {
-      return { kind: "result", output: await this.#run(toolId, call.args, ctx) };
+      return { kind: "result", output: await this.#run(toolId, call.args, { ...ctx, toolUseId: call.toolUseId }) };
     }
 
     if (decision.decision === "needs_approval" && !call.approvalId) {
@@ -159,7 +161,7 @@ export class ToolGateway {
           },
         };
       case "started": {
-        const output = await this.#run(toolId, call.args, ctx);
+        const output = await this.#run(toolId, call.args, { ...ctx, toolUseId: call.toolUseId });
         await this.engine.finishExecution(begin.executionId, !output.isError, output.content, output.providerRef);
         return { kind: "result", output };
       }

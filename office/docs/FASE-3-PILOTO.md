@@ -37,3 +37,34 @@ Coste estimado del piloto: un encargo completo ≈ 0,30–0,60 $. Con un límite
 2. **Clave de la API de Anthropic** (platform.claude.com → API Keys) con un **tope de gasto** fijado allí (p. ej. 15 $/mes). La añades tú en Vercel → Settings → Environment Variables como `ANTHROPIC_API_KEY` (tipo «Sensitive»), o me autorizas a hacerlo.
 3. **Clave secreta de Supabase** (`sb_secret_…`, Project Settings → API Keys) como `SUPABASE_SECRET_KEY` en Vercel («Sensitive»). No puedo leerla con mi conexión.
 4. Límite mensual en Configuración de la oficina (propuesta: 10 $) y confirmar los modelos de la tabla.
+
+---
+
+## Estado de la implementación (30/10/2026)
+
+Implementado y probado en local (106 pruebas, `npm run check` y `npm run build` en verde). **Pendiente de autorización**: aplicar la migración `0006_pilot_engine.sql` en Supabase y publicar en Vercel.
+
+| Pieza | Archivo |
+|---|---|
+| Configuración central (modelos, límites, herramientas del piloto) | `src/lib/agents/registry.ts`, `src/lib/engine/config.ts` |
+| Cliente real de Claude, sin respaldo automático de modelo | `src/lib/engine/anthropic.ts` |
+| Acceso a datos del motor (Supabase y SQL para pruebas) | `src/lib/engine/store*.ts` |
+| Herramientas reales: memoria, CRM con fuentes, borradores, delegación | `src/lib/engine/pilot-tools.ts` |
+| Instrucciones del piloto y mensajes de cada fase | `src/lib/engine/pilot-prompts.ts` |
+| Ejecutor (pasadas de ≤ 280 s con reserva de tiempo) | `src/lib/engine/worker.ts` |
+| Rutas solo para el administrador | `POST /api/engine/tick`, `GET /api/engine/diagnostics` |
+| Pantallas | `/tareas` (nuevo encargo e historial), `/tareas/[id]` (equipo, coste, informe, documentos, fichas, actividad) |
+
+Cómo se ejecuta un encargo:
+1. Creas el encargo en `/tareas` (va a Alex, fase de planificación).
+2. Al abrirlo, la página pide pasadas del motor mientras haya trabajo. **Si cierras la página, el trabajo se pausa** (no hay ejecución en segundo plano: el cron de Vercel Hobby solo permite una ejecución al día; pg_cron requeriría otra autorización).
+3. Alex delega en Marcus y Sofia (Sofia depende de Marcus) y espera; cuando terminan, vuelve en fase de síntesis y entrega el informe final, que se guarda como documento.
+
+Garantías comprobadas en `tests/pilot-worker.test.ts`:
+- Modelos y esfuerzo de cada agente salen de la configuración central; la web solo la tiene Marcus.
+- Herramientas bloqueadas (email, contactar, publicar, campañas, n8n, gastar, borrar) y la subdelegación se rechazan sin ejecutarse.
+- Cada ficha del CRM exige URL de fuente y no admite emails; no se duplica.
+- Coste por llamada en `ai_usage`, búsquedas web contadas aparte, coste por tarea en `task_costs`.
+- Al superar el límite por tarea o mensual, la tarea se detiene tras el paso ya pagado y sus subtareas se cancelan sin llamar al modelo.
+- Si una pasada se queda sin tiempo, guarda el estado y la siguiente continúa la misma ejecución.
+- Volver a ejecutar no repite nada (delegaciones, fichas y documentos idempotentes).

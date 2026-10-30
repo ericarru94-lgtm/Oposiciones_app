@@ -38,12 +38,20 @@ export interface ToolSpec {
   input_schema: Record<string, unknown>;
 }
 
+export interface ServerToolSpec {
+  type: string;
+  name: string;
+  [key: string]: unknown;
+}
+
 export interface ModelRequest {
   model: ModelId;
   effort: AgentDefinition["effort"];
   system: string;
   messages: Message[];
   tools: ToolSpec[];
+  /** Herramientas de servidor (búsqueda/lectura web) ya filtradas por permisos. */
+  serverTools?: ServerToolSpec[];
 }
 
 export interface ModelResponse {

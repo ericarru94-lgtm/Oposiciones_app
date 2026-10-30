@@ -28,16 +28,17 @@ describe("migración y seed", () => {
     expect(new Set(rows.map((r) => r.status))).toEqual(new Set(["available"]));
   });
 
-  it("el seed es idempotente y no pisa el estado ni el modelo elegido", async () => {
+  it("el seed es idempotente, no pisa el estado y sincroniza el modelo central", async () => {
     await db.exec(`update public.agents set status = 'working', model = 'claude-haiku-5-5' where id = 'marcus'`);
     await db.exec(buildSeedSql());
     const { rows } = await db.query<{ status: string; model: string }>(
       "select status, model from public.agents where id = 'marcus'",
     );
-    expect(rows[0]).toEqual({ status: "working", model: "claude-haiku-5-5" });
+    // El modelo sale de la configuración central (registry.ts): Marcus usa Sonnet 5.5.
+    expect(rows[0]).toEqual({ status: "working", model: "claude-sonnet-5-5" });
     const mem = await db.query<{ n: number }>("select count(*)::int as n from public.memory_items");
     expect(mem.rows[0].n).toBe(GLOBAL_MEMORY.length);
-    await db.exec(`update public.agents set status = 'available', model = 'claude-opus-5-5' where id = 'marcus'`);
+    await db.exec(`update public.agents set status = 'available' where id = 'marcus'`);
   });
 
   it("toda la memoria tiene origen y no se puede duplicar dentro de un ámbito", async () => {

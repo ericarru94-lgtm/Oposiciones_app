@@ -19,6 +19,7 @@ import { EMPTY_USAGE, addUsage, costUsd, type Usage } from "./cost";
 import { toolIdFromName, toolNameFor, type EnginePort, type ToolGateway } from "./gateway";
 import {
   ModelError,
+  type ServerToolSpec,
   type ContentBlock,
   type Message,
   type ModelClient,
@@ -47,11 +48,20 @@ export function initialState(taskPrompt: string): RunState {
   return { messages: [{ role: "user", content: taskPrompt }], pending: [], partialResults: [], steps: 0 };
 }
 
+interface StepMeta {
+  usage: Usage;
+  costUsd: number;
+  /** Modelo facturado en este paso (null si no hubo llamada). */
+  model?: string | null;
+  /** El modelo usó herramientas de servidor (búsqueda/lectura web) en este paso. */
+  researched?: boolean;
+}
+
 export type StepOutcome =
-  | { kind: "continue"; state: RunState; usage: Usage; costUsd: number }
-  | { kind: "waiting_approval"; state: RunState; usage: Usage; costUsd: number }
-  | { kind: "completed"; state: RunState; result: string; usage: Usage; costUsd: number }
-  | { kind: "failed"; state: RunState; error: string; retryable: boolean; usage: Usage; costUsd: number };
+  | ({ kind: "continue"; state: RunState } & StepMeta)
+  | ({ kind: "waiting_approval"; state: RunState } & StepMeta)
+  | ({ kind: "completed"; state: RunState; result: string } & StepMeta)
+  | ({ kind: "failed"; state: RunState; error: string; retryable: boolean } & StepMeta);
 
 export interface StepInput {
   agent: AgentDefinition;
@@ -63,6 +73,10 @@ export interface StepInput {
   engine: EnginePort;
   /** Esquemas de entrada de cada herramienta conectada. */
   toolSchemas: Partial<Record<ToolId, Record<string, unknown>>>;
+  /** Herramientas de servidor ya autorizadas para este agente. */
+  serverTools?: ServerToolSpec[];
+  /** Instrucciones de sistema completas (por defecto, reglas comunes + agente). */
+  system?: string;
   maxSteps?: number;
 }
 
@@ -134,9 +148,10 @@ export async function runStep(input: StepInput): Promise<StepOutcome> {
     response = await input.client.create({
       model: agent.model,
       effort: agent.effort,
-      system: composeSystemPrompt(agent.instructions),
+      system: input.system ?? composeSystemPrompt(agent.instructions),
       messages: state.messages,
       tools: toolSpecsFor(agent, gateway, input.toolSchemas),
+      serverTools: input.serverTools,
     });
   } catch (error) {
     const retryable = error instanceof ModelError ? error.retryable : true;
@@ -147,21 +162,22 @@ export async function runStep(input: StepInput): Promise<StepOutcome> {
   // Se factura con el modelo que respondió (puede ser el de respaldo).
   const billedModel = response.model && Object.hasOwn(MODELS, response.model) ? (response.model as ModelId) : agent.model;
   cost += costUsd(billedModel, response.usage);
+  const meta = { model: billedModel, researched: response.content.some((b) => b.type === "server_tool_use") };
   // Se guarda la respuesta completa, sin tocar los bloques de pensamiento.
   state.messages.push({ role: "assistant", content: response.content });
 
   switch (response.stopReason) {
     case "refusal":
-      return { kind: "failed", state, error: "Claude ha rechazado la tarea por sus reglas de seguridad.", retryable: false, usage, costUsd: cost };
+      return { kind: "failed", state, error: "Claude ha rechazado la tarea por sus reglas de seguridad.", retryable: false, usage, costUsd: cost, ...meta };
     case "max_tokens":
-      return { kind: "failed", state, error: "La respuesta se cortó por longitud.", retryable: true, usage, costUsd: cost };
+      return { kind: "failed", state, error: "La respuesta se cortó por longitud.", retryable: true, usage, costUsd: cost, ...meta };
     case "pause_turn":
-      return { kind: "continue", state, usage, costUsd: cost };
+      return { kind: "continue", state, usage, costUsd: cost, ...meta };
     case "end_turn":
     case "stop_sequence":
-      return { kind: "completed", state, result: textOf(response.content), usage, costUsd: cost };
+      return { kind: "completed", state, result: textOf(response.content), usage, costUsd: cost, ...meta };
     case "other":
-      return { kind: "failed", state, error: "Claude terminó por un motivo no previsto.", retryable: false, usage, costUsd: cost };
+      return { kind: "failed", state, error: "Claude terminó por un motivo no previsto.", retryable: false, usage, costUsd: cost, ...meta };
     case "tool_use":
       break;
   }
@@ -179,11 +195,11 @@ export async function runStep(input: StepInput): Promise<StepOutcome> {
   }
 
   if (state.pending.length > 0) {
-    return { kind: "waiting_approval", state, usage, costUsd: cost };
+    return { kind: "waiting_approval", state, usage, costUsd: cost, ...meta };
   }
 
   // ── 6. Todos los resultados del turno en un único mensaje ──
   state.messages.push({ role: "user", content: state.partialResults });
   state.partialResults = [];
-  return { kind: "continue", state, usage, costUsd: cost };
+  return { kind: "continue", state, usage, costUsd: cost, ...meta };
 }

@@ -204,7 +204,7 @@ describe("motor de ejecución", () => {
     expect(c2.attempt).toBe(2);
     expect((await svc<{ s: string }>(`select public.fail_run($1, 'w1', 'Error 529', true) as s`, [c2.run_id]))[0].s).toBe("failed");
     const [agent] = await q<{ status: string }>(`select status from public.agents where id = 'lucia'`);
-    expect(agent.status).toBe("blocked");
+    expect(agent.status).toBe("error");
   });
 
   it("corta las tareas que superan su tiempo máximo", async () => {
@@ -268,7 +268,7 @@ describe("aprobaciones", () => {
   it("pausa la tarea y bloquea al agente hasta que decides", async () => {
     const { taskId } = await pendingApproval(ARGS);
     expect((await q<{ status: string }>(`select status from public.tasks where id = $1`, [taskId]))[0].status).toBe("needs_approval");
-    expect((await q<{ status: string }>(`select status from public.agents where id = 'marcus'`))[0].status).toBe("blocked");
+    expect((await q<{ status: string }>(`select status from public.agents where id = 'marcus'`))[0].status).toBe("waiting_approval");
   });
 
   it("es idempotente por llamada de herramienta", async () => {

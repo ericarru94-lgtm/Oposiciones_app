@@ -33,3 +33,20 @@ export async function requireViewer(): Promise<Viewer> {
   }
   return { mode: "admin", userId: user.id, email: user.email };
 }
+
+/**
+ * Igual que requireViewer, para Route Handlers: sin redirecciones. Devuelve
+ * null si no es el administrador (la ruta responde 401). La vista previa
+ * local no tiene acceso al motor.
+ */
+export async function requireAdminApi(): Promise<Extract<Viewer, { mode: "admin" }> | null> {
+  await connection();
+  const env = readEnv();
+  if (authMode(env) !== "supabase") return null;
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user?.email || user.email.toLowerCase() !== env.ADMIN_EMAIL!.toLowerCase()) return null;
+  const { data: adminRow } = await supabase.from("admins").select("user_id").eq("user_id", user.id).maybeSingle();
+  return adminRow ? { mode: "admin", userId: user.id, email: user.email } : null;
+}

@@ -26,7 +26,8 @@ describe("protección de rutas y acciones", () => {
       if (f.endsWith("actions/auth.ts")) continue; // login: pública por definición
       const code = readFileSync(f, "utf8");
       const exported = code.match(/export async function \w+/g) ?? [];
-      const guarded = code.match(/await requireViewer\(\)/g) ?? [];
+      expect({ f, hasExport: exported.length > 0 }).toEqual({ f, hasExport: true });
+      const guarded = code.match(/await (requireViewer|requireAdminApi)\(\)/g) ?? [];
       expect({ f, guarded: guarded.length >= exported.length }).toEqual({ f, guarded: true });
     }
   });

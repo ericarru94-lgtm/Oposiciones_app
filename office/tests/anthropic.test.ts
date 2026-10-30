@@ -29,14 +29,17 @@ const message = (extra: Record<string, unknown> = {}) =>
   );
 
 describe("cliente real de Claude (sin red)", () => {
-  it("Opus y Sonnet llevan respaldo del servidor; Haiku no", () => {
-    expect(buildRequest({ ...base, model: "claude-sonnet-5-5" })).toMatchObject({
-      betas: ["server-side-fallback-2026-07-01"], fallbacks: "default", output_config: { effort: "medium" },
-      cache_control: { type: "ephemeral" }, max_tokens: 16000,
+  it("sin respaldo automático de modelo, con caché, effort y herramientas web", () => {
+    const req = buildRequest({
+      ...base, model: "claude-sonnet-5-5",
+      serverTools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
     });
-    const haiku = buildRequest({ ...base, model: "claude-haiku-5-5" });
-    expect(haiku).not.toHaveProperty("fallbacks");
-    expect(haiku).not.toHaveProperty("thinking");
+    expect(req).toMatchObject({ output_config: { effort: "medium" }, cache_control: { type: "ephemeral" }, max_tokens: 16000 });
+    expect(req).not.toHaveProperty("fallbacks");
+    expect(req).not.toHaveProperty("betas");
+    expect(req).not.toHaveProperty("thinking");
+    expect(req).not.toHaveProperty("temperature");
+    expect(req.tools).toContainEqual({ type: "web_search_20260209", name: "web_search", max_uses: 5 });
   });
 
   it("devuelve bloques intactos, consumo completo y modelo que respondió", async () => {
@@ -45,8 +48,8 @@ describe("cliente real de Claude (sin red)", () => {
     expect(r.content[0]).toEqual({ type: "thinking", thinking: "", signature: "abc" });
     expect(r.usage).toEqual({ inputTokens: 100, outputTokens: 20, cacheReadTokens: 500, cacheWriteTokens: 50, webSearchRequests: 2 });
     expect(r.model).toBe("claude-sonnet-5-5");
-    expect(calls[0].headers.get("anthropic-beta")).toContain("server-side-fallback-2026-07-01");
-    expect(calls[0].body.fallbacks).toBe("default");
+    expect(calls[0].body.fallbacks).toBeUndefined();
+    expect(calls[0].body.model).toBe("claude-sonnet-5-5");
   });
 
   it("clasifica errores: 429 y 529 reintentables, 400 y 401 no", async () => {

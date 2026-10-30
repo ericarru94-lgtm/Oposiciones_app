@@ -1,40 +1,34 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import type { ModelId } from "../agents/registry";
+import { ENGINE } from "./config";
 import { ModelError, type ContentBlock, type ModelClient, type ModelRequest, type ModelResponse, type StopReason } from "./types";
 
 // Cliente real de Claude (Messages API, SDK oficial).
 //
-// - Petición sin streaming con max_tokens 16.000: cabe en un paso del motor
-//   (lease de 240 s) y el SDK no exige streaming a ese tamaño.
-// - Opus 5.5 y Sonnet 5.5: respaldo del servidor ante rechazos de seguridad
-//   (`fallbacks: "default"`). Haiku 5.5 no lo admite.
+// - Petición sin streaming (max_tokens de ENGINE): cabe en un paso del motor.
+// - Sin respaldo automático ante rechazos (ENGINE.refusalFallback = null): por
+//   decisión del administrador nunca se cambia de modelo sin su permiso.
 // - Caché de prompt automática: instrucciones y herramientas son estables.
-// - Pensamiento: siempre activo en estos modelos; la profundidad se controla
-//   con `effort`. Los bloques se devuelven tal cual para reenviarlos.
-
-const MAX_TOKENS = 16_000;
-const REQUEST_TIMEOUT_MS = 180_000;
-const FALLBACK_BETA = "server-side-fallback-2026-07-01";
-const MODELS_WITH_FALLBACK: readonly ModelId[] = ["claude-opus-5-5", "claude-sonnet-5-5"];
+// - Pensamiento adaptativo (por defecto en estos modelos); la profundidad se
+//   controla con `effort`. Los bloques se devuelven tal cual para reenviarlos.
 
 const KNOWN_STOPS: readonly string[] = ["end_turn", "tool_use", "max_tokens", "refusal", "pause_turn", "stop_sequence"];
 
 export function buildRequest(req: ModelRequest): Anthropic.Beta.Messages.MessageCreateParamsNonStreaming {
-  const withFallback = MODELS_WITH_FALLBACK.includes(req.model);
+  const clientTools = req.tools.map((t) => ({
+    name: t.name,
+    description: t.description,
+    input_schema: t.input_schema as Anthropic.Beta.Messages.BetaTool.InputSchema,
+  }));
+  const serverTools = (req.serverTools ?? []) as unknown as Anthropic.Beta.Messages.BetaToolUnion[];
   return {
     model: req.model,
-    max_tokens: MAX_TOKENS,
+    max_tokens: ENGINE.maxTokens,
     system: req.system,
     messages: req.messages as unknown as Anthropic.Beta.Messages.BetaMessageParam[],
-    tools: req.tools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      input_schema: t.input_schema as Anthropic.Beta.Messages.BetaTool.InputSchema,
-    })),
+    tools: [...clientTools, ...serverTools],
     output_config: { effort: req.effort },
     cache_control: { type: "ephemeral" },
-    ...(withFallback ? { betas: [FALLBACK_BETA], fallbacks: "default" as const } : {}),
   };
 }
 
@@ -42,7 +36,7 @@ export class AnthropicModelClient implements ModelClient {
   private readonly client: Anthropic;
 
   constructor(client?: Anthropic) {
-    this.client = client ?? new Anthropic({ maxRetries: 2, timeout: REQUEST_TIMEOUT_MS });
+    this.client = client ?? new Anthropic({ maxRetries: ENGINE.sdkMaxRetries, timeout: ENGINE.requestTimeoutMs });
   }
 
   async create(req: ModelRequest): Promise<ModelResponse> {

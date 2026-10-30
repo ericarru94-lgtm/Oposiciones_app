@@ -30,6 +30,7 @@ describe("máquina de estados de tareas", () => {
   it("deriva el estado del agente de su tarea", () => {
     expect(agentStatusForTask(null)).toBe("available");
     expect(agentStatusForTask("in_progress")).toBe("working");
-    expect(agentStatusForTask("needs_approval")).toBe("blocked");
+    expect(agentStatusForTask("needs_approval")).toBe("waiting_approval");
+    expect(agentStatusForTask("failed")).toBe("error");
   });
 });

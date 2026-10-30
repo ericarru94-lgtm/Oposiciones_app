@@ -4,21 +4,33 @@
 
 export const AGENT_STATUSES = [
   "available",
+  "receiving",
   "working",
   "thinking",
+  "researching",
+  "executing_tool",
+  "waiting_agent",
+  "waiting_approval",
   "reviewing",
-  "blocked",
   "completed",
+  "error",
+  "blocked", // heredado de la fase 1; el motor ya no lo usa
 ] as const;
 export type AgentStatus = (typeof AGENT_STATUSES)[number];
 
 export const AGENT_STATUS_LABEL: Record<AgentStatus, string> = {
   available: "Disponible",
+  receiving: "Recibiendo tarea",
   working: "Trabajando",
   thinking: "Pensando",
+  researching: "Investigando",
+  executing_tool: "Ejecutando herramienta",
+  waiting_agent: "Esperando a otro agente",
+  waiting_approval: "Esperando tu aprobación",
   reviewing: "En revisión",
-  blocked: "Bloqueado",
   completed: "Completado",
+  error: "Error",
+  blocked: "Bloqueado",
 };
 
 export const TASK_STATUSES = [
@@ -111,8 +123,9 @@ export function agentStatusForTask(status: TaskStatus | null): AgentStatus {
     case "in_review":
       return "reviewing";
     case "needs_approval":
+      return "waiting_approval";
     case "failed":
-      return "blocked";
+      return "error";
     case "completed":
       return "completed";
   }

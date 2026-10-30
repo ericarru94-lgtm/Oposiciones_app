@@ -59,11 +59,12 @@ on conflict (id) do update set
   personality = excluded.personality,
   instructions = excluded.instructions,
   tools = excluded.tools,
+  model = excluded.model,
   effort = excluded.effort,
   is_coordinator = excluded.is_coordinator,
   avatar = excluded.avatar,
   desk = excluded.desk;
--- El modelo no se sobrescribe: se puede cambiar desde Configuración.
+-- El modelo y el esfuerzo se definen en el código (registry.ts) y se sincronizan aquí.
 
 insert into public.memory_items (scope, category, title, content, source, created_by)
 values

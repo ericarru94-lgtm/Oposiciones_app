@@ -9,7 +9,7 @@ export interface NavItem {
 export const NAV: readonly NavItem[] = [
   { href: "/", label: "Oficina", short: "Oficina", phase: 1 },
   { href: "/centro", label: "Centro de mando", short: "Mando", phase: 6 },
-  { href: "/tareas", label: "Tareas", short: "Tareas", phase: 3 },
+  { href: "/tareas", label: "Encargos", short: "Encargos", phase: 1 },
   { href: "/reuniones", label: "Sala de reuniones", short: "Reuniones", phase: 3 },
   { href: "/crm", label: "Clientes y CRM", short: "CRM", phase: 4 },
   { href: "/configuracion", label: "Configuración", short: "Ajustes", phase: 1 },

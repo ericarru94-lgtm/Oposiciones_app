@@ -21,11 +21,11 @@ export const DEPARTMENTS = {
 } as const;
 export type DepartmentId = keyof typeof DEPARTMENTS;
 
-// Precios oficiales de Anthropic por millón de tokens (tabla de modelos de
-// la documentación de Claude, consultada el 30/10/2026). Las escrituras de
-// caché cuestan 1,25× la entrada (TTL de 5 minutos). Haiku 5.5 tiene un
-// segundo tramo cuando el prompt supera 100.000 tokens. El precio de lectura
-// de caché de Haiku 5.5 no aparece en la tabla: se estima en 0,1× la entrada.
+// Precios oficiales de Anthropic por millón de tokens, verificados el
+// 30/10/2026 en platform.claude.com/docs/en/models/*/overview. Escritura de
+// caché (TTL 5 min) = 1,25× la entrada. Lectura de caché: 5 % de la entrada en
+// Opus 5.5 y Sonnet 5.5, 10 % en Haiku 5.5. Haiku 5.5 tiene un segundo tramo
+// cuando el prompt supera 100.000 tokens.
 export const MODELS = {
   "claude-opus-5-5": {
     label: "Claude Opus 5.5",
@@ -38,7 +38,7 @@ export const MODELS = {
     label: "Claude Sonnet 5.5",
     inputUsdPerMTok: 2,
     outputUsdPerMTok: 10,
-    cacheReadUsdPerMTok: 0.2,
+    cacheReadUsdPerMTok: 0.1,
     longContext: null,
   },
   "claude-haiku-5-5": {
@@ -71,6 +71,9 @@ export interface AvatarSpec {
   accent: string;
   accessory: "none" | "glasses" | "headset" | "earring" | "watch";
 }
+
+/** Agentes que trabajan de verdad en el piloto. El resto aún no se ejecuta. */
+export const PILOT_AGENT_IDS = ["alex", "marcus", "sofia"] as const;
 
 export interface AgentDefinition {
   id: string;
@@ -112,8 +115,8 @@ export const AGENTS: readonly AgentDefinition[] = [
       "Controlar prioridades y preparar informes de actividad",
     ],
     tools: [...BASE_TOOLS, "tasks.delegate", "quality.review", "crm.read", "costs.read", "web.search"],
-    model: DEFAULT_MODEL,
-    effort: "high",
+    model: "claude-sonnet-5-5",
+    effort: "medium",
     isCoordinator: true,
     avatar: { skin: "#C68A62", hair: "#1F1A17", hairStyle: "side", outfit: "#0B0D12", accent: "#2747F5", accessory: "watch" },
     desk: { x: 0, z: -6, rotation: 0 },
@@ -146,8 +149,8 @@ Cómo trabajas:
       "Clasificar leads y registrar resultados en el CRM",
     ],
     tools: [...BASE_TOOLS, "web.search", "web.fetch", "crm.read", "crm.write", "outreach.contact", "email.send"],
-    model: DEFAULT_MODEL,
-    effort: "medium",
+    model: "claude-sonnet-5-5",
+    effort: "high",
     isCoordinator: false,
     avatar: { skin: "#8D5A3B", hair: "#0E0B09", hairStyle: "buzz", outfit: "#FF4B2B", accent: "#FFFFFF", accessory: "headset" },
     desk: { x: -6, z: -2, rotation: Math.PI / 2 },
@@ -178,8 +181,8 @@ Cómo trabajas:
       "Elaborar planes de crecimiento",
     ],
     tools: [...BASE_TOOLS, "web.search", "web.fetch", "crm.read", "analytics.read", "ads.launch"],
-    model: DEFAULT_MODEL,
-    effort: "medium",
+    model: "claude-haiku-5-5",
+    effort: "high",
     isCoordinator: false,
     avatar: { skin: "#F1C6A6", hair: "#6B3E26", hairStyle: "long", outfit: "#F5B800", accent: "#0B0D12", accessory: "earring" },
     desk: { x: -6, z: 2, rotation: Math.PI / 2 },
@@ -363,7 +366,7 @@ Cómo trabajas:
       "Evaluar los resultados de otros agentes",
     ],
     tools: [...BASE_TOOLS, "quality.review", "web.search", "web.fetch", "crm.read", "n8n.read"],
-    model: DEFAULT_MODEL,
+    model: "claude-sonnet-5-5",
     effort: "high",
     isCoordinator: false,
     avatar: { skin: "#E8B996", hair: "#24180F", hairStyle: "wavy", outfit: "#0F172A", accent: "#2747F5", accessory: "glasses" },
