@@ -51,8 +51,9 @@ export function callLimits(agentId: string): CallLimits {
  * Herramientas de servidor de Anthropic (solo lectura). Versiones BÁSICAS, sin
  * filtrado dinámico: el filtrado ejecuta código en iteraciones internas que
  * max_uses no limita, y cada iteración vuelve a cobrar el contexto.
- * Cada llamada ofrece UNA sola herramienta web (búsqueda O lectura, nunca
- * ambas): como máximo 2 pasadas del modelo por llamada.
+ * Marcus recibe SIEMPRE las dos (1 búsqueda + 1 lectura por llamada, hasta
+ * 3 pasadas): la lista de herramientas no puede cambiar entre llamadas de una
+ * misma ejecución porque Sonnet 5.5 ata su razonamiento a ella (error 400).
  */
 export const SERVER_TOOLS = {
   "web.search": { type: "web_search_20250305", name: "web_search", max_uses: 1 },

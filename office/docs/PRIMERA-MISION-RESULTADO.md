@@ -30,3 +30,18 @@ Sin migración nueva: todo es código de la aplicación sobre las funciones de l
 **Repetición de la misión**: casilla «Reutilizar las fichas ya investigadas del CRM (máx. 5)» al crear el encargo (`input.reuse_company_ids`). `crm.write` con `company_id` completa una ficha de la misión (las fuentes se añaden, no se sustituyen); no deja completar fichas de fuera de la misión; no duplica por nombre; el tope de 5 cuenta las reutilizadas (la base de datos sigue limitando a 5 las nuevas).
 
 **Pruebas**: 135 en verde (12 nuevas en `tests/corrections.test.ts` + 1 en `tests/anthropic.test.ts`). Comprobado que las nuevas fallan con el código anterior.
+
+---
+
+# Segunda misión real · resultado (30/10/2026, 17:35–17:38)
+
+Versión 4ddb2b8, 5 fichas reutilizadas. Coste real 0,171 $ (8 llamadas, 0 búsquedas). Sin sobrecostes, sin llamadas inciertas, sin duplicados.
+- Alex (0,132 $): informe con las 5 fichas priorizadas y Marcus marcado como FALLIDA → **A comprobada en real**.
+- Sofia (0,0145 $): estrategia completa, 19.217 tokens de salida → **B comprobada en real**.
+- Marcus (0,024 $): FALLIDA, error 400 «The `tools` list differs from the one this block was created with». **Causa: la corrección D** cambiaba la lista de herramientas entre llamadas y Sonnet 5.5 ata su razonamiento a esa lista. No se cobró; la reserva se liberó.
+- Alex solo recibió los primeros 12.000 de los 21.038 caracteres del documento de Sofia.
+
+## Correcciones aprobadas (opción 1) · en local, sin desplegar
+- Marcus recibe SIEMPRE búsqueda y lectura (1 + 1 por llamada, orden fijo): lista de herramientas idéntica en todas las llamadas de una ejecución. Reserva de 3 pasadas sin suponer caché. Si se agotan las 15 búsquedas de la misión, la tarea se detiene (no se cambia la lista).
+- Documentos del equipo hasta 40.000 caracteres para Alex y para las subtareas dependientes.
+- Prueba nueva con un Claude simulado que aplica la misma comprobación que la API (400 si cambia la lista): reproduce el fallo con 4ddb2b8 y pasa con la corrección. 137 pruebas en verde.

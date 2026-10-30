@@ -4,10 +4,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { budgetStopMessage } from "@/lib/engine/budget-message";
 import { reserveUsd } from "@/lib/engine/cost";
-import type { RunState } from "@/lib/engine/loop";
 import { SqlEngineStore, type Query } from "@/lib/engine/store-sql";
 import type { BudgetSnapshot } from "@/lib/engine/store";
-import { nextWebTool, runTick } from "@/lib/engine/worker";
+import { runTick, serverToolsFor } from "@/lib/engine/worker";
+import { ScriptedClaude } from "./helpers/scripted-claude";
 import { ModelError, type ModelClient, type ModelRequest, type ModelResponse } from "@/lib/engine/types";
 import { createTestDb, type TestDb } from "./helpers/db";
 
@@ -164,24 +164,93 @@ describe("C · mensajes de parada con cifras", () => {
   });
 });
 
-describe("D · una sola herramienta web por llamada", () => {
-  const state = (names: string[]): RunState => ({
-    messages: [{ role: "user", content: "x" }, ...names.map((n) => ({ role: "assistant" as const, content: [{ type: "server_tool_use", name: n }] }))],
-    pending: [], partialResults: [], steps: names.length,
+/**
+ * Imita la comprobación real de la API («preserved thinking»): dentro de una
+ * conversación, la lista de herramientas no puede cambiar. Si cambia, 400.
+ */
+function strictTools(inner: ModelClient): ModelClient & { rejected: number } {
+  const seen = new Map<string, string>();
+  const c = {
+    rejected: 0,
+    async create(r: ModelRequest) {
+      const conversation = `${r.system.slice(0, 200)}|${first(r).slice(0, 400)}`;
+      const tools = JSON.stringify([r.tools.map((x) => x.name), r.serverTools ?? []]);
+      const before = seen.get(conversation);
+      if (before !== undefined && before !== tools) {
+        c.rejected++;
+        throw new ModelError("Petición rechazada por la API: 400 The `tools` list differs from the one this block was created with.", false, "none");
+      }
+      seen.set(conversation, tools);
+      return inner.create(r);
+    },
+  };
+  return c;
+}
+
+describe("D (revisada) · lista de herramientas constante en cada ejecución", () => {
+  it("misión completa con la comprobación de la API activa: ninguna llamada rechazada; Marcus siempre con búsqueda y lectura", async () => {
+    const id = await mission();
+    const claude = new ScriptedClaude();
+    const strict = strictTools(claude);
+    await runTick({ store: store(), client: strict });
+    expect(strict.rejected).toBe(0);
+    expect((await raw<{ status: string }>(`select status::text as status from public.tasks where id = $1`, [id]))[0].status).toBe("completed");
+    const marcus = claude.calls.filter((c) => who(c) === "Marcus");
+    expect(marcus.length).toBeGreaterThan(1);
+    for (const c of marcus) expect(c.serverTools?.map((x) => `${x.name}:${x.max_uses}`)).toEqual(["web_search:1", "web_fetch:1"]);
+    // Cada agente usa exactamente la misma lista en todas sus llamadas.
+    for (const agent of ["Alex", "Marcus", "Sofia"]) {
+      const lists = new Set(claude.calls.filter((c) => who(c) === agent).map((c) => JSON.stringify([c.tools.map((x) => x.name), c.serverTools ?? []])));
+      expect({ agent, distinct: lists.size }).toEqual({ agent, distinct: 1 });
+    }
   });
-  it("alterna búsqueda y lectura; empieza leyendo si hay fichas reutilizadas", () => {
-    const both = ["web.search", "web.fetch"] as const;
-    expect(nextWebTool(state([]), [...both], false)).toBe("web.search");
-    expect(nextWebTool(state([]), [...both], true)).toBe("web.fetch");
-    expect(nextWebTool(state(["web_search"]), [...both], false)).toBe("web.fetch");
-    expect(nextWebTool(state(["web_search", "web_fetch"]), [...both], false)).toBe("web.search");
-    expect(nextWebTool(state([]), [], false)).toBeNull();
+
+  it("orden fijo de las herramientas web y reserva de 3 pasadas", () => {
+    expect(serverToolsFor(["web.fetch", "web.search"]).map((t) => t.name)).toEqual(["web_search", "web_fetch"]);
+    expect(serverToolsFor([])).toEqual([]);
+    const r = reserveUsd("claude-sonnet-5-5", 30_000, { maxOutputTokens: 8_000, searches: 1, fetches: 1, fetchTokens: 8_000, searchResultTokens: 15_000 });
+    expect(r).toBeCloseTo((3 * 53_000 * 2 * 1.25 + 8_000 * 10) / 1e6 + 0.01, 6);
   });
-  it("la reserva cubre 2 pasadas (no 3) y es menor que con las dos herramientas", () => {
-    const one = reserveUsd("claude-sonnet-5-5", 30_000, { maxOutputTokens: 8_000, searches: 1, fetches: 0, fetchTokens: 8_000, searchResultTokens: 15_000 });
-    const two = reserveUsd("claude-sonnet-5-5", 30_000, { maxOutputTokens: 8_000, searches: 1, fetches: 1, fetchTokens: 8_000, searchResultTokens: 15_000 });
-    expect(one).toBeCloseTo((2 * 45_000 * 2 * 1.25 + 8_000 * 10) / 1e6 + 0.01, 6);
-    expect(one).toBeLessThan(two * 0.7);
+
+  it("sin búsquedas restantes en la misión: la tarea se detiene sin llamar (no se cambia la lista) y la reserva se libera", async () => {
+    const id = await mission();
+    const claude = new ScriptedClaude();
+    // Alex delega; luego se agotan las búsquedas de la misión antes de que trabaje Marcus.
+    class Exhaust extends SqlEngineStore {
+      async delegate(...a: Parameters<SqlEngineStore["delegate"]>) {
+        const r = await super.delegate(...a);
+        if (a[3] === "marcus") {
+          await raw(`insert into public.ai_usage (agent_id, task_id, model, server_tool_requests, cost_usd) values ('marcus', $1, 'claude-sonnet-5-5', 15, 0.15)`, [id]);
+        }
+        return r;
+      }
+    }
+    await runTick({ store: new Exhaust(query), client: claude });
+    expect(claude.calls.filter((c) => who(c) === "Marcus")).toHaveLength(0);
+    const [m] = await raw<{ status: string; error: string }>(`select status::text as status, error from public.tasks where agent_id = 'marcus'`);
+    expect(m).toEqual({ status: "failed", error: expect.stringMatching(/máximo de búsquedas web de la misión/) });
+    expect(await raw(`select 1 from public.ai_reservations where agent_id = 'marcus' and status <> 'released'`)).toHaveLength(0);
+  });
+});
+
+describe("Documentos del equipo de hasta 40.000 caracteres", () => {
+  it("un documento de Sofia de 21.038 caracteres llega entero a la síntesis de Alex", async () => {
+    const id = await mission();
+    const long = `INICIO ${"x".repeat(21_000)} SECCION FINAL 3.3`;
+    const calls: ModelRequest[] = [];
+    const client: ModelClient = {
+      async create(r) {
+        calls.push(structuredClone(r));
+        if (who(r) === "Alex") return alexScript(r);
+        if (who(r) === "Sofia" && turn(r) === 1) return use([{ id: "sd", name: "content__draft", input: { title: "Estrategia larga", kind: "strategy", content: long } }], r);
+        return say("Hecho.", r);
+      },
+    };
+    await runTick({ store: store(), client });
+    const synth = calls.filter((c) => who(c) === "Alex").at(-1)!;
+    expect(first(synth)).toContain(long);
+    expect(first(synth)).not.toContain("(recortado)");
+    expect(id).toBeTruthy();
   });
 });
 
@@ -279,8 +348,8 @@ describe("Repetición de la misión con las 5 fichas existentes", () => {
     const by = (n: string) => calls.filter((c) => who(c) === n);
     // Alex planifica viendo las 5 fichas y la instrucción de no repetir la investigación.
     expect(first(by("Alex")[0])).toMatch(/parte de 5 fichas ya investigadas[\s\S]*FICHAS DEL CRM DE LA MISIÓN \(5\)/);
-    // Marcus empieza leyendo (hay URL conocidas) y con una sola herramienta web.
-    expect(by("Marcus")[0].serverTools?.map((s) => s.name)).toEqual(["web_fetch"]);
+    // Marcus tiene siempre búsqueda y lectura (lista constante).
+    expect(by("Marcus")[0].serverTools?.map((s) => s.name)).toEqual(["web_search", "web_fetch"]);
     expect(first(by("Marcus")[0])).toContain("Tope de la misión: 5 empresas en total; ya hay 5 (5 reutilizadas)");
     const results = lastResults(by("Marcus")[1]);
     expect(results).toMatch(/Ficha «Estudio 1» completada/);

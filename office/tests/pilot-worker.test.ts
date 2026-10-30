@@ -49,9 +49,8 @@ describe("ejecutor del piloto", () => {
     expect(new Set(byAgent("Alex").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-sonnet-5-5/medium"]));
     expect(new Set(byAgent("Marcus").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-sonnet-5-5/high"]));
     expect(new Set(byAgent("Sofia").map((c) => `${c.model}/${c.effort}`))).toEqual(new Set(["claude-haiku-5-5/high"]));
-    // Una sola herramienta web por llamada: empieza buscando y se alterna con la lectura.
-    expect(byAgent("Marcus")[0].serverTools?.map((s) => s.type)).toEqual(["web_search_20250305"]);
-    expect(byAgent("Marcus").every((c) => (c.serverTools ?? []).length === 1)).toBe(true);
+    // Búsqueda y lectura básicas en TODAS las llamadas de Marcus (lista constante).
+    expect(byAgent("Marcus").every((c) => JSON.stringify(c.serverTools?.map((s) => s.type)) === JSON.stringify(["web_search_20250305", "web_fetch_20250910"]))).toBe(true);
     // Salida máxima por agente: Sofia 32.000, Alex y Marcus 8.000.
     expect(new Set(byAgent("Sofia").map((c) => c.maxTokens))).toEqual(new Set([32_000]));
     expect(new Set([...byAgent("Alex"), ...byAgent("Marcus")].map((c) => c.maxTokens))).toEqual(new Set([8_000]));

@@ -34,7 +34,7 @@ Reglas de investigación (obligatorias):
 - Antes de crear fichas, consulta el CRM («crm__read») para no duplicar.
 - Si te llegan fichas existentes de la misión: NO investigues de nuevo lo que ya está VERIFICADO con fuente. Completa solo lo PENDIENTE con «crm__write» indicando su company_id y una versión completa y actualizada de notes (VERIFICADO / ESTIMADO / PENDIENTE). No crees fichas nuevas de empresas que ya existen.
 - Límites de la misión: como máximo 5 empresas EN TOTAL, contando las fichas reutilizadas (el sistema rechaza el exceso), y unas 15 búsquedas web. Prioriza calidad.
-- En cada turno solo tienes UNA herramienta web disponible (búsqueda o lectura de una URL); se alternan entre turnos. Planifica en consecuencia.
+- En cada turno puedes hacer como máximo 1 búsqueda web y 1 lectura de una URL. Planifica en consecuencia.
 - Guarda una ficha comercial por empresa con «content__draft» (kind client_file) o un único informe con todas, y termina con un resumen de lo encontrado.`,
   sofia: `${PILOT_COMMON}
 
@@ -54,6 +54,9 @@ export function pilotSystemPrompt(agent: AgentDefinition): string {
 function today(now: Date): string {
   return now.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "long", year: "numeric" });
 }
+
+/** Caracteres de cada documento del equipo que se pasan a Alex o a la subtarea siguiente. */
+export const DOC_CHARS = 40_000;
 
 const clip = (s: string | null | undefined, n: number) => (!s ? "" : s.length > n ? `${s.slice(0, n)}\n…(recortado)` : s);
 
@@ -116,7 +119,7 @@ export function initialPrompt(c: PromptContext): string {
   const quota = `Tope de la misión: ${max} empresas en total; ya hay ${companies.length}${reuse.length ? ` (${reuse.length} reutilizadas)` : ""}.`;
 
   if (task.input.kind === "mission" && task.input.phase === "synthesis") {
-    return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}\n\nTu plan anterior:\n${clip(task.result, 4000)}\n\nENTREGAS DEL EQUIPO:\n\n${teamSection(c.children, c.documents, companies, 12_000)}\n\n${fichas}\n\nRevisa las entregas y las fichas. Si falta algo imprescindible y todavía puedes, delega UNA corrección concreta y termina tu turno. Si no, escribe ahora el informe final priorizado (será tu respuesta).`;
+    return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}\n\nTu plan anterior:\n${clip(task.result, 4000)}\n\nENTREGAS DEL EQUIPO:\n\n${teamSection(c.children, c.documents, companies, DOC_CHARS)}\n\n${fichas}\n\nRevisa las entregas y las fichas. Si falta algo imprescindible y todavía puedes, delega UNA corrección concreta y termina tu turno. Si no, escribe ahora el informe final priorizado (será tu respuesta).`;
   }
   if (task.input.kind === "mission") {
     // Reintento tras un fallo: lo ya delegado no se repite.
@@ -128,6 +131,6 @@ export function initialPrompt(c: PromptContext): string {
       : "";
     return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}${done}${reuseNote}\n\nPlanifica y delega en Marcus y Sofia según tus instrucciones.`;
   }
-  const deps = c.dependencies.length ? `\n\nRESULTADOS PREVIOS DEL EQUIPO:\n\n${teamSection(c.dependencies, c.documents, companies, 12_000)}` : "";
+  const deps = c.dependencies.length ? `\n\nRESULTADOS PREVIOS DEL EQUIPO:\n\n${teamSection(c.dependencies, c.documents, companies, DOC_CHARS)}` : "";
   return `${date}\n\nTAREA ASIGNADA POR ALEX:\n${task.title}\n\n${task.description}${deps}\n\n${quota}\n\n${fichas}`;
 }

@@ -34,6 +34,9 @@ export class ScriptedClaude implements ModelClient {
         if (turn === 1)
           return {
             content: [
+              // Como el Marcus real: usa la búsqueda web de servidor en el mismo turno.
+              { type: "server_tool_use", id: "srv1", name: "web_search", input: { query: "gimnasios Barcelona" } },
+              { type: "web_search_tool_result", tool_use_id: "srv1", content: [] },
               { type: "tool_use", id: "m1", name: "crm__write", input: { name: "Gimnasio Real Uno", city: "Barcelona", need_detected: "No tiene reserva online (verificado en su web).", sources: ["https://gym-uno.example/"] } },
               { type: "tool_use", id: "m2", name: "email__send", input: { to: "info@gym-uno.example" } },
               { type: "tool_use", id: "m3", name: "tasks__delegate", input: { agent: "sofia", title: "x", instructions: "subdelegación" } },

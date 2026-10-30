@@ -21,7 +21,7 @@ import { estimateTokens, reserveUsd } from "./cost";
 import { PILOT_SCHEMAS, pilotGateway } from "./pilot-tools";
 import { initialPrompt, pilotSystemPrompt } from "./pilot-prompts";
 import type { ClaimedRun, EngineStore } from "./store";
-import type { ContentBlock, ModelClient, ModelRequest } from "./types";
+import type { ModelClient, ModelRequest } from "./types";
 
 export interface TickDeps {
   store: EngineStore;
@@ -42,6 +42,8 @@ function isRunState(x: unknown): x is RunState {
 }
 
 const STOP_MESSAGE = {
+  searches:
+    "Tarea detenida: se alcanzó el máximo de búsquedas web de la misión. Las fichas y documentos ya creados se conservan.",
   uncertain:
     "Una llamada anterior a Claude quedó con resultado incierto (el proceso se cortó o se perdió la respuesta). Cuenta como gastada y no se repite automáticamente.",
 } as const;
@@ -142,22 +144,27 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     if (local.changed) await store.saveRunState(run.runId, worker, state, false);
 
     // ── 1. Reserva atómica (y renovación del lease) ──
-    // Una sola herramienta web por llamada: búsqueda O lectura (máx. 2 pasadas).
+    // La lista de herramientas es IDÉNTICA en todas las llamadas de una
+    // ejecución: Sonnet 5.5 ata su razonamiento a esa lista y rechaza (400) la
+    // conversación si cambia. Marcus recibe siempre búsqueda y lectura (1 + 1
+    // por llamada: hasta 3 pasadas, reservadas sin suponer caché).
     // La actividad se marca antes: entre la reserva y la llamada no hay nada
     // que pueda fallar y dejar una reserva incierta sin haber llamado.
-    const web = nextWebTool(state, allowedServerTools, reuseIds.length > 0);
-    const searching = web !== null;
+    const serverTools = serverToolsFor(allowedServerTools);
+    const searches = allowedServerTools.includes("web.search") ? SERVER_TOOLS["web.search"].max_uses : 0;
+    const fetches = allowedServerTools.includes("web.fetch") ? SERVER_TOOLS["web.fetch"].max_uses : 0;
+    const searching = serverTools.length > 0;
     await store.activity(run.runId, worker, searching ? "researching" : "thinking", searching ? "researching" : "thinking", task.title);
-    const draft = buildModelRequest({ ...base, state, serverTools: serverToolsFor(web), maxTokens: limits.maxTokens });
+    const draft = buildModelRequest({ ...base, state, serverTools, maxTokens: limits.maxTokens });
     const promptTokens = (await promptTokensOf(deps.client, draft)) + (searching ? SERVER_TOOL_OVERHEAD_TOKENS : 0);
     const estimate = reserveUsd(agent.model, promptTokens, {
       maxOutputTokens: limits.maxTokens,
-      searches: web === "web.search" ? 1 : 0,
-      fetches: web === "web.fetch" ? 1 : 0,
+      searches,
+      fetches,
       fetchTokens: SERVER_TOOLS["web.fetch"].max_content_tokens,
       searchResultTokens: SEARCH_RESULT_TOKENS_ASSUMED,
     });
-    const reservation = await store.reserve(run.runId, worker, agent.model, estimate, web === "web.search" ? 1 : 0, limits.leaseSeconds);
+    const reservation = await store.reserve(run.runId, worker, agent.model, estimate, searches, limits.leaseSeconds);
     if (!reservation.ok) {
       const message =
         reservation.reason === "uncertain"
@@ -166,9 +173,14 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       await store.failRun(run.runId, worker, message, false);
       return reservation.reason === "uncertain" ? "uncertain" : "budget_stop";
     }
-    // Sin búsquedas restantes en la misión: se ofrece la lectura (su reserva es menor que la de búsqueda).
-    const offered = web === "web.search" && reservation.searches === 0 ? (allowedServerTools.includes("web.fetch") ? "web.fetch" : null) : web;
-    const serverTools = serverToolsFor(offered);
+    if (reservation.searches < searches) {
+      // Sin búsquedas restantes en la misión. Quitar la búsqueda cambiaría la
+      // lista de herramientas (error 400), así que la tarea se detiene; sus
+      // fichas y documentos se conservan y Alex informa con lo que haya.
+      await store.closeReservation(run.runId, reservation.reservation_id, false);
+      await store.failRun(run.runId, worker, STOP_MESSAGE.searches, false);
+      return "searches_exhausted";
+    }
 
     // ── 2. Llamada ──
     const request = buildModelRequest({ ...base, state, serverTools, maxTokens: limits.maxTokens, timeoutMs: limits.timeoutMs });
@@ -217,31 +229,14 @@ async function promptTokensOf(client: ModelClient, req: ModelRequest): Promise<n
   return estimateTokens([req.system, req.messages, req.tools]);
 }
 
-function serverToolsFor(tool: ServerToolId | null) {
-  return tool ? [{ ...SERVER_TOOLS[tool] }] : [];
+/** Herramientas de servidor del agente: siempre las mismas y en el mismo orden. */
+export function serverToolsFor(allowed: readonly ServerToolId[]) {
+  return (["web.search", "web.fetch"] as const).filter((t) => allowed.includes(t)).map((t) => ({ ...SERVER_TOOLS[t] }));
 }
 
 function reuseIdsOf(input: Record<string, unknown>): string[] {
   const ids = input.reuse_company_ids;
   return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [];
-}
-
-/**
- * Herramienta web de la siguiente llamada (solo una): se alternan búsqueda y
- * lectura según la última usada. Si se parte de fichas reutilizadas (con sus
- * URL), se empieza leyendo; si no, buscando.
- */
-export function nextWebTool(state: RunState, allowed: ServerToolId[], startWithFetch: boolean): ServerToolId | null {
-  if (allowed.length === 0) return null;
-  let last: string | null = null;
-  for (const m of state.messages) {
-    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
-    for (const b of m.content as ContentBlock[]) if (b.type === "server_tool_use") last = String(b.name);
-  }
-  const want: ServerToolId =
-    last === "web_search" ? "web.fetch" : last === "web_fetch" ? "web.search" : startWithFetch ? "web.fetch" : "web.search";
-  if (allowed.includes(want)) return want;
-  return allowed[0];
 }
 
 async function finish(store: EngineStore, worker: string, run: ClaimedRun, task: Awaited<ReturnType<EngineStore["getTask"]>>, result: string): Promise<string> {
