@@ -42,7 +42,7 @@ Coste estimado del piloto: un encargo completo ≈ 0,30–0,60 $. Con un límite
 
 ## Estado de la implementación (30/10/2026)
 
-Implementado y probado en local (106 pruebas, `npm run check` y `npm run build` en verde). **Pendiente de autorización**: aplicar la migración `0006_pilot_engine.sql` en Supabase y publicar en Vercel.
+Implementado y probado en local (106 pruebas, `npm run check` y `npm run build` en verde). Con autorización del administrador (30/10): migración `0006` aplicada en Supabase en dos partes (`pilot_engine_part1_states`, `pilot_engine_part2_functions`) y verificada (12 estados, ajuste `pilot`, funciones nuevas solo para service_role, `task_costs` legible solo por authenticated); modelos de la tabla `agents` sincronizados con `registry.ts`; versión `b6c8bf1` publicada en producción. Pendiente: diagnóstico de modelos con la clave real y primera misión.
 
 | Pieza | Archivo |
 |---|---|
