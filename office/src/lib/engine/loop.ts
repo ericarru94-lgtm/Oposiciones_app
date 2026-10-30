@@ -92,6 +92,8 @@ export interface StepInput {
   /** Salida máxima y tiempo máximo por llamada para este agente. */
   maxTokens?: number;
   timeoutMs?: number;
+  /** Texto del sistema que se añade tras cada ronda de herramientas (p. ej. continuidad de Marcus). */
+  progressNote?: string;
   maxSteps?: number;
 }
 
@@ -182,7 +184,8 @@ export async function resolveLocal(input: StepInput): Promise<LocalOutcome> {
         }
       }
       if (state.pending.length > 0) return { kind: "waiting_approval", state };
-      state.messages.push({ role: "user", content: state.partialResults });
+      // Nota opcional del sistema al final de los resultados (añadida, nunca editada).
+      state.messages.push({ role: "user", content: input.progressNote ? [...state.partialResults, { type: "text", text: input.progressNote }] : state.partialResults });
       state.partialResults = [];
       state.awaiting = null;
       changed = true;

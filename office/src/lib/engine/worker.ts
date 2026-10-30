@@ -19,7 +19,8 @@ import { budgetStopMessage } from "./budget-message";
 import { buildModelRequest, callModel, initialState, resolveLocal, type RunState, type StepInput } from "./loop";
 import { estimateTokens, reserveUsd } from "./cost";
 import { PILOT_SCHEMAS, pilotGateway } from "./pilot-tools";
-import { initialPrompt, pilotSystemPrompt } from "./pilot-prompts";
+import { DOC_CHARS, initialPrompt, pilotSystemPrompt } from "./pilot-prompts";
+import { buildDeliveries, coherenceCheck, inventorySection, subtaskOutcome, type ResultData } from "./coordination";
 import type { ClaimedRun, EngineStore } from "./store";
 import type { ModelClient, ModelRequest } from "./types";
 
@@ -40,6 +41,10 @@ export interface TickReport {
 function isRunState(x: unknown): x is RunState {
   return !!x && typeof x === "object" && Array.isArray((x as RunState).messages) && (x as RunState).messages.length > 0;
 }
+
+const PROGRESS_NOTE =
+  "[Sistema] Fin de esta ronda. El límite de 1 búsqueda y 1 lectura web es POR LLAMADA: puedes seguir en tu siguiente turno. " +
+  "Repasa los OBJETIVOS PENDIENTES y lo ya hecho, no repitas búsquedas ni lecturas que ya funcionaron y termina solo si has completado los objetivos o no puedes avanzar.";
 
 const STOP_MESSAGE = {
   searches:
@@ -111,8 +116,18 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     const related = (isMission ? children : dependencies).map((t) => t.id);
     const documents = await store.documentsOfTasks(related);
     const companies = await store.missionCompanies(mission.id, reuseIds);
+    const facts = await store.companyFacts(companies.map((c) => c.id));
     const maxCompanies = Number((await store.pilotSettings()).max_companies ?? 5);
-    state = initialState(initialPrompt({ task, children, dependencies, documents, companies, reuseIds, maxCompanies }));
+    // C · Alex recibe en la síntesis el inventario exacto de lo que recibió cada agente.
+    const inventory = isMission && task.input.phase === "synthesis"
+      ? inventorySection(await store.missionDeliveries(mission.id), children)
+      : undefined;
+    state = initialState(initialPrompt({ task, children, dependencies, documents, companies, reuseIds, maxCompanies, facts, inventory }));
+    // Entrega «preparada»: lo que contiene este mensaje, por emisor. Pasa a
+    // «enviada» y «recibida» solo cuando la llamada ocurre de verdad.
+    if (!(await store.runHasDeliveries(run.runId))) {
+      await store.recordDeliveries(mission.id, task.id, run.runId, buildDeliveries(run.agentId, companies, documents, DOC_CHARS));
+    }
   }
 
   const gateway = pilotGateway({ store, runId: run.runId, taskId: task.id, worker, clientId: task.client_id, missionId: mission.id, reuseIds });
@@ -120,6 +135,8 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     agent, runId: run.runId, taskId: task.id, client: deps.client, gateway,
     engine: store.enginePort(run.runId, worker), toolSchemas: PILOT_SCHEMAS,
     system: pilotSystemPrompt(def), maxSteps: ENGINE.maxStepsPerRun,
+    // A · Con herramientas web, recordatorio tras cada ronda: el límite es por llamada.
+    progressNote: allowedServerTools.length ? PROGRESS_NOTE : undefined,
   };
 
   while (true) {
@@ -134,7 +151,7 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       await store.failRun(run.runId, worker, local.error, false);
       return "failed";
     }
-    if (local.kind === "completed") return finish(store, worker, run, task, local.result);
+    if (local.kind === "completed") return finish(store, worker, run, task, local.result, mission.id, reuseIds);
 
     if (!canStep(limits.timeoutMs)) {
       // Sin tiempo para otra llamada: se guarda y se libera para la siguiente pasada.
@@ -183,9 +200,12 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     }
 
     // ── 2. Llamada ──
+    const firstCall = state.steps === 0;
     const request = buildModelRequest({ ...base, state, serverTools, maxTokens: limits.maxTokens, timeoutMs: limits.timeoutMs });
     const call = await callModel({ ...base, state, serverTools, maxTokens: limits.maxTokens, timeoutMs: limits.timeoutMs }, request);
     if (call.kind === "error") {
+      // La petición se envió (aunque fallara): la entrega consta como «enviada», nunca «recibida».
+      if (firstCall) await store.advanceDeliveries(run.runId, worker, "sent");
       if (call.billing === "unknown") {
         await store.closeReservation(run.runId, reservation.reservation_id, true);
         await store.failRun(run.runId, worker, `${call.error} ${STOP_MESSAGE.uncertain}`, false);
@@ -213,6 +233,8 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     });
     // El gasto ya está registrado. Sobrecoste → la base de datos ya ha detenido la misión.
     if (!rec.continue) return rec.reason ?? "lease_lost";
+    // Claude respondió a una petición que contenía la entrega: «recibida».
+    if (firstCall) await store.advanceDeliveries(run.runId, worker, "received");
     // 4. En la siguiente vuelta: herramientas, fallo definitivo o fin.
   }
 }
@@ -239,21 +261,50 @@ function reuseIdsOf(input: Record<string, unknown>): string[] {
   return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [];
 }
 
-async function finish(store: EngineStore, worker: string, run: ClaimedRun, task: Awaited<ReturnType<EngineStore["getTask"]>>, result: string): Promise<string> {
+async function finish(
+  store: EngineStore, worker: string, run: ClaimedRun, task: Awaited<ReturnType<EngineStore["getTask"]>>, result: string,
+  missionId: string, reuseIds: string[],
+): Promise<string> {
   const text = result.trim() || "(Sin texto de respuesta.)";
+  let resultData: ResultData;
   if (task.input.kind === "mission") {
-    const pending = (await store.children(task.id)).filter((c) => c.status !== "completed" && c.status !== "failed");
+    const children = await store.children(task.id);
+    const pending = children.filter((c) => c.status !== "completed" && c.status !== "failed");
     if (pending.length > 0) {
       // Alex nunca cierra con subtareas pendientes: espera y vuelve en síntesis.
       await store.awaitSubtasks(run.runId, worker, text);
       return "waiting_agents";
     }
-    await saveOnce(store, run, task, `Informe final: ${task.title}`, "report", text);
-  } else if (result.trim() && (await store.documentsOfTasks([task.id])).length === 0) {
-    // Sin texto no se guarda un documento vacío: la subtarea queda «completada sin resultados».
-    await saveOnce(store, run, task, `Entrega: ${task.title}`, "report", text);
+    // F · Control de coherencia automático del informe contra lo que existe.
+    const companies = await store.missionCompanies(missionId, reuseIds);
+    const documents = await store.documentsOfTasks(children.map((c) => c.id));
+    const deliveries = await store.missionDeliveries(missionId);
+    const facts = await store.companyFacts(companies.map((c) => c.id));
+    const { checks, warnings } = coherenceCheck({
+      report: text, companies, documents, tasks: children,
+      knownIds: [task.id, ...deliveries.map((d) => d.id), ...facts.map((f) => f.id)],
+    });
+    resultData = {
+      outcome: warnings.length ? "completed_with_warnings" : "completed",
+      declared: false, objectives_completed: [], objectives_pending: [], warnings, coherence_checks: checks,
+    };
+    const control = [
+      "",
+      "---",
+      "## Control automático de coherencia (sistema)",
+      ...checks.map((c) => `- Comprobado: ${c}`),
+      ...(warnings.length ? warnings.map((w) => `- ⚠ ${w}`) : ["- Sin contradicciones detectadas."]),
+    ].join("\n");
+    await saveOnce(store, run, task, `Informe final: ${task.title}`, "report", `${text}\n${control}`);
+  } else {
+    // D · Una ejecución terminada no implica objetivos completados.
+    resultData = subtaskOutcome(text);
+    if (result.trim() && (await store.documentsOfTasks([task.id])).length === 0) {
+      // Sin texto no se guarda un documento vacío: la subtarea queda «completada sin resultados».
+      await saveOnce(store, run, task, `Entrega: ${task.title}`, "report", text);
+    }
   }
-  await store.completeRun(run.runId, worker, text);
+  await store.completeRun(run.runId, worker, text, resultData as unknown as Record<string, unknown>);
   return "completed";
 }
 

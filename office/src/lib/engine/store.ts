@@ -33,6 +33,8 @@ export interface RelatedTask {
   status: string;
   result: string | null;
   error: string | null;
+  /** Resultado declarado (outcome, objetivos completados y pendientes, avisos). */
+  result_data?: Record<string, unknown> | null;
 }
 
 export interface DocumentSummary {
@@ -42,6 +44,8 @@ export interface DocumentSummary {
   agent_id: string | null;
   task_id: string | null;
   content: string | null;
+  version?: number | null;
+  updated_at?: string | null;
 }
 
 export interface CompanyRow {
@@ -71,6 +75,35 @@ export interface MissionCompany {
   source: string;
   created_by: string;
   created_in_task: string | null;
+  updated_at?: string | null;
+}
+
+/** Dato de una ficha con su procedencia (vista company_facts_current). */
+export interface CompanyFact {
+  id: string;
+  company_id: string;
+  fact_key: string;
+  fact_value: string;
+  source_url: string | null;
+  source_type: string;
+  source_date: string | null;
+  observed_at: string;
+  verification_status: string;
+  confidence_score: number;
+  confidence_reason: string;
+  in_contradiction: boolean;
+}
+
+export interface FactInput {
+  key: string;
+  value: string;
+  source_url: string | null;
+  source_type: string;
+  verification_status: string;
+  source_date: string | null;
+  lower_score_to: number | null;
+  score_reason: string | null;
+  supersedes_fact_id: string | null;
 }
 
 export interface CompanyPatch {
@@ -140,7 +173,16 @@ export interface EngineStore {
   saveRunState(runId: string, worker: string, state: unknown, release: boolean): Promise<void>;
   deferRun(runId: string, worker: string, state: unknown, seconds: number, reason: string): Promise<void>;
   pauseForApproval(runId: string, worker: string, state: unknown): Promise<void>;
-  completeRun(runId: string, worker: string, result: string): Promise<string>;
+  completeRun(runId: string, worker: string, result: string, resultData?: Record<string, unknown> | null): Promise<string>;
+  /** Hechos con procedencia: registro inmutable, confianza calculada por la base de datos. */
+  recordFact(runId: string, worker: string, companyId: string, fact: FactInput): Promise<{ fact_id: string; confidence_score: number; contradicts: string[] }>;
+  companyFacts(companyIds: string[]): Promise<CompanyFact[]>;
+  /** Entregas: preparadas al construir el mensaje, enviadas y recibidas según la llamada. */
+  recordDeliveries(missionId: string, taskId: string, runId: string, rows: import("./coordination").DeliveryRow[]): Promise<void>;
+  runHasDeliveries(runId: string): Promise<boolean>;
+  advanceDeliveries(runId: string, worker: string, status: "sent" | "received"): Promise<void>;
+  missionDeliveries(missionId: string): Promise<import("./coordination").DeliveryRecord[]>;
+  addDependency(taskId: string, dependsOn: string): Promise<void>;
   failRun(runId: string, worker: string, error: string, retryable: boolean): Promise<string>;
   awaitSubtasks(runId: string, worker: string, summary: string): Promise<void>;
   delegate(runId: string, worker: string, toolUseId: string, agent: string, title: string, description: string, dependsOn: string[]): Promise<{ task_id: string; duplicate: boolean }>;

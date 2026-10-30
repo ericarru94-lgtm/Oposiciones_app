@@ -380,10 +380,15 @@ describe("memoria y documentos", () => {
     await q(`insert into storage.objects (bucket_id, name) values ('documents', 'tareas/plan.pdf')`);
     expect(await t.as(INTRUDER, () => q(`select * from storage.objects`))).toHaveLength(0);
     expect(await t.as(ADMIN, () => q(`select * from storage.objects`))).toHaveLength(1);
-    await t.as(ADMIN, () =>
+    // Desde la 0008 los documentos los escribe solo el motor (servidor); el administrador los lee.
+    await t.asService(() =>
       q(`insert into public.documents (title, kind, content, source) values ('Plan', 'strategy', '# Plan', 'tarea')`),
     );
+    expect(await t.as(ADMIN, () => q(`select * from public.documents`))).toHaveLength(1);
     expect(await t.as(INTRUDER, () => q(`select * from public.documents`))).toHaveLength(0);
+    await expect(
+      t.as(ADMIN, () => q(`insert into public.documents (title, kind, content, source) values ('X', 'report', 'x', 'admin')`)),
+    ).rejects.toThrow(/permission denied/);
     await expect(
       q(`insert into public.documents (title, kind, source) values ('Vacío', 'report', 'x')`),
     ).rejects.toThrow(/check constraint/);

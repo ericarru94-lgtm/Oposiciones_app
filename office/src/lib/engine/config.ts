@@ -75,6 +75,14 @@ export const PILOT_TOOLS: Record<string, readonly ToolId[]> = {
   sofia: ["memory.read", "crm.read", "content.draft"],
 };
 
+/**
+ * Orden entre subtareas impuesto por el motor: la clave espera a los agentes
+ * de la lista (si uno falla, la dependencia se da por resuelta).
+ */
+export const PILOT_DEPENDENCIES: Record<string, readonly string[]> = {
+  sofia: ["marcus"],
+};
+
 export function pilotScope(agent: AgentDefinition): AgentDefinition {
   const allowed = PILOT_TOOLS[agent.id] ?? [];
   return { ...agent, tools: agent.tools.filter((t) => allowed.includes(t)) };

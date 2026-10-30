@@ -2,13 +2,14 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentStatus } from "../domain/status";
 import { createSupabaseServiceClient } from "../supabase/server";
+import type { DeliveryRecord, DeliveryRow } from "./coordination";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow } from "./store";
 
 // EngineStore de producción: mismas operaciones que SqlEngineStore, a través
 // de la API de Supabase con la clave secreta (solo servidor).
 
-const RELATED = "id, title, agent_id, status, result, error";
+const RELATED = "id, title, agent_id, status, result, error, result_data";
 const COMPANY = "id, name, city, website, instagram, stage, need_detected, recommended_service, source, is_demo";
 
 function must(res: { data: unknown; error: { message: string } | null }, what: string): unknown {
@@ -57,7 +58,7 @@ export class SupabaseEngineStore implements EngineStore {
   }
   async documentsOfTasks(ids: string[]) {
     if (ids.length === 0) return [];
-    return must(await this.db.from("documents").select("id, title, kind, agent_id, task_id, content").in("task_id", ids).order("created_at"), "documents") as DocumentSummary[];
+    return must(await this.db.from("documents").select("id, title, kind, agent_id, task_id, content, version, updated_at").in("task_id", ids).order("created_at"), "documents") as DocumentSummary[];
   }
   async memoryForTask(id: string) {
     return this.rpc<{ scope: string; category: string; title: string; content: string; source: string }[]>("memory_for_task", { p_task_id: id });
@@ -87,7 +88,7 @@ export class SupabaseEngineStore implements EngineStore {
   }
   async missionCompanies(missionId: string, reuseIds: string[]) {
     const ids = await this.missionTaskIds(missionId);
-    const cols = "id, name, city, website, instagram, phone, need_detected, recommended_service, notes, source, created_by, created_in_task, created_at";
+    const cols = "id, name, city, website, instagram, phone, need_detected, recommended_service, notes, source, created_by, created_in_task, created_at, updated_at";
     const created = must(await this.db.from("companies").select(cols).in("created_in_task", ids), "companies") as (MissionCompany & { created_at: string })[];
     const reused = reuseIds.length
       ? (must(await this.db.from("companies").select(cols).in("id", reuseIds), "companies") as (MissionCompany & { created_at: string })[])
@@ -175,8 +176,46 @@ export class SupabaseEngineStore implements EngineStore {
   async pauseForApproval(runId: string, worker: string, state: unknown) {
     await this.rpc("pause_for_approval", { p_run_id: runId, p_worker: worker, p_state: state });
   }
-  async completeRun(runId: string, worker: string, result: string) {
-    return this.rpc<string>("complete_run", { p_run_id: runId, p_worker: worker, p_result: result, p_result_data: null });
+  async completeRun(runId: string, worker: string, result: string, resultData?: Record<string, unknown> | null) {
+    return this.rpc<string>("complete_run", { p_run_id: runId, p_worker: worker, p_result: result, p_result_data: resultData ?? null });
+  }
+  async recordFact(runId: string, worker: string, companyId: string, f: FactInput) {
+    return this.rpc<{ fact_id: string; confidence_score: number; contradicts: string[] }>("record_company_fact", {
+      p_run_id: runId, p_worker: worker, p_company_id: companyId, p_fact_key: f.key, p_fact_value: f.value,
+      p_source_url: f.source_url, p_source_type: f.source_type, p_verification_status: f.verification_status,
+      p_source_date: f.source_date, p_lower_to: f.lower_score_to, p_reason: f.score_reason, p_supersedes: f.supersedes_fact_id,
+    });
+  }
+  async companyFacts(companyIds: string[]) {
+    if (companyIds.length === 0) return [];
+    return must(
+      await this.db.from("company_facts_current")
+        .select("id, company_id, fact_key, fact_value, source_url, source_type, source_date, observed_at, verification_status, confidence_score, confidence_reason, in_contradiction")
+        .in("company_id", companyIds).order("company_id").order("fact_key").order("observed_at"),
+      "company_facts_current",
+    ) as CompanyFact[];
+  }
+  async recordDeliveries(missionId: string, taskId: string, runId: string, rows: DeliveryRow[]) {
+    if (rows.length === 0) return;
+    must(await this.db.from("task_deliveries").insert(rows.map((d) => ({ ...d, mission_id: missionId, task_id: taskId, run_id: runId }))).select("id"), "task_deliveries");
+  }
+  async runHasDeliveries(runId: string) {
+    const r = must(await this.db.from("task_deliveries").select("id").eq("run_id", runId).limit(1), "task_deliveries") as unknown[];
+    return r.length > 0;
+  }
+  async advanceDeliveries(runId: string, worker: string, status: "sent" | "received") {
+    await this.rpc("advance_deliveries", { p_run_id: runId, p_worker: worker, p_status: status });
+  }
+  async missionDeliveries(missionId: string) {
+    return must(
+      await this.db.from("task_deliveries")
+        .select("id, task_id, from_agent, to_agent, company_ids, company_versions, document_ids, document_versions, omitted, status, prepared_at, sent_at, received_at")
+        .eq("mission_id", missionId).order("prepared_at").order("to_agent").order("from_agent"),
+      "task_deliveries",
+    ) as DeliveryRecord[];
+  }
+  async addDependency(taskId: string, dependsOn: string) {
+    must(await this.db.from("task_dependencies").upsert({ task_id: taskId, depends_on: dependsOn }, { onConflict: "task_id,depends_on", ignoreDuplicates: true }).select("task_id"), "task_dependencies");
   }
   async failRun(runId: string, worker: string, error: string, retryable: boolean) {
     return this.rpc<string>("fail_run", { p_run_id: runId, p_worker: worker, p_error: error, p_retryable: retryable });

@@ -3,12 +3,13 @@
 // que hace la implementación de Supabase.
 
 import type { AgentStatus } from "../domain/status";
+import type { DeliveryRecord, DeliveryRow } from "./coordination";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow } from "./store";
 
 export type Query = <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>;
 
-const RELATED = "id, title, agent_id, status::text as status, result, error";
+const RELATED = "id, title, agent_id, status::text as status, result, error, result_data";
 const COMPANY = "id, name, city, website, instagram, stage::text as stage, need_detected, recommended_service, source, is_demo";
 
 export class SqlEngineStore implements EngineStore {
@@ -44,7 +45,7 @@ export class SqlEngineStore implements EngineStore {
   documentsOfTasks(ids: string[]) {
     if (ids.length === 0) return Promise.resolve([]);
     return this.q<DocumentSummary>(
-      `select id, title, kind, agent_id, task_id, content from public.documents where task_id = any($1::uuid[]) order by created_at`, [ids]);
+      `select id, title, kind, agent_id, task_id, content, version, updated_at::text as updated_at from public.documents where task_id = any($1::uuid[]) order by created_at`, [ids]);
   }
   memoryForTask(id: string) {
     return this.q<{ scope: string; category: string; title: string; content: string; source: string }>(
@@ -80,7 +81,8 @@ export class SqlEngineStore implements EngineStore {
   }
   missionCompanies(missionId: string, reuseIds: string[]) {
     return this.q<MissionCompany>(
-      `select id, name, city, website, instagram, phone, need_detected, recommended_service, notes, source, created_by, created_in_task
+      `select id, name, city, website, instagram, phone, need_detected, recommended_service, notes, source, created_by, created_in_task,
+              updated_at::text as updated_at
          from public.companies
         where created_in_task in (select id from public.tasks where id = $1 or parent_task_id = $1) or id = any($2::uuid[])
         order by created_at`, [missionId, reuseIds]);
@@ -150,9 +152,48 @@ export class SqlEngineStore implements EngineStore {
   async pauseForApproval(runId: string, worker: string, state: unknown) {
     await this.q(`select public.pause_for_approval($1, $2, $3)`, [runId, worker, JSON.stringify(state)]);
   }
-  async completeRun(runId: string, worker: string, result: string) {
-    const [r] = await this.q<{ s: string }>(`select public.complete_run($1, $2, $3) as s`, [runId, worker, result]);
+  async completeRun(runId: string, worker: string, result: string, resultData?: Record<string, unknown> | null) {
+    const [r] = await this.q<{ s: string }>(`select public.complete_run($1, $2, $3, $4) as s`,
+      [runId, worker, result, resultData ? JSON.stringify(resultData) : null]);
     return r.s;
+  }
+  async recordFact(runId: string, worker: string, companyId: string, f: FactInput) {
+    const [r] = await this.q<{ r: { fact_id: string; confidence_score: number; contradicts: string[] } }>(
+      `select public.record_company_fact($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10::smallint, $11, $12) as r`,
+      [runId, worker, companyId, f.key, f.value, f.source_url, f.source_type, f.verification_status, f.source_date,
+        f.lower_score_to, f.score_reason, f.supersedes_fact_id]);
+    return r.r;
+  }
+  companyFacts(companyIds: string[]) {
+    if (companyIds.length === 0) return Promise.resolve([]);
+    return this.q<CompanyFact>(
+      `select id, company_id, fact_key, fact_value, source_url, source_type, source_date::text as source_date,
+              observed_at::text as observed_at, verification_status, confidence_score, confidence_reason, in_contradiction
+         from public.company_facts_current where company_id = any($1::uuid[]) order by company_id, fact_key, observed_at`, [companyIds]);
+  }
+  async recordDeliveries(missionId: string, taskId: string, runId: string, rows: DeliveryRow[]) {
+    for (const d of rows) {
+      await this.q(
+        `insert into public.task_deliveries (mission_id, task_id, run_id, from_agent, to_agent, company_ids, company_versions, document_ids, document_versions, omitted)
+         values ($1, $2, $3, $4, $5, $6::uuid[], $7, $8::uuid[], $9, $10)`,
+        [missionId, taskId, runId, d.from_agent, d.to_agent, d.company_ids, JSON.stringify(d.company_versions), d.document_ids,
+          JSON.stringify(d.document_versions), JSON.stringify(d.omitted)]);
+    }
+  }
+  async runHasDeliveries(runId: string) {
+    return (await this.q(`select 1 from public.task_deliveries where run_id = $1 limit 1`, [runId])).length > 0;
+  }
+  async advanceDeliveries(runId: string, worker: string, status: "sent" | "received") {
+    await this.q(`select public.advance_deliveries($1, $2, $3)`, [runId, worker, status]);
+  }
+  missionDeliveries(missionId: string) {
+    return this.q<DeliveryRecord>(
+      `select id, task_id, from_agent, to_agent, company_ids::text[] as company_ids, company_versions, document_ids::text[] as document_ids,
+              document_versions, omitted, status, prepared_at::text as prepared_at, sent_at::text as sent_at, received_at::text as received_at
+         from public.task_deliveries where mission_id = $1 order by prepared_at, to_agent, from_agent`, [missionId]);
+  }
+  async addDependency(taskId: string, dependsOn: string) {
+    await this.q(`insert into public.task_dependencies (task_id, depends_on) values ($1, $2) on conflict do nothing`, [taskId, dependsOn]);
   }
   async failRun(runId: string, worker: string, error: string, retryable: boolean) {
     const [r] = await this.q<{ s: string }>(`select public.fail_run($1, $2, $3, $4) as s`, [runId, worker, error, retryable]);
