@@ -102,14 +102,19 @@ export class SupabaseEngineStore implements EngineStore {
   async budgetSnapshot(missionId: string, taskId: string): Promise<BudgetSnapshot> {
     const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
     const ids = await this.missionTaskIds(missionId);
-    const [settings, usage, resv] = await Promise.all([
+    // Dos consultas simples (sin filtro «or» con fechas, que PostgREST exige entrecomillar).
+    const [settings, usageMonth, usageMission, resv] = await Promise.all([
       this.db.from("settings").select("key, value").in("key", ["limits", "pilot"]),
-      this.db.from("ai_usage").select("cost_usd, task_id, created_at").or(`created_at.gte.${monthStart},task_id.in.(${ids.join(",")})`),
+      this.db.from("ai_usage").select("id, cost_usd, task_id, created_at").gte("created_at", monthStart),
+      this.db.from("ai_usage").select("id, cost_usd, task_id, created_at").in("task_id", ids),
       this.db.from("ai_reservations").select("estimate_usd, task_id, mission_id, status, created_at").in("status", ["open", "uncertain"]),
     ]);
     const set = (k: string) => ((must(settings, "settings") as { key: string; value: Record<string, unknown> }[]).find((x) => x.key === k)?.value ?? {});
     const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
-    const rows = must(usage, "ai_usage") as { cost_usd: number; task_id: string; created_at: string }[];
+    type UsageRow = { id: number; cost_usd: number; task_id: string; created_at: string };
+    const rows = [...new Map(
+      [...(must(usageMonth, "ai_usage") as UsageRow[]), ...(must(usageMission, "ai_usage") as UsageRow[])].map((r) => [r.id, r]),
+    ).values()];
     const rs = must(resv, "ai_reservations") as { estimate_usd: number; task_id: string; mission_id: string; status: string; created_at: string }[];
     const sum = <T,>(xs: T[], f: (x: T) => number) => xs.reduce((a, x) => a + f(x), 0);
     const scope = (status: string) => {
