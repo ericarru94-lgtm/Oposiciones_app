@@ -8,7 +8,7 @@
 |---|---|
 | Repositorio | `ericarru94-lgtm/Oposiciones_app`, carpeta `office/` (la app es independiente de AproBox: su propio `package.json`, sin código compartido) |
 | Node | 22 · Next.js 16.4 · React 19.3 · Tailwind 4 · TypeScript 5 |
-| Supabase | Conectado por MCP, **sin proyectos creados** todavía |
+| Supabase | Proyecto `he-signal-office` (plan Free, Irlanda) creado el 30/10 con migraciones y seed |
 | Anthropic | Sin clave configurada (se necesita en la fase 3) |
 | n8n | Disponible según el encargo; falta URL y clave de API (fase 5) |
 | Hosting | El usuario ya usa Vercel (cuenta personal) |
@@ -66,7 +66,7 @@ Paquetes: `next`, `react`, `@supabase/ssr`, `@supabase/supabase-js`, `zod`; en d
 | Concepto | Coste |
 |---|---|
 | Supabase Free | 0 € (se pausa tras 7 días sin uso). Pro: 25 $/mes |
-| Vercel Hobby | 0 €, pero su licencia es de uso **no comercial**; para la agencia lo correcto es Pro: 20 $/mes |
+| Vercel Hobby | 0 € · válido porque la oficina es de uso personal del administrador |
 | Claude Opus 5.5 | 4 $ / 20 $ por millón de tokens (entrada / salida) |
 | Claude Sonnet 5.5 | 2 $ / 10 $ · Claude Haiku 5.5: 0,10 $ / 0,50 $ |
 | Búsqueda web de Anthropic | 10 $ por cada 1.000 búsquedas |

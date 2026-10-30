@@ -33,7 +33,7 @@ Próximo: chatbot de muestra para enseñar a clientes y reel para anuncio pagado
 ## 5. HE SIGNAL AI OFFICE · oficina virtual de agentes de IA (chat «AI Office»)
 - Carpeta `office/` de este repositorio (app independiente: Next.js 16 + Supabase + Claude). Rama `ccr-30b91845-834xuv`.
 - Nueve empleados de IA (Alex CEO, Marcus, Sofia, Daniel, Lucia, David, Emma, Oscar, Victoria) con permisos: toda acción externa, gasto, producción o borrado requiere aprobación del administrador.
-- **Estado (30/10)**: fase 1 terminada (esquema de BD con RLS, login de administrador, registro de agentes, vista en lista, ficha de empleado, configuración, 28 pruebas). Falta que el usuario cree el proyecto de Supabase (ver `office/docs/INSTALACION.md`). Siguiente: fase 2, oficina 3D.
+- **Estado (30/10)**: fase 1 terminada (30 pruebas). Uso personal y gratuito. Supabase creado: proyecto `he-signal-office` (`bgptbtmyhtobqohkoeyd`, plan Free, Irlanda) con migraciones y seed; admin permitido `hesignalagency@gmail.com`. Falta que el usuario cree esa cuenta en Supabase Auth y desactive los registros (ver `office/docs/INSTALACION.md`). Siguiente: fase 2, oficina 3D.
 
 ---
 

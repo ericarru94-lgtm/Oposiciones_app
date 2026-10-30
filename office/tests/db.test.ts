@@ -1,6 +1,6 @@
 // Ejecuta la migración y el seed reales en un PostgreSQL embebido (PGlite)
 // con un esquema `auth` mínimo que imita a Supabase, y comprueba RLS.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildSeedSql } from "@/lib/db/seed";
@@ -9,6 +9,7 @@ import { GLOBAL_MEMORY } from "@/lib/agents/company-memory";
 
 const ADMIN = "11111111-1111-1111-1111-111111111111";
 const INTRUDER = "22222222-2222-2222-2222-222222222222";
+const ALLOWLISTED = "33333333-3333-3333-3333-333333333333";
 
 const SUPABASE_STUB = `
   create role anon nologin;
@@ -44,7 +45,9 @@ async function as<T>(userId: string, fn: () => Promise<T>): Promise<T> {
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  await db.exec(readFileSync("supabase/migrations/0001_init.sql", "utf8"));
+  for (const file of readdirSync("supabase/migrations").sort()) {
+    await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
+  }
   await db.exec(GRANTS);
   await db.exec(buildSeedSql());
   await db.exec(`
@@ -85,6 +88,25 @@ describe("migración y seed", () => {
       db.exec(`insert into public.memory_items (scope, agent_id, category, title, content, source)
                values ('global', 'alex', 'other', 't', 'x', 'test')`),
     ).rejects.toThrow(/check constraint/);
+  });
+});
+
+describe("alta del administrador", () => {
+  it("solo el email de la lista se convierte en administrador al crear la cuenta", async () => {
+    await db.exec(`insert into private.admin_allowlist (email) values ('jefe@hesignal.test')`);
+    await db.exec(`insert into auth.users values ('${ALLOWLISTED}', 'Jefe@HESignal.test')`);
+    const { rows } = await db.query<{ email: string }>(
+      `select email from public.admins where user_id = '${ALLOWLISTED}'`,
+    );
+    expect(rows).toEqual([{ email: "jefe@hesignal.test" }]);
+    const intruder = await db.query(`select 1 from public.admins where user_id = '${INTRUDER}'`);
+    expect(intruder.rows).toHaveLength(0);
+  });
+
+  it("los usuarios con sesión no pueden leer la lista de administradores permitidos", async () => {
+    await expect(as(ADMIN, () => db.query("select * from private.admin_allowlist"))).rejects.toThrow(
+      /permission denied/,
+    );
   });
 });
 

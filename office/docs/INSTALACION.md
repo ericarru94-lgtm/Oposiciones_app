@@ -1,38 +1,35 @@
 # Instalación de HE SIGNAL AI OFFICE
 
-Pasos cortos. Se hacen una sola vez.
+Uso personal y gratuito (plan Free de Supabase).
 
-## 1. Crear el proyecto de Supabase
-1. Entra en https://supabase.com/dashboard con la cuenta de la agencia.
-2. **New project** → nombre `he-signal-office`, región **West EU (Ireland)** o **Central EU (Frankfurt)**, plan **Free**. Guarda la contraseña de la base de datos.
-3. **Authentication → Sign In / Providers**: desactiva **Allow new users to sign up** (solo existirá la cuenta del administrador).
+## Ya hecho (30/10/2026)
+- Proyecto de Supabase **he-signal-office** (`bgptbtmyhtobqohkoeyd`, Irlanda, plan Free) en la organización «ericarru94-lgtm's Org».
+- Migraciones aplicadas (`supabase/migrations/0001…0003`) y datos iniciales (`supabase/seed.sql`): 9 empleados y 8 entradas de memoria.
+- `hesignalagency@gmail.com` está en la lista de administradores permitidos: cuando exista esa cuenta, se convierte en administrador automáticamente.
+- Revisión de seguridad de Supabase: sin avisos pendientes salvo uno intencionado (`is_admin()` la necesitan las reglas de acceso; solo responde sí/no sobre uno mismo).
 
-(Si me das permiso, también puedo crearlo yo con la conexión de Supabase.)
+## Lo que falta (lo haces tú, 2 minutos, se puede desde el móvil)
+1. Abre https://supabase.com/dashboard/project/bgptbtmyhtobqohkoeyd/auth/users
+2. **Add user → Create new user**: email `hesignalagency@gmail.com`, una contraseña larga que solo sepas tú y marca **Auto Confirm User**.
+3. Ve a **Authentication → Sign In / Providers** y desactiva **Allow new users to sign up**.
 
-## 2. Crear las tablas
-En **SQL Editor** ejecuta, en este orden:
-1. El contenido de `supabase/migrations/0001_init.sql`.
-2. El contenido de `supabase/seed.sql` (los 9 empleados y la memoria inicial de la agencia).
+## Variables de entorno
+`.env.local` (no se sube a GitHub):
+```
+NEXT_PUBLIC_SUPABASE_URL=https://bgptbtmyhtobqohkoeyd.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key: Project Settings → API Keys>
+ADMIN_EMAIL=hesignalagency@gmail.com
+```
+`SUPABASE_SECRET_KEY` y `ANTHROPIC_API_KEY` se añadirán en la fase 3.
 
-## 3. Variables de entorno
-Copia `.env.example` a `.env.local` y rellena:
-- `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` → **Project Settings → API Keys** (publishable).
-- `SUPABASE_SECRET_KEY` → la clave **secret** (`sb_secret_…`). No la compartas.
-- `ADMIN_EMAIL` → el email con el que entrarás.
-
-## 4. Crear la cuenta de administrador
+## Arrancar en un ordenador
 ```bash
-cd office
-npm install
-ADMIN_PASSWORD='una-contraseña-larga-y-única' npm run admin:create
+cd office && npm install && npm run dev   # http://localhost:3000
 ```
 
-## 5. Arrancar
-```bash
-npm run dev      # http://localhost:3000
-npm run check    # tipos + pruebas
-```
-Sin Supabase puedes ver la interfaz con `LOCAL_PREVIEW=1 npm run dev` (solo en tu ordenador; en producción no funciona).
+## Usarla desde el móvil
+Hace falta publicarla. Opción gratuita para uso personal: Vercel Hobby, nuevo proyecto desde este repositorio con **Root Directory = `office`** y las variables de arriba.
 
-## 6. Publicar en Vercel (cuando quieras)
-Nuevo proyecto desde este repositorio con **Root Directory = `office`** y las mismas variables de entorno.
+## Notas del plan gratuito
+- Supabase Free pausa el proyecto tras 7 días sin uso; se reactiva desde el panel con un clic.
+- La única parte con coste será la IA (fase 3): la API de Anthropic se paga por uso, no tiene plan gratuito.
