@@ -1,6 +1,6 @@
 # Mapa de proyectos del usuario · Resumen de todos los chats
 
-Última actualización: 13/10/2026. Hecho a partir del último resumen de cada chat y de la documentación de cada repositorio. Para el detalle técnico, abre el chat o el repositorio correspondiente. Todo en **español**.
+Última actualización: 30/10/2026. Hecho a partir del último resumen de cada chat y de la documentación de cada repositorio. Para el detalle técnico, abre el chat o el repositorio correspondiente. Todo en **español**.
 
 Cuentas: email personal `eric.arru94@gmail.com`; la agencia usa `hesignalagency@gmail.com` (es el Gmail conectado en algunos chats). GitHub `ericarru94-lgtm`, Vercel (cuenta personal, sin equipos).
 
@@ -29,6 +29,11 @@ Próximo: chatbot de muestra para enseñar a clientes y reel para anuncio pagado
 - Repositorio `ericarru94-lgtm/ia-para-empresas` → **faropyme.es** (nombre provisional anterior: «Núcleo»). Web SEO en español: IA para empresas, software, automatización, CRM, comparativas, guías y calculadoras. Next.js 16 + Tailwind v4, en Vercel (proyecto `ia-para-empresas`).
 - Reglas del proyecto en su `AGENTS.md`: nada de datos inventados, contenido en borrador hasta que esté completo, cumplimiento legal (LSSI/RGPD, cookies) y **declarar el conflicto de interés con HE Signal** cuando se enlacen sus servicios.
 - **Estado (13/10)**: rama `fase-8` subida a GitHub (commit 268a05c) **sin fusionar a `main`**. `npm run check` y todos los tests e2e en verde (57 unit, 120 prod, 107 QA). La web está en **pre-lanzamiento** (`SITE_LAUNCHED` sin activar, noindex).
+
+## 5. HE SIGNAL AI OFFICE · oficina virtual de agentes de IA (chat «AI Office»)
+- Carpeta `office/` de este repositorio (app independiente: Next.js 16 + Supabase + Claude). Rama `ccr-30b91845-834xuv`.
+- Nueve empleados de IA (Alex CEO, Marcus, Sofia, Daniel, Lucia, David, Emma, Oscar, Victoria) con permisos: toda acción externa, gasto, producción o borrado requiere aprobación del administrador.
+- **Estado (30/10)**: fase 1 terminada (esquema de BD con RLS, login de administrador, registro de agentes, vista en lista, ficha de empleado, configuración, 28 pruebas). Falta que el usuario cree el proyecto de Supabase (ver `office/docs/INSTALACION.md`). Siguiente: fase 2, oficina 3D.
 
 ---
 
