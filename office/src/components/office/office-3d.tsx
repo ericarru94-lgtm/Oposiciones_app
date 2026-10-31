@@ -6,7 +6,7 @@
 
 import { Html, OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, type RefObject } from "react";
 import type { Group, Mesh, MeshStandardMaterial } from "three";
 import { DEPARTMENTS, type AvatarSpec } from "@/lib/agents/registry";
 import { AGENT_STATUS_LABEL } from "@/lib/domain/status";
@@ -24,7 +24,7 @@ function Animator({ active }: { active: boolean }) {
   return null;
 }
 
-function Floor() {
+function Floor({ labels }: { labels: RefObject<HTMLDivElement | null> }) {
   return (
     <group>
       <mesh rotation-x={-Math.PI / 2} position-y={-0.01} receiveShadow>
@@ -37,7 +37,7 @@ function Floor() {
         <boxGeometry args={[22, 3.2, 0.2]} />
         <meshStandardMaterial color="#1c2130" />
       </mesh>
-      <Html position={[0, 2.6, -8.8]} center pointerEvents="none" zIndexRange={[1, 0]}>
+      <Html position={[0, 2.6, -8.8]} center pointerEvents="none" zIndexRange={[1, 0]} portal={labels as RefObject<HTMLElement>}>
         <p className="select-none whitespace-nowrap font-display text-xs font-semibold tracking-[0.3em] text-paper/70">
           HE SIGNAL · IA · CHATBOTS · MARKETING
         </p>
@@ -213,8 +213,8 @@ function Character({ agent, reducedMotion }: { agent: OfficeAgent; reducedMotion
 }
 
 function Workstation({
-  agent, selected, onSelect, reducedMotion,
-}: { agent: OfficeAgent; selected: boolean; onSelect: (id: string) => void; reducedMotion: boolean }) {
+  agent, selected, onSelect, reducedMotion, labels, compact,
+}: { compact: boolean; agent: OfficeAgent; selected: boolean; onSelect: (id: string) => void; reducedMotion: boolean; labels: RefObject<HTMLDivElement | null> }) {
   return (
     <group position={[agent.desk.x, 0, agent.desk.z]} rotation-y={agent.desk.rotation}>
       <group
@@ -228,7 +228,7 @@ function Workstation({
         <Desk look={agent.look} />
         <Character agent={agent} reducedMotion={reducedMotion} />
       </group>
-      <Html position={[0, 2.15, 0.85]} center zIndexRange={[20, 0]}>
+      <Html position={[0, 2.15, 0.85]} center zIndexRange={[20, 0]} portal={labels as RefObject<HTMLElement>}>
         <button
           type="button"
           onClick={(e) => {
@@ -243,9 +243,11 @@ function Workstation({
         >
           <span className="mr-1.5 inline-block size-1.5 rounded-full align-middle" style={{ background: agent.look.ring }} />
           {agent.name}
-          <span className="ml-1 text-muted">
-            · {agent.look.inactive ? "Inactivo" : AGENT_STATUS_LABEL[agent.status]}
-          </span>
+          {!compact && (
+            <span className="ml-1 text-muted">
+              · {agent.look.inactive ? "Inactivo" : AGENT_STATUS_LABEL[agent.status]}
+            </span>
+          )}
         </button>
       </Html>
     </group>
@@ -253,8 +255,10 @@ function Workstation({
 }
 
 export default function Office3D({
-  agents, selectedId, onSelect, reducedMotion,
+  agents, selectedId, onSelect, reducedMotion, compact = false,
 }: {
+  /** Pantalla estrecha: se aleja la cámara para ver toda la planta. */
+  compact?: boolean;
   agents: Omit<OfficeAgent, "look">[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -262,7 +266,10 @@ export default function Office3D({
 }) {
   const withLook = useMemo(() => agents.map((a) => ({ ...a, look: sceneLook(a.id, a.status) })), [agents]);
   const animate = needsAnimation(agents, reducedMotion);
+  // Contenedor propio para las etiquetas HTML: se desmontan limpias al cambiar de vista.
+  const labels = useRef<HTMLDivElement>(null);
   return (
+    <div className="relative size-full" data-testid="office-3d">
     <Canvas
       frameloop="demand"
       dpr={[1, 1.5]}
@@ -272,10 +279,9 @@ export default function Office3D({
         if ((e.target as HTMLElement | null)?.tagName === "CANVAS") onSelect(null);
       }}
       aria-label="Oficina 3D de HE Signal"
-      data-testid="office-3d"
     >
       <color attach="background" args={["#06070a"]} />
-      <OrthographicCamera makeDefault position={[14, 14, 14]} zoom={46} near={-50} far={200} />
+      <OrthographicCamera makeDefault position={[14, 14, 14]} zoom={compact ? 22 : 46} near={-50} far={200} />
       <OrbitControls
         enableRotate
         minPolarAngle={Math.PI / 5}
@@ -289,13 +295,15 @@ export default function Office3D({
       <hemisphereLight args={["#dfe6ff", "#10131c", 0.6]} />
       <directionalLight position={[8, 14, 6]} intensity={1.5} />
       <Animator active={animate} />
-      <Floor />
+      <Floor labels={labels} />
       {withLook.map((a) => (
         <Zone key={`z-${a.id}`} agent={a} />
       ))}
       {withLook.map((a) => (
-        <Workstation key={a.id} agent={a} selected={a.id === selectedId} onSelect={onSelect} reducedMotion={reducedMotion} />
+        <Workstation key={a.id} agent={a} selected={a.id === selectedId} onSelect={onSelect} reducedMotion={reducedMotion} labels={labels} compact={compact} />
       ))}
     </Canvas>
+    <div ref={labels} className="pointer-events-none absolute inset-0 overflow-hidden [&_button]:pointer-events-auto" />
+    </div>
   );
 }

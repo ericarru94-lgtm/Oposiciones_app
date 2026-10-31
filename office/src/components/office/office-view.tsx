@@ -208,12 +208,14 @@ export function OfficeView({ initial, realtime }: { initial: OfficeSnapshot; rea
   const [view, setView] = useState<ViewMode>("list");
   const [webgl, setWebgl] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [compact, setCompact] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     const gl = hasWebGL();
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     setWebgl(gl);
+    setCompact(window.innerWidth < 768);
     setReducedMotion(rm);
     setView(chooseView({ webgl: gl, width: window.innerWidth, reducedMotion: rm, saved: readSaved() }));
   }, []);
@@ -288,7 +290,7 @@ export function OfficeView({ initial, realtime }: { initial: OfficeSnapshot; rea
         {view === "3d" ? (
           <div className="h-[60vh] min-h-[420px] overflow-hidden rounded-2xl border border-line bg-ink">
             <SceneBoundary onFail={() => setView("list")}>
-              <Office3D agents={snapshot.agents} selectedId={selectedId} onSelect={setSelectedId} reducedMotion={reducedMotion} />
+              <Office3D agents={snapshot.agents} selectedId={selectedId} onSelect={setSelectedId} reducedMotion={reducedMotion} compact={compact} />
             </SceneBoundary>
           </div>
         ) : (
