@@ -1,0 +1,246 @@
+{
+  "memory.read": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "query": {
+        "description": "Palabra clave para filtrar; vacío = todo.",
+        "type": "string",
+        "maxLength": 200
+      }
+    },
+    "additionalProperties": false
+  },
+  "crm.read": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "maxLength": 200
+      }
+    },
+    "additionalProperties": false
+  },
+  "crm.write": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "company_id": {
+        "description": "Para completar una ficha ya existente de la misión. Sin él se crea una nueva.",
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "name": {
+        "description": "Nombre comercial real (obligatorio al crear).",
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 200
+      },
+      "city": {
+        "description": "Ciudad (obligatoria al crear).",
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 100
+      },
+      "website": {
+        "description": "Web oficial, solo si la has comprobado.",
+        "type": "string",
+        "format": "uri"
+      },
+      "instagram": {
+        "description": "Usuario o URL de Instagram, solo si lo has comprobado.",
+        "type": "string",
+        "maxLength": 200
+      },
+      "phone": {
+        "description": "Teléfono público de la empresa (nunca de una persona).",
+        "type": "string",
+        "maxLength": 100,
+        "pattern": "^[0-9+()\\s./,;-]+$"
+      },
+      "need_detected": {
+        "description": "Oportunidad detectada (obligatoria al crear), separando VERIFICADO / ESTIMADO / PENDIENTE.",
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 2000
+      },
+      "recommended_service": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "notes": {
+        "description": "Versión COMPLETA y actualizada: VERIFICADO, ESTIMADO, PENDIENTE y contradicciones.",
+        "type": "string",
+        "maxLength": 4000
+      },
+      "sources": {
+        "minItems": 1,
+        "maxItems": 10,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "description": "URL de cada fuente consultada para estos datos."
+      },
+      "facts": {
+        "description": "Datos con procedencia (uno por dato). La fecha de consulta y la confianza las pone el sistema; no las inventes.",
+        "maxItems": 30,
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,49}$",
+              "description": "Qué dato es: telefono, instagram, whatsapp, sedes, direccion, precio_prueba, reserva_online, resenas_google…"
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "source_url": {
+              "description": "URL exacta donde se ha visto el dato (obligatoria salvo inferencia o sin fuente).",
+              "type": "string",
+              "format": "uri"
+            },
+            "source_type": {
+              "type": "string",
+              "enum": [
+                "official_direct",
+                "official_indirect",
+                "directory",
+                "third_party",
+                "self_declared",
+                "inference",
+                "none"
+              ],
+              "description": "official_direct = web oficial con el dato a la vista; official_indirect = canal oficial de otra forma (p. ej. su ficha de Google); directory = directorio especializado; third_party = noticia o web ajena; self_declared = cifra que la propia empresa dice de sí misma; inference = deducción tuya; none = sin fuente."
+            },
+            "verification_status": {
+              "type": "string",
+              "enum": [
+                "verified",
+                "estimated",
+                "pending"
+              ]
+            },
+            "source_date": {
+              "description": "Fecha de publicación o actualización QUE MUESTRA la fuente (AAAA-MM-DD). Omítela si la fuente no la muestra.",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "lower_score_to": {
+              "description": "Solo para REBAJAR la confianza de la regla, con motivo.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "score_reason": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "supersedes_fact_id": {
+              "description": "Hecho anterior que este sustituye (no se borra: queda en el histórico).",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "required": [
+            "key",
+            "value",
+            "source_type",
+            "verification_status"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "sources"
+    ],
+    "additionalProperties": false
+  },
+  "content.draft": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 300
+      },
+      "kind": {
+        "type": "string",
+        "enum": [
+          "report",
+          "strategy",
+          "proposal",
+          "script",
+          "creative",
+          "client_file",
+          "technical",
+          "other"
+        ],
+        "description": "report = informe, strategy = estrategia, proposal = propuesta, client_file = ficha comercial."
+      },
+      "content": {
+        "type": "string",
+        "minLength": 50,
+        "maxLength": 60000,
+        "description": "Contenido en Markdown. Siempre es un borrador."
+      }
+    },
+    "required": [
+      "title",
+      "kind",
+      "content"
+    ],
+    "additionalProperties": false
+  },
+  "tasks.delegate": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "agent": {
+        "type": "string",
+        "enum": [
+          "marcus",
+          "sofia"
+        ],
+        "description": "marcus = comercial e investigación; sofia = marketing y estrategia."
+      },
+      "title": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 300
+      },
+      "instructions": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 8000,
+        "description": "Qué debe entregar, con qué criterios y qué no debe hacer."
+      },
+      "depends_on": {
+        "description": "task_id de subtareas que deben terminar antes (devueltos por esta herramienta).",
+        "maxItems": 5,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      }
+    },
+    "required": [
+      "agent",
+      "title",
+      "instructions"
+    ],
+    "additionalProperties": false
+  }
+}

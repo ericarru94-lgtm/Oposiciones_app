@@ -1,0 +1,19 @@
+{
+  "crm_ok": "ok",
+  "crm_update": "ok",
+  "crm_ftp": "sources.0:custom",
+  "crm_phone_long": "phone:custom,phone:too_big",
+  "crm_facts_ok": "ok",
+  "crm_facts_31": "facts:too_big",
+  "fact_lower_no_reason": "facts.0.score_reason:custom",
+  "fact_bad_date": "facts.0.source_date:custom",
+  "fact_future_date": "facts.0.source_date:custom",
+  "fact_feb30": "facts.0.source_date:custom",
+  "fact_ok_date": "ok",
+  "fact_bad_type": "facts.0.source_type:invalid_value",
+  "draft_ok": "ok",
+  "draft_kind": "kind:invalid_value",
+  "delegate_ok": "ok",
+  "delegate_deps6": "depends_on:too_big",
+  "memory_long": "query:too_big"
+}

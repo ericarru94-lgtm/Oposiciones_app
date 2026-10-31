@@ -36,7 +36,10 @@ const Fact = z
     source_type: z.enum(["official_direct", "official_indirect", "directory", "third_party", "self_declared", "inference", "none"])
       .describe("official_direct = web oficial con el dato a la vista; official_indirect = canal oficial de otra forma (p. ej. su ficha de Google); directory = directorio especializado; third_party = noticia o web ajena; self_declared = cifra que la propia empresa dice de sí misma; inference = deducción tuya; none = sin fuente."),
     verification_status: z.enum(["verified", "estimated", "pending"]),
-    source_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    source_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+      // Fecha real (no 2026-13-40) y no futura: una fuente no puede estar fechada después de hoy.
+      .refine((d) => { const t = Date.parse(`${d}T00:00:00Z`); return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d && t <= Date.now(); }, "Fecha no válida o futura.")
+      .optional()
       .describe("Fecha de publicación o actualización QUE MUESTRA la fuente (AAAA-MM-DD). Omítela si la fuente no la muestra."),
     lower_score_to: z.number().int().min(0).max(100).optional().describe("Solo para REBAJAR la confianza de la regla, con motivo."),
     score_reason: z.string().trim().max(500).optional(),
@@ -92,6 +95,9 @@ const Delegate = z.object({
 
 const MemoryRead = z.object({ query: z.string().trim().max(200).optional().describe("Palabra clave para filtrar; vacío = todo.") });
 const CrmRead = z.object({ query: z.string().trim().max(200).optional() });
+
+/** Esquemas de entrada (los usan las pruebas para fijar el comportamiento de validación). */
+export const PILOT_INPUTS = { MemoryRead, CrmRead, CrmWrite, Draft, Delegate } as const;
 
 export const PILOT_SCHEMAS: Partial<Record<ToolId, Record<string, unknown>>> = {
   "memory.read": z.toJSONSchema(MemoryRead),
