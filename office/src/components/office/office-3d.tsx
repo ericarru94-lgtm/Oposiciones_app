@@ -149,7 +149,7 @@ function CameraRig({ focusId, mode, compact, reducedMotion }: { focusId: string 
       const target = new Vector3(...focusPoint(s));
       // En escritorio la ficha ocupa el lado derecho: el puesto se encuadra a su izquierda.
       if (!compact) target.add(new Vector3(Math.cos(azimuth), 0, -Math.sin(azimuth)).multiplyScalar(3.2));
-      const zoom = fitZoom({ w: s.zone.w * 0.7, d: s.zone.d * 0.7 }, azimuth, polar, size.width * (compact ? 1 : 0.62), size.height);
+      const zoom = fitZoom({ w: s.zone.w * 0.52, d: s.zone.d * 0.52 }, azimuth, polar, size.width * (compact ? 1 : 0.62), size.height);
       return { target, zoom, base };
     }
     return { target: new Vector3(region.x, 0.8, region.z), zoom: base, base };

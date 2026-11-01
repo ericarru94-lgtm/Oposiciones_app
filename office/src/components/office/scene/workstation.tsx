@@ -8,13 +8,15 @@
 import { Html } from "@react-three/drei";
 import { RoundedBox } from "./rounded";
 import type { ThreeEvent } from "@react-three/fiber";
-import { useMemo, type ReactNode, type RefObject } from "react";
+import { Suspense, useMemo, type ReactNode, type RefObject } from "react";
 import { Color } from "three";
 import { DEPARTMENTS } from "@/lib/agents/catalog";
 import { AGENT_STATUS_LABEL } from "@/lib/domain/status";
 import type { ScreenKind, Station, StationProp } from "@/lib/office/layout";
+import { staffModelOf } from "@/lib/office/staff-models";
 import type { OfficeAgent } from "../types";
 import { Character, StatusMark } from "./character";
+import { StaffModel } from "./staff-model";
 import { idleScreenTexture, screenTexture, signTexture } from "./textures";
 
 const OAK = "#a07a55";
@@ -310,6 +312,7 @@ export function Workstation({
   const dept = DEPARTMENTS[agent.department];
   const { look } = agent;
   const lit = !look.inactive;
+  const staff = staffModelOf(agent.id);
   const desk = station.executive ? { w: 3.4, d: 1.3 } : { w: 2.6, d: 1.2 };
   const click = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -383,16 +386,30 @@ export function Workstation({
         <Box p={[0, 0.81, -0.06]} s={[0.5, 0.02, 0.16]} c="#20263a" rough={0.5} />
         <mesh position={[0.4, 0.81, -0.04]} scale={[1, 0.5, 1.4]}><sphereGeometry args={[0.04, 12, 8]} /><meshStandardMaterial color="#20263a" /></mesh>
         <mesh position={[-0.55, 0.85, -0.4]} castShadow><cylinderGeometry args={[0.045, 0.04, 0.1, 14]} /><meshStandardMaterial color={dept.color} roughness={0.4} /></mesh>
-        {/* Silla y trabajador (escala de personaje legible desde la vista isométrica) */}
-        <group position={[0, 0, 0.56]} scale={1.2}>
-          <Chair lit={lit} accent={dept.color} />
-          <group position={[0, 0.04, 0.02]}>
-            <Character agentId={agent.id} avatar={agent.avatar} look={look} reducedMotion={reducedMotion} />
+        {/* Silla y trabajador: modelo 3D profesional si existe (carga diferida; mientras tanto, la figura) */}
+        {staff ? (
+          <group position={[0, 0, 0.56]}>
+            <group scale={0.85 * staff.scale}>
+              <Chair lit={lit} accent={dept.color} />
+            </group>
+            <Suspense fallback={<group scale={1.2} position={[0, 0.048, 0.024]}><Character agentId={agent.id} avatar={agent.avatar} look={look} reducedMotion={reducedMotion} /></group>}>
+              <StaffModel model={staff} avatar={agent.avatar} look={look} reducedMotion={reducedMotion} />
+            </Suspense>
+            <group scale={1.2} userData={{ dynamic: true }}>
+              <StatusMark look={look} reducedMotion={reducedMotion} />
+            </group>
           </group>
-          <group userData={{ dynamic: true }}>
-            <StatusMark look={look} reducedMotion={reducedMotion} />
+        ) : (
+          <group position={[0, 0, 0.56]} scale={1.2}>
+            <Chair lit={lit} accent={dept.color} />
+            <group position={[0, 0.04, 0.02]}>
+              <Character agentId={agent.id} avatar={agent.avatar} look={look} reducedMotion={reducedMotion} />
+            </group>
+            <group userData={{ dynamic: true }}>
+              <StatusMark look={look} reducedMotion={reducedMotion} />
+            </group>
           </group>
-        </group>
+        )}
         {station.props.map((p) => <Prop key={p} kind={p} lit={lit} accent={dept.color} look={look} />)}
         {/* Foco suave del puesto seleccionado */}
         {selected && (
