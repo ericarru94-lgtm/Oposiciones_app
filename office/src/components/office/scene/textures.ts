@@ -274,20 +274,46 @@ export function rugTexture() {
   });
 }
 
-/** Suelo de madera oscura en lamas (se repite). */
+/** Suelo de microcemento pulido con juntas de losa (se repite). */
 export function floorTexture() {
-  const t = make("floor", 256, 256, (g, w, h) => {
-    g.fillStyle = "#2a2f3c";
+  const t = make("floor", 512, 512, (g, w, h) => {
+    g.fillStyle = "#3b4253";
     g.fillRect(0, 0, w, h);
-    for (let r = 0; r < 8; r++) {
-      const off = (r % 2) * 64;
-      for (let c = -1; c < 3; c++) {
-        g.fillStyle = ["#353b4a", "#383e4e", "#323846"][(r + c + 3) % 3];
-        g.fillRect(c * 128 + off + 2, r * 32 + 2, 124, 28);
-      }
+    // Variación suave del pulido.
+    for (let i = 0; i < 260; i++) {
+      const x = (i * 97) % w, y = (i * 193) % h, r = 20 + ((i * 31) % 60);
+      const grad = g.createRadialGradient(x, y, 0, x, y, r);
+      grad.addColorStop(0, i % 2 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.03)");
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = grad;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // Juntas de losa de 1,2 m.
+    g.strokeStyle = "rgba(15,18,28,0.55)";
+    g.lineWidth = 2;
+    for (let k = 0; k <= 2; k++) {
+      g.beginPath(); g.moveTo(k * (w / 2), 0); g.lineTo(k * (w / 2), h); g.stroke();
+      g.beginPath(); g.moveTo(0, k * (h / 2)); g.lineTo(w, k * (h / 2)); g.stroke();
     }
   });
   t.wrapS = t.wrapT = RepeatWrapping;
-  t.repeat.set(6, 5);
+  t.repeat.set(16, 12);
   return t;
+}
+
+/** Rótulo de departamento (tótem). */
+export function signTexture(label: string, color: string) {
+  return make(`sign-${label}`, 512, 160, (g, w, h) => {
+    g.fillStyle = "#0f1422";
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = color;
+    g.fillRect(0, 0, 14, h);
+    g.fillStyle = "#e8ecf8";
+    g.font = "600 46px sans-serif";
+    g.textBaseline = "middle";
+    g.fillText(label, 44, h / 2 - 8);
+    g.fillStyle = "#8a91a6";
+    g.font = "500 22px sans-serif";
+    g.fillText("HE SIGNAL", 46, h / 2 + 38);
+  });
 }

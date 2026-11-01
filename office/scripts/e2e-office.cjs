@@ -20,6 +20,8 @@ const countDraws = () => {
   await p.waitForSelector('[data-testid=office-3d] canvas', { timeout: 30000 });
   await p.waitForFunction(() => window.__draws > 0);
   ok('escritorio abre en 3D', true, `(lienzo con dibujo en ${Date.now() - t0} ms, modo desarrollo)`);
+  // La calidad se mide una sola vez al abrir (3 dibujos); el reposo se cuenta después.
+  await p.waitForSelector('[data-quality-ready]', { timeout: 30000 });
   await p.waitForTimeout(1500);
   const d1 = await p.evaluate(() => window.__draws); await p.waitForTimeout(3000); const d2 = await p.evaluate(() => window.__draws);
   ok('sin actividad real no se redibuja (frameloop demand)', d2 === d1, `(llamadas de dibujo en 3 s en reposo: ${d2 - d1})`);

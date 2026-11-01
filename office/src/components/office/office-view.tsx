@@ -2,14 +2,16 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { agentDetail } from "@/app/actions/office";
 import { AgentAvatar } from "@/components/agent-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { DEPARTMENTS, MODELS, type ModelId } from "@/lib/agents/catalog";
 import { AGENT_STATUSES, AGENT_STATUS_LABEL, TASK_STATUS_LABEL, type TaskStatus } from "@/lib/domain/status";
+import { QUICK_FOCUS, stationOf } from "@/lib/office/layout";
 import { chooseView, type ViewMode } from "@/lib/office/scene";
 import type { ConnectionState } from "@/lib/office/sync";
+import type { CameraMode } from "./office-3d";
 import type { AgentDetail, OfficeAgentData, OfficeSnapshot } from "./types";
 import { useOfficeSync, type RealtimeConfig } from "./use-office-sync";
 
@@ -277,6 +279,13 @@ export function OfficeView({ initial, realtime }: { initial: OfficeSnapshot; rea
   const [reducedMotion, setReducedMotion] = useState(false);
   const [compact, setCompact] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [camMode, setCamMode] = useState<CameraMode>("home");
+  const stage = useRef<HTMLDivElement>(null);
+
+  // Móvil: la ficha ocupa la mitad inferior, así que la escena sube para seguir viéndose el puesto.
+  useEffect(() => {
+    if (compact && view === "3d" && selectedId) stage.current?.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
+  }, [compact, view, selectedId, reducedMotion]);
 
   // WebGL, ancho y «reducir movimiento» solo se conocen en el navegador (tras hidratar).
   useEffect(() => {
@@ -312,7 +321,8 @@ export function OfficeView({ initial, realtime }: { initial: OfficeSnapshot; rea
   const live = realtime !== null;
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    // En móvil, con la ficha abierta, se deja hueco debajo para poder subir la escena por encima de ella.
+    <div className={`space-y-4 sm:space-y-5 ${selected && compact ? "pb-[50dvh] lg:pb-0" : ""}`}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="hidden text-xs font-medium uppercase tracking-[0.2em] text-cobalt-soft sm:block">HE Signal · Oficina</p>
@@ -359,19 +369,58 @@ export function OfficeView({ initial, realtime }: { initial: OfficeSnapshot; rea
             </button>
           ))}
         </div>
-        {view === "3d" && selected && (
-          <button type="button" onClick={() => setSelectedId(null)} className="inline-flex items-center gap-2 rounded-xl bg-surface px-3.5 py-2 text-sm text-muted ring-1 ring-white/5 transition hover:text-paper">
-            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
-            Ver toda la oficina
-          </button>
+        {view === "3d" && (
+          <div className="inline-flex rounded-xl bg-surface p-1 ring-1 ring-white/5" role="group" aria-label="Encuadre de la cámara">
+            {([["home", "Vista cercana"], ["overview", "Vista general"]] as const).map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setSelectedId(null);
+                  setCamMode(m);
+                }}
+                aria-pressed={!selected && camMode === m}
+                className={`rounded-lg px-3 py-1.5 text-sm transition ${!selected && camMode === m ? "bg-white/10 text-paper" : "text-muted hover:text-paper"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
+      {view === "3d" && (
+        <nav aria-label="Ir a un departamento" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+          {QUICK_FOCUS.map((id) => {
+            const agent = snapshot.agents.find((a) => a.id === id);
+            const station = stationOf(id);
+            if (!agent || !station) return null;
+            const on = selectedId === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setSelectedId(on ? null : id)}
+                aria-pressed={on}
+                data-testid={`focus-${id}`}
+                className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs ring-1 transition ${
+                  on ? "bg-cobalt text-white ring-cobalt" : "bg-surface text-muted ring-white/5 hover:text-paper"
+                }`}
+              >
+                <span className={`size-1.5 rounded-full ${agent.pilot ? "bg-emerald-400" : "bg-white/25"}`} aria-hidden />
+                <span className="font-medium text-paper/90">{agent.name}</span>
+                <span className="hidden sm:inline">· {station.zone.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
       <div className="relative">
         {view === "3d" ? (
-          <div className="relative aspect-[6/5] max-h-[70dvh] min-h-[300px] w-full overflow-hidden rounded-3xl bg-ink ring-1 ring-white/5 sm:aspect-[16/10] lg:aspect-auto lg:h-[min(74vh,800px)]">
+          <div ref={stage} className="relative scroll-mt-3 aspect-[6/5] max-h-[70dvh] min-h-[300px] w-full overflow-hidden rounded-3xl bg-ink ring-1 ring-white/5 sm:aspect-[16/10] lg:aspect-auto lg:h-[max(480px,calc(100dvh-330px))]">
             <SceneBoundary onFail={() => setView("list")}>
-              <Office3D agents={snapshot.agents} selectedId={selectedId} onSelect={setSelectedId} reducedMotion={reducedMotion} compact={compact} />
+              <Office3D agents={snapshot.agents} selectedId={selectedId} onSelect={setSelectedId} reducedMotion={reducedMotion} compact={compact} mode={camMode} />
             </SceneBoundary>
             <p className="pointer-events-none absolute bottom-3 left-4 hidden text-[11px] text-paper/40 sm:block">
               Arrastra para girar · rueda o pellizco para acercar · toca un empleado para ver su ficha
