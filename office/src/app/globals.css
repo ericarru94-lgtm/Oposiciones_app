@@ -24,7 +24,11 @@
 }
 
 body {
-  background: var(--color-ink);
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgb(39 71 245 / 0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(255 75 43 / 0.05), transparent 60%),
+    var(--color-ink);
+  background-attachment: fixed;
   color: var(--color-paper);
   font-family: var(--font-sans);
 }

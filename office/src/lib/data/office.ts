@@ -21,6 +21,9 @@ export function toOfficeAgent(a: AgentWithState): OfficeAgentData {
     openTasks: a.state.openTasks,
     completedTasks: a.state.completedTasks,
     pilot: isPilotAgent(a.id),
+    specialty: a.specialty,
+    description: a.description,
+    responsibilities: [...a.responsibilities],
   };
 }
 

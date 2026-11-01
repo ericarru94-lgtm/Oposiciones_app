@@ -82,7 +82,7 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
         {children.map((c) => <TaskCard key={c.id} t={c} />)}
       </section>
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
+      <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
         <h2 className="font-display font-semibold">Coste real de la misión</h2>
         <p className="mt-2 text-sm">
           {usd(spent)}
@@ -110,7 +110,7 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
         </section>
       )}
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
+      <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
         <h2 className="font-display font-semibold">Documentos ({documents.length})</h2>
         <div className="mt-3 space-y-2">
           {documents.length === 0 && <p className="text-sm text-muted">Aún no hay documentos.</p>}
@@ -125,7 +125,7 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
         </div>
       </section>
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
+      <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
         <h2 className="font-display font-semibold">Fichas del CRM creadas ({companies.length})</h2>
         <ul className="mt-3 divide-y divide-line text-sm">
           {companies.length === 0 && <li className="py-2 text-muted">Ninguna todavía.</li>}
@@ -139,7 +139,7 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
         </ul>
       </section>
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
+      <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
         <h2 className="font-display font-semibold">Actividad</h2>
         <ol className="mt-3 space-y-2 text-xs">
           {events.map((e) => {

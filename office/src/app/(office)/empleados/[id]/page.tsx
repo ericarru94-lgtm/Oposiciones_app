@@ -27,7 +27,7 @@ function TaskList({ tasks, empty }: { tasks: TaskSummary[]; empty: string }) {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-line bg-surface p-5">
+    <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
       <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-muted">{title}</h2>
       {children}
     </section>
@@ -44,7 +44,7 @@ export default async function EmployeePage({ params }: PageProps<"/empleados/[id
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-5 rounded-2xl border border-line bg-surface p-6 sm:flex-row sm:items-center">
+      <header className="flex flex-col gap-5 rounded-2xl bg-surface/80 ring-1 ring-white/5 p-6 sm:flex-row sm:items-center">
         <AgentAvatar avatar={agent.avatar} size={96} label={`Avatar de ${agent.name}`} />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-xs uppercase tracking-[0.18em]" style={{ color: dept.color }}>

@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <main className="grid min-h-dvh place-items-center px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-8">
+      <div className="w-full max-w-sm rounded-2xl bg-surface/80 ring-1 ring-white/5 p-8">
         <OfficeLogo />
         <h1 className="mt-8 font-display text-2xl font-semibold">Acceso de administrador</h1>
         <p className="mt-2 text-sm text-muted">Solo la cuenta del administrador de HE Signal Agency puede entrar.</p>

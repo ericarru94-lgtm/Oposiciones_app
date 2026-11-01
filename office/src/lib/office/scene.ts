@@ -2,7 +2,7 @@
 // la escena es una función del estado de Supabase. Los agentes fuera del
 // piloto se muestran inactivos aunque su fila diga otra cosa.
 
-import { PILOT_AGENT_IDS } from "../agents/registry";
+import { PILOT_AGENT_IDS } from "../agents/catalog";
 import type { AgentStatus } from "../domain/status";
 
 export type Pose = "idle" | "typing" | "thinking" | "reading" | "waiting" | "alert" | "done" | "off";

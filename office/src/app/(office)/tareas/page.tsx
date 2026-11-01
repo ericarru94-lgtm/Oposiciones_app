@@ -28,7 +28,7 @@ export default async function TasksPage() {
         </p>
       </div>
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
+      <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
         <h2 className="font-display font-semibold">Nuevo encargo</h2>
         {budget && (
           <p className="mt-1 text-xs text-muted">
@@ -41,7 +41,7 @@ export default async function TasksPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
+      <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
         <h2 className="font-display font-semibold">Historial</h2>
         {missions.length === 0 ? (
           <p className="mt-3 text-sm text-muted">Todavía no hay encargos.</p>

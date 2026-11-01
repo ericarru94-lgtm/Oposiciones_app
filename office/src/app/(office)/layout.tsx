@@ -6,8 +6,8 @@ import { requireViewer } from "@/lib/auth/session";
 export default async function OfficeLayout({ children }: LayoutProps<"/">) {
   const viewer = await requireViewer();
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
-      <aside className="hidden border-r border-line bg-surface p-5 lg:flex lg:flex-col lg:gap-8">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[256px_1fr]">
+      <aside className="hidden border-r border-white/5 bg-gradient-to-b from-surface to-ink p-5 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:gap-8">
         <OfficeLogo />
         <SideNav />
         <div className="mt-auto space-y-3 text-xs text-muted">
@@ -24,7 +24,7 @@ export default async function OfficeLayout({ children }: LayoutProps<"/">) {
         </div>
       </aside>
       <div className="min-w-0 pb-20 lg:pb-0">
-        <header className="flex items-center justify-between border-b border-line px-4 py-3 lg:hidden">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-white/5 bg-ink/85 px-4 py-2.5 backdrop-blur-xl lg:hidden">
           <OfficeLogo />
           {viewer.mode === "admin" && (
             <form action={signOut}>
@@ -33,12 +33,12 @@ export default async function OfficeLayout({ children }: LayoutProps<"/">) {
           )}
         </header>
         {viewer.mode === "local-preview" && (
-          <div className="border-b border-signal/30 bg-signal/10 px-4 py-2 text-xs text-signal lg:px-8">
+          <div className="border-b border-signal/20 bg-signal/[0.07] px-4 py-2 text-xs text-signal/90 lg:px-8">
             Vista previa local sin base de datos: se muestra la configuración real de los agentes, pero no hay
             tareas, memoria ni acciones. Conecta Supabase para usar la oficina.
           </div>
         )}
-        <main className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-10">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">{children}</main>
       </div>
       <BottomNav />
     </div>

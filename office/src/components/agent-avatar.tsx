@@ -1,4 +1,4 @@
-import type { AvatarSpec } from "@/lib/agents/registry";
+import type { AvatarSpec } from "@/lib/agents/catalog";
 
 // Personaje original dibujado en SVG a partir de sus rasgos. La oficina 3D
 // (fase 2) usa exactamente los mismos rasgos para que el personaje sea

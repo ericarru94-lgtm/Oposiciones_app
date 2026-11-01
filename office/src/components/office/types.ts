@@ -1,4 +1,4 @@
-import type { AvatarSpec, DepartmentId } from "@/lib/agents/registry";
+import type { AvatarSpec, DepartmentId } from "@/lib/agents/catalog";
 import type { AgentStatus } from "@/lib/domain/status";
 import type { SceneLook } from "@/lib/office/scene";
 
@@ -18,6 +18,17 @@ export interface OfficeAgentData {
   openTasks: number;
   completedTasks: number;
   pilot: boolean;
+  /** Del registro (sin las instrucciones internas del agente). */
+  specialty: string;
+  description: string;
+  responsibilities: string[];
+}
+
+/** Detalle bajo demanda para la ficha: tareas y actividad reales (solo lectura). */
+export interface AgentDetail {
+  openTasks: { id: string; title: string; status: string; createdAt: string }[];
+  completedCount: number;
+  recent: { id: number; type: string; message: string | null; createdAt: string }[];
 }
 
 export interface OfficeAgent extends OfficeAgentData {

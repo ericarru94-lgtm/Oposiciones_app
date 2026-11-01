@@ -3,18 +3,26 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import { agentDetail } from "@/app/actions/office";
 import { AgentAvatar } from "@/components/agent-avatar";
 import { StatusBadge } from "@/components/status-badge";
-import { DEPARTMENTS, MODELS, type ModelId } from "@/lib/agents/registry";
-import { AGENT_STATUSES, AGENT_STATUS_LABEL } from "@/lib/domain/status";
+import { DEPARTMENTS, MODELS, type ModelId } from "@/lib/agents/catalog";
+import { AGENT_STATUSES, AGENT_STATUS_LABEL, TASK_STATUS_LABEL, type TaskStatus } from "@/lib/domain/status";
 import { chooseView, type ViewMode } from "@/lib/office/scene";
 import type { ConnectionState } from "@/lib/office/sync";
-import type { OfficeAgentData, OfficeSnapshot } from "./types";
+import type { AgentDetail, OfficeAgentData, OfficeSnapshot } from "./types";
 import { useOfficeSync, type RealtimeConfig } from "./use-office-sync";
 
 const Office3D = dynamic(() => import("./office-3d"), {
   ssr: false,
-  loading: () => <p className="grid h-full place-items-center text-sm text-muted">Cargando la oficina 3D…</p>,
+  loading: () => (
+    <div className="grid h-full place-items-center">
+      <p className="flex items-center gap-3 text-sm text-muted">
+        <span className="size-2 animate-pulse rounded-full bg-cobalt-soft" />
+        Preparando la oficina 3D…
+      </p>
+    </div>
+  ),
 });
 
 const VIEW_KEY = "office-view";
@@ -51,112 +59,176 @@ class SceneBoundary extends Component<{ onFail: () => void; children: ReactNode 
   }
 }
 
-const CONNECTION: Record<ConnectionState, { label: string; dot: string }> = {
-  connecting: { label: "Conectando…", dot: "bg-warn" },
-  live: { label: "En directo", dot: "bg-online" },
-  reconnecting: { label: "Reconectando…", dot: "bg-warn" },
-  offline: { label: "Sin conexión", dot: "bg-danger" },
-  disabled: { label: "Sin tiempo real (vista previa local)", dot: "bg-muted" },
+const CONNECTION: Record<ConnectionState, { label: string; dot: string; ring: string }> = {
+  connecting: { label: "Conectando…", dot: "bg-warn", ring: "ring-warn/30" },
+  live: { label: "En directo", dot: "bg-online", ring: "ring-online/30" },
+  reconnecting: { label: "Reconectando…", dot: "bg-warn", ring: "ring-warn/30" },
+  offline: { label: "Sin conexión", dot: "bg-danger", ring: "ring-danger/40" },
+  disabled: { label: "Sin tiempo real · vista previa local", dot: "bg-muted", ring: "ring-white/10" },
 };
+
+const time = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+const when = (iso: string) => new Date(iso).toLocaleString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
 function ConnectionBadge({ state, syncedAt, onRetry }: { state: ConnectionState; syncedAt: string; onRetry: () => void }) {
   const c = CONNECTION[state];
-  const time = new Date(syncedAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   return (
-    <p className="flex items-center gap-2 text-xs text-muted" role="status" aria-live="polite" data-testid="connection">
-      <span className={`size-2 rounded-full ${c.dot}`} />
+    <p className={`inline-flex items-center gap-2 rounded-full bg-white/[0.03] px-3 py-1.5 text-xs text-muted ring-1 ${c.ring}`} role="status" aria-live="polite" data-testid="connection">
+      <span className="relative flex size-2">
+        {state === "live" && <span className="pulse-ring absolute inline-flex size-full rounded-full bg-online" />}
+        <span className={`relative inline-flex size-2 rounded-full ${c.dot}`} />
+      </span>
       <span className="text-paper/90">{c.label}</span>
-      <span>· datos de las {time}</span>
+      <span className="hidden sm:inline">· datos de las {time(syncedAt)}</span>
       {(state === "offline" || state === "reconnecting") && (
-        <button type="button" onClick={onRetry} className="underline hover:text-paper">
-          Releer ahora
+        <button type="button" onClick={onRetry} className="font-medium text-paper underline-offset-2 hover:underline">
+          Releer
         </button>
       )}
     </p>
   );
 }
 
-function AgentPanel({ agent, onClose }: { agent: OfficeAgentData; onClose: () => void }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h3 className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function AgentPanel({ agent, onClose, live }: { agent: OfficeAgentData; onClose: () => void; live: boolean }) {
   const dept = DEPARTMENTS[agent.department];
   const model = Object.hasOwn(MODELS, agent.model) ? MODELS[agent.model as ModelId].label : agent.model;
+  const [detail, setDetail] = useState<AgentDetail | null | "loading">("loading");
+
+  // Tareas y actividad reales del agente (lectura con la sesión; en la vista previa local no hay datos).
+  useEffect(() => {
+    let alive = true;
+    setDetail("loading");
+    if (!live) {
+      setDetail(null);
+      return;
+    }
+    agentDetail(agent.id).then((d) => alive && setDetail(d)).catch(() => alive && setDetail(null));
+    return () => {
+      alive = false;
+    };
+  }, [agent.id, agent.statusUpdatedAt, live]);
+
   return (
     <aside
-      className="max-h-[70vh] overflow-y-auto rounded-2xl border border-line bg-surface p-5 shadow-xl"
+      className="flex max-h-[inherit] flex-col overflow-hidden rounded-3xl bg-surface shadow-2xl shadow-black/60 ring-1 ring-white/10"
       aria-label={`Ficha de ${agent.name}`}
       data-testid="agent-panel"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="h-1 shrink-0" style={{ background: `linear-gradient(90deg, ${dept.color}, transparent)` }} />
+      <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/15 lg:hidden" aria-hidden />
+      <header className="flex items-start gap-4 px-5 pb-4 pt-4">
+        <div className="shrink-0 rounded-2xl p-0.5" style={{ background: `${dept.color}33` }}>
           <AgentAvatar avatar={agent.avatar} label={`Avatar de ${agent.name}`} />
-          <div className="min-w-0">
-            <p className="font-display text-lg font-semibold">{agent.name}</p>
-            <p className="text-sm text-muted">{agent.role}</p>
-          </div>
         </div>
-        <button type="button" onClick={onClose} className="text-sm text-muted hover:text-paper" aria-label="Cerrar ficha">
-          ✕
-        </button>
-      </div>
-      <dl className="mt-4 space-y-2 text-sm">
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted">Estado</dt>
-          <dd>{agent.pilot ? <StatusBadge status={agent.status} /> : <span className="text-muted">Inactivo · fuera del piloto</span>}</dd>
-        </div>
-        {agent.pilot && agent.statusDetail && (
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted">Detalle</dt>
-            <dd className="text-right">{agent.statusDetail}</dd>
-          </div>
-        )}
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted">Departamento</dt>
-          <dd className="flex items-center gap-1.5">
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-xl font-semibold leading-tight">{agent.name}</p>
+          <p className="text-sm text-paper/70">{agent.role}</p>
+          <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted">
             <span className="size-2 rounded-full" style={{ background: dept.color }} />
             {dept.name}
-          </dd>
+          </p>
         </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted">Modelo</dt>
-          <dd>{model}</dd>
+        <button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full text-muted transition hover:bg-white/5 hover:text-paper" aria-label="Cerrar ficha">
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </header>
+
+      <div className="space-y-5 overflow-y-auto px-5 pb-5">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/5">
+          {agent.pilot ? <StatusBadge status={agent.status} /> : <span className="text-xs font-medium text-muted">Inactivo · fuera del piloto</span>}
+          <span className="ml-auto rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-muted">{agent.pilot ? "En el piloto" : "Sin ejecutar"}</span>
+          {agent.pilot && agent.statusDetail && <p className="w-full text-xs text-paper/70">{agent.statusDetail}</p>}
+          {agent.statusUpdatedAt && <p className="w-full text-[11px] text-muted">Último cambio: {when(agent.statusUpdatedAt)}</p>}
         </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted">Tarea actual</dt>
-          <dd className="text-right">
-            {agent.currentTask ? (
-              <Link className="underline hover:text-cobalt-soft" href={`/tareas/${agent.currentTask.id}`}>
-                {agent.currentTask.title}
-              </Link>
-            ) : (
-              <span className="text-muted">Ninguna</span>
-            )}
-          </dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted">Tareas</dt>
-          <dd>
-            {agent.openTasks} pendientes · {agent.completedTasks} completadas
-          </dd>
-        </div>
-        {agent.statusUpdatedAt && (
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted">Último cambio</dt>
-            <dd>{new Date(agent.statusUpdatedAt).toLocaleString("es-ES")}</dd>
-          </div>
-        )}
-      </dl>
-      <Link
-        href={`/empleados/${agent.id}`}
-        className="mt-4 inline-block rounded-lg border border-line px-3 py-2 text-sm hover:border-cobalt"
-      >
-        Ver perfil e historial
-      </Link>
+
+        <Section title="Función">
+          <p className="text-sm leading-relaxed text-paper/85">{agent.description}</p>
+          <ul className="space-y-1.5">
+            {agent.responsibilities.slice(0, 4).map((r) => (
+              <li key={r} className="flex gap-2 text-sm text-paper/70">
+                <span className="mt-2 size-1 shrink-0 rounded-full" style={{ background: dept.color }} />
+                {r}
+              </li>
+            ))}
+          </ul>
+        </Section>
+
+        <Section title="Trabajo">
+          <dl className="grid grid-cols-3 gap-2 text-center">
+            {[
+              ["Pendientes", agent.openTasks],
+              ["Completadas", agent.completedTasks],
+              ["Modelo", model.replace("Claude ", "")],
+            ].map(([k, v]) => (
+              <div key={k as string} className="rounded-xl bg-white/[0.03] px-2 py-2 ring-1 ring-white/5">
+                <dt className="text-[10px] uppercase tracking-wider text-muted">{k}</dt>
+                <dd className="mt-0.5 truncate text-sm font-semibold">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          {agent.currentTask ? (
+            <Link href={`/tareas/${agent.currentTask.id}`} className="block rounded-xl bg-cobalt/10 px-3 py-2 text-sm ring-1 ring-cobalt/30 transition hover:bg-cobalt/20">
+              <span className="text-[11px] uppercase tracking-wider text-cobalt-soft">Tarea actual</span>
+              <span className="block truncate">{agent.currentTask.title}</span>
+            </Link>
+          ) : (
+            <p className="text-sm text-muted">Sin tarea en curso.</p>
+          )}
+          {detail !== "loading" && detail && detail.openTasks.length > 0 && (
+            <ul className="space-y-1">
+              {detail.openTasks.map((t) => (
+                <li key={t.id}>
+                  <Link href={`/tareas/${t.id}`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-white/5">
+                    <span className="truncate">{t.title}</span>
+                    <span className="shrink-0 text-[11px] text-muted">{TASK_STATUS_LABEL[t.status as TaskStatus] ?? t.status}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        <Section title="Actividad reciente">
+          {detail === "loading" ? (
+            <div className="space-y-2" aria-hidden>
+              {[0, 1, 2].map((i) => <div key={i} className="h-4 animate-pulse rounded bg-white/5" style={{ width: `${85 - i * 15}%` }} />)}
+            </div>
+          ) : detail && detail.recent.length > 0 ? (
+            <ol className="relative space-y-3 border-l border-white/10 pl-4">
+              {detail.recent.map((e) => (
+                <li key={e.id} className="text-sm">
+                  <span className="absolute -left-[3px] mt-1.5 size-1.5 rounded-full bg-cobalt-soft" />
+                  <p className="text-paper/85">{e.message ?? e.type}</p>
+                  <p className="text-[11px] text-muted">{when(e.createdAt)}</p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-sm text-muted">{live ? "Sin actividad registrada todavía." : "Sin datos en la vista previa local."}</p>
+          )}
+        </Section>
+
+        <Link href={`/empleados/${agent.id}`} className="flex items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-sm font-medium ring-1 ring-white/10 transition hover:bg-white/10">
+          Ver perfil e historial completo
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        </Link>
+      </div>
     </aside>
   );
 }
 
-function AgentList({ agents, onSelect }: { agents: OfficeAgentData[]; onSelect: (id: string) => void }) {
+function AgentList({ agents, selectedId, onSelect }: { agents: OfficeAgentData[]; selectedId: string | null; onSelect: (id: string) => void }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-testid="office-list">
+    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="office-list">
       {agents.map((a) => {
         const dept = DEPARTMENTS[a.department];
         return (
@@ -164,14 +236,16 @@ function AgentList({ agents, onSelect }: { agents: OfficeAgentData[]; onSelect: 
             <button
               type="button"
               onClick={() => onSelect(a.id)}
-              className={`group flex h-full w-full flex-col gap-4 rounded-2xl border border-line bg-surface p-5 text-left transition hover:border-cobalt ${
-                a.pilot ? "" : "opacity-60"
-              }`}
+              aria-pressed={selectedId === a.id}
+              className={`group relative flex h-full w-full flex-col gap-3 overflow-hidden rounded-2xl bg-surface/80 p-4 text-left ring-1 transition hover:bg-panel ${
+                selectedId === a.id ? "ring-cobalt-soft" : "ring-white/5 hover:ring-white/15"
+              } ${a.pilot ? "" : "opacity-70"}`}
             >
-              <div className="flex items-center gap-4">
+              <span className="absolute inset-y-0 left-0 w-0.5" style={{ background: a.pilot ? dept.color : "transparent" }} />
+              <div className="flex items-center gap-3">
                 <AgentAvatar avatar={a.avatar} label={`Avatar de ${a.name}`} />
-                <div className="min-w-0">
-                  <p className="font-display text-lg font-semibold">{a.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-base font-semibold">{a.name}</p>
                   <p className="truncate text-sm text-muted">{a.role}</p>
                 </div>
               </div>
@@ -182,18 +256,8 @@ function AgentList({ agents, onSelect }: { agents: OfficeAgentData[]; onSelect: 
                   {dept.name}
                 </span>
               </div>
-              <p className="text-sm text-paper/80">
-                {a.currentTask ? (
-                  <>
-                    <span className="text-muted">Tarea actual: </span>
-                    {a.currentTask.title}
-                  </>
-                ) : (
-                  <span className="text-muted">Sin tarea en curso</span>
-                )}
-              </p>
-              <p className="mt-auto text-xs text-muted">
-                {a.openTasks} pendientes · {a.completedTasks} completadas
+              <p className="truncate text-sm text-paper/75">
+                {a.currentTask ? <><span className="text-muted">Tarea: </span>{a.currentTask.title}</> : <span className="text-muted">Sin tarea en curso</span>}
               </p>
             </button>
           </li>
@@ -203,6 +267,9 @@ function AgentList({ agents, onSelect }: { agents: OfficeAgentData[]; onSelect: 
   );
 }
 
+const ICON_3D = <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" /><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" /></svg>;
+const ICON_LIST = <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg>;
+
 export function OfficeView({ initial, realtime }: { initial: OfficeSnapshot; realtime: RealtimeConfig | null }) {
   const { snapshot, connection, resync } = useOfficeSync(initial, realtime);
   const [view, setView] = useState<ViewMode>("list");
@@ -211,6 +278,7 @@ export function OfficeView({ initial, realtime }: { initial: OfficeSnapshot; rea
   const [compact, setCompact] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // WebGL, ancho y «reducir movimiento» solo se conocen en el navegador (tras hidratar).
   useEffect(() => {
     const gl = hasWebGL();
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -230,75 +298,97 @@ export function OfficeView({ initial, realtime }: { initial: OfficeSnapshot; rea
   };
 
   // Los agentes fuera del piloto cuentan como inactivos, no por su estado guardado.
-  const counts = useMemo(() => {
+  const stats = useMemo(() => {
     const pilot = snapshot.agents.filter((a) => a.pilot);
-    return [
-      ...AGENT_STATUSES.map((s) => ({ label: AGENT_STATUS_LABEL[s], n: pilot.filter((a) => a.status === s).length })).filter((c) => c.n > 0),
-      { label: "Inactivos", n: snapshot.agents.length - pilot.length },
-    ];
+    const busy = pilot.filter((a) => !["available", "completed", "waiting_agent"].includes(a.status)).length;
+    return {
+      pilot: pilot.length,
+      busy,
+      counts: AGENT_STATUSES.map((s) => ({ label: AGENT_STATUS_LABEL[s], n: pilot.filter((a) => a.status === s).length })).filter((c) => c.n > 0),
+      inactive: snapshot.agents.length - pilot.length,
+    };
   }, [snapshot.agents]);
   const selected = snapshot.agents.find((a) => a.id === selectedId) ?? null;
+  const live = realtime !== null;
 
   return (
-    <div>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-cobalt-soft">Oficina</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold">Tu equipo</h1>
-          <p className="mt-2 text-sm text-muted">
-            {snapshot.agents.length} empleados de IA. En el piloto trabajan Alex, Marcus y Sofia; el resto aparece inactivo.
-          </p>
-          <div className="mt-2">
+    <div className="space-y-4 sm:space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="hidden text-xs font-medium uppercase tracking-[0.2em] text-cobalt-soft sm:block">HE Signal · Oficina</p>
+          <h1 className="font-display text-2xl font-semibold tracking-tight sm:mt-1.5 sm:text-4xl">Tu equipo de IA</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 sm:mt-3">
             <ConnectionBadge state={connection} syncedAt={snapshot.syncedAt} onRetry={resync} />
-          </div>
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <div className="inline-flex rounded-lg border border-line p-0.5 text-sm" role="group" aria-label="Tipo de vista">
-            {(["3d", "list"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => pick(v)}
-                disabled={v === "3d" && !webgl}
-                aria-pressed={view === v}
-                title={v === "3d" && !webgl ? "Este navegador no tiene WebGL" : undefined}
-                className={`rounded-md px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 ${
-                  view === v ? "bg-cobalt text-white" : "text-muted hover:text-paper"
-                }`}
-              >
-                {v === "3d" ? "3D" : "Lista"}
-              </button>
-            ))}
-          </div>
-          <dl className="flex flex-wrap gap-2 text-xs sm:justify-end">
-            {counts.map(({ label, n }) => (
-              <div key={label} className="rounded-full border border-line px-3 py-1">
-                <dt className="inline text-muted">{label}: </dt>
-                <dd className="inline font-medium">{n}</dd>
-              </div>
-            ))}
             {snapshot.pendingApprovals > 0 && (
-              <div className="rounded-full border border-signal/50 px-3 py-1 text-signal">
-                <Link href="/centro">Aprobaciones pendientes: {snapshot.pendingApprovals}</Link>
-              </div>
+              <Link href="/centro" className="inline-flex items-center gap-2 rounded-full bg-signal/10 px-3 py-1.5 text-xs font-medium text-signal ring-1 ring-signal/40">
+                {snapshot.pendingApprovals} aprobación{snapshot.pendingApprovals === 1 ? "" : "es"} pendiente{snapshot.pendingApprovals === 1 ? "" : "s"}
+              </Link>
             )}
-          </dl>
+          </div>
         </div>
+        <dl className="grid w-full grid-cols-3 gap-2 sm:w-auto">
+          {[
+            ["En el piloto", `${stats.pilot}`, "Alex, Marcus y Sofia"],
+            ["Trabajando ahora", `${stats.busy}`, stats.counts.map((c) => `${c.label} ${c.n}`).join(" · ") || "—"],
+            ["Inactivos", `${stats.inactive}`, "Fuera del piloto"],
+          ].map(([k, v, hint]) => (
+            <div key={k} className="rounded-2xl bg-surface/80 px-3 py-2 ring-1 ring-white/5 sm:px-4 sm:py-3" title={hint}>
+              <dt className="truncate text-[11px] text-muted">{k}</dt>
+              <dd className="font-display text-xl font-semibold leading-tight sm:text-2xl">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </header>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-xl bg-surface p-1 ring-1 ring-white/5" role="group" aria-label="Tipo de vista">
+          {(["3d", "list"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => pick(v)}
+              disabled={v === "3d" && !webgl}
+              aria-pressed={view === v}
+              title={v === "3d" && !webgl ? "Este navegador no tiene WebGL" : undefined}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                view === v ? "bg-cobalt text-white shadow-lg shadow-cobalt/30" : "text-muted hover:text-paper"
+              }`}
+            >
+              {v === "3d" ? ICON_3D : ICON_LIST}
+              {v === "3d" ? "3D" : "Lista"}
+            </button>
+          ))}
+        </div>
+        {view === "3d" && selected && (
+          <button type="button" onClick={() => setSelectedId(null)} className="inline-flex items-center gap-2 rounded-xl bg-surface px-3.5 py-2 text-sm text-muted ring-1 ring-white/5 transition hover:text-paper">
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+            Ver toda la oficina
+          </button>
+        )}
       </div>
 
-      <div className="relative mt-8">
+      <div className="relative">
         {view === "3d" ? (
-          <div className="h-[60vh] min-h-[420px] overflow-hidden rounded-2xl border border-line bg-ink">
+          <div className="relative aspect-[6/5] max-h-[70dvh] min-h-[300px] w-full overflow-hidden rounded-3xl bg-ink ring-1 ring-white/5 sm:aspect-[16/10] lg:aspect-auto lg:h-[min(74vh,800px)]">
             <SceneBoundary onFail={() => setView("list")}>
               <Office3D agents={snapshot.agents} selectedId={selectedId} onSelect={setSelectedId} reducedMotion={reducedMotion} compact={compact} />
             </SceneBoundary>
+            <p className="pointer-events-none absolute bottom-3 left-4 hidden text-[11px] text-paper/40 sm:block">
+              Arrastra para girar · rueda o pellizco para acercar · toca un empleado para ver su ficha
+            </p>
           </div>
         ) : (
-          <AgentList agents={snapshot.agents} onSelect={setSelectedId} />
+          <AgentList agents={snapshot.agents} selectedId={selectedId} onSelect={setSelectedId} />
         )}
         {selected && (
-          <div className={view === "3d" ? "relative z-30 mt-4 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:w-80" : "fixed inset-x-4 bottom-24 z-30 lg:bottom-6 lg:left-auto lg:right-6 lg:w-80"}>
-            <AgentPanel agent={selected} onClose={() => setSelectedId(null)} />
+          <div
+            className={
+              view === "3d"
+                ? "fixed inset-x-3 bottom-[4.75rem] z-30 max-h-[52dvh] lg:absolute lg:inset-x-auto lg:bottom-auto lg:right-4 lg:top-4 lg:max-h-[calc(100%-2rem)] lg:w-[23rem]"
+                : "fixed inset-x-3 bottom-[4.75rem] z-30 max-h-[60dvh] lg:bottom-6 lg:left-auto lg:right-6 lg:w-[23rem] lg:max-h-[80vh]"
+            }
+          >
+            <AgentPanel agent={selected} onClose={() => setSelectedId(null)} live={live} />
           </div>
         )}
       </div>

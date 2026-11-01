@@ -13,7 +13,7 @@ export function Upcoming({ href, points }: { href: string; points: string[] }) {
       </p>
       <ul className="mt-6 grid gap-2 sm:grid-cols-2">
         {points.map((p) => (
-          <li key={p} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm">
+          <li key={p} className="rounded-xl bg-surface/80 ring-1 ring-white/5 px-4 py-3 text-sm">
             {p}
           </li>
         ))}

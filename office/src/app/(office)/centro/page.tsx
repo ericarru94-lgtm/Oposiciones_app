@@ -19,7 +19,7 @@ const OUTCOME_STYLE: Record<string, string> = {
 
 function Stat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: string }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
+    <div className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-4">
       <p className="text-xs text-muted">{label}</p>
       <p className={`mt-1 font-display text-2xl font-semibold ${tone ?? ""}`}>{value}</p>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
@@ -41,7 +41,7 @@ export default async function Page() {
       </div>
 
       {!data ? (
-        <p className="rounded-2xl border border-line bg-surface p-5 text-sm text-muted">
+        <p className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5 text-sm text-muted">
           Vista previa local: sin base de datos no hay encargos, costes ni actividad que mostrar.
         </p>
       ) : (
@@ -65,7 +65,7 @@ export default async function Page() {
             <h2 id="equipo" className="font-display text-lg font-semibold">Equipo del piloto</h2>
             <ul className="mt-3 grid gap-3 sm:grid-cols-3">
               {pilot.map((a) => (
-                <li key={a.id} className="rounded-2xl border border-line bg-surface p-4">
+                <li key={a.id} className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-4">
                   <Link href={`/empleados/${a.id}`} className="font-medium hover:text-cobalt-soft">{a.name}</Link>
                   <div className="mt-1"><StatusBadge status={a.status} /></div>
                   <p className="mt-2 truncate text-xs text-muted">{a.currentTask ? `Tarea: ${a.currentTask.title}` : "Sin tarea en curso"}</p>
@@ -93,14 +93,14 @@ export default async function Page() {
             {data.missions.length === 0 ? (
               <p className="mt-3 text-sm text-muted">Todavía no hay encargos.</p>
             ) : (
-              <div className="mt-3 overflow-x-auto rounded-2xl border border-line">
+              <div className="mt-3 overflow-x-auto rounded-2xl bg-surface/60 ring-1 ring-white/5">
                 <table className="w-full min-w-[560px] text-left text-sm">
-                  <thead className="bg-surface text-xs text-muted">
+                  <thead className="text-xs text-muted">
                     <tr><th className="p-3">Encargo</th><th className="p-3">Resultado</th><th className="p-3">Coste</th><th className="p-3">Fecha</th></tr>
                   </thead>
                   <tbody>
                     {data.missions.map((m) => (
-                      <tr key={m.id} className="border-t border-line">
+                      <tr key={m.id} className="border-t border-white/5 transition hover:bg-white/[0.03]">
                         <td className="p-3"><Link className="hover:text-cobalt-soft" href={`/tareas/${m.id}`}>{m.title}</Link></td>
                         <td className={`p-3 ${m.outcome ? OUTCOME_STYLE[m.outcome] : "text-muted"}`}>
                           {m.outcomeLabel ?? TASK_STATUS_LABEL[m.status]}

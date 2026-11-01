@@ -23,7 +23,7 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
+      <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
         <h2 className="font-display font-semibold">Integraciones</h2>
         <ul className="mt-4 divide-y divide-line">
           {integrations.map((i) => (
@@ -44,7 +44,7 @@ export default async function SettingsPage() {
         </ul>
       </section>
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
+      <section className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
         <h2 className="font-display font-semibold">Modelo por agente</h2>
         <p className="mt-1 text-xs text-muted">
           Modelo por defecto: {MODELS[defaultModel(env)].label}. El cambio desde aquí se activa en la fase 3.
@@ -77,7 +77,7 @@ export default async function SettingsPage() {
       </section>
 
       <section className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-2xl border border-line bg-surface p-5">
+        <div className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
           <h2 className="font-display font-semibold">Límites de gasto de IA</h2>
           <dl className="mt-3 space-y-2 text-sm">
             <div className="flex justify-between">
@@ -97,7 +97,7 @@ export default async function SettingsPage() {
             ejecución cuando la supera. Fija también un tope en la consola de Anthropic.
           </p>
         </div>
-        <div className="rounded-2xl border border-line bg-surface p-5">
+        <div className="rounded-2xl bg-surface/80 ring-1 ring-white/5 p-5">
           <h2 className="font-display font-semibold">Siempre requieren tu aprobación</h2>
           <ul className="mt-3 space-y-1 text-sm">
             {APPROVAL_REQUIRED_RISKS.map((r) => (
