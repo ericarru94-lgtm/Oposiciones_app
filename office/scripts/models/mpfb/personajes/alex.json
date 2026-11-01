@@ -1,0 +1,12 @@
+{
+  "id": "alex",
+  "nota": "Diseño del piloto (fase 4.3). Rasgos físicos neutros de adulto; la identidad se apoya en ropa, peinado y tono de piel del avatar existente (#C68A62).",
+  "macros": { "gender": 1.0, "age": 0.68, "muscle": 0.56, "weight": 0.48, "height": 0.58, "proportions": 0.62 },
+  "piel": "skins/middleage_caucasian_male/middleage_caucasian_male.mhmat",
+  "ojos": "eyes/materials/brown.mhmat",
+  "cejas": "eyebrows/eyebrow001/eyebrow001.mhclo",
+  "pestanas": "eyelashes/eyelashes01/eyelashes01.mhclo",
+  "pelo": "hair/short02/short02.mhclo",
+  "ropa": ["clothes/male_elegantsuit01/male_elegantsuit01.mhclo", "clothes/shoes02/shoes02.mhclo"],
+  "esqueleto": "default"
+}
