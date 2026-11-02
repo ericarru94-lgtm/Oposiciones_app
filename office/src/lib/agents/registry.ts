@@ -10,7 +10,7 @@ import type { ToolId } from "./tools";
 
 // Lo público vive en catalog.ts (apto para el navegador); aquí se reexporta.
 export * from "./catalog";
-import { DEFAULT_MODEL, type AvatarSpec, type DepartmentId, type Effort, type ModelId } from "./catalog";
+import { type AvatarSpec, type DepartmentId, type Effort, type ModelId } from "./catalog";
 
 export interface AgentDefinition {
   id: string;
@@ -149,7 +149,7 @@ Cómo trabajas:
       "Adaptar contenidos a cada plataforma y a clientes",
     ],
     tools: [...BASE_TOOLS, "web.search", "crm.read", "analytics.read", "social.publish"],
-    model: DEFAULT_MODEL,
+    model: "claude-haiku-5-5",
     effort: "medium",
     isCoordinator: false,
     avatar: { skin: "#E0AC84", hair: "#3A2A1E", hairStyle: "curly", outfit: "#8B5CF6", accent: "#F1F3EE", accessory: "glasses" },
@@ -180,7 +180,7 @@ Cómo trabajas:
       "Supervisar la calidad estética",
     ],
     tools: [...BASE_TOOLS, "web.search", "web.fetch", "media.generate"],
-    model: DEFAULT_MODEL,
+    model: "claude-sonnet-5-5",
     effort: "medium",
     isCoordinator: false,
     avatar: { skin: "#D9A07A", hair: "#111111", hairStyle: "bun", outfit: "#EC4899", accent: "#0B0D12", accessory: "earring" },
@@ -210,7 +210,7 @@ Cómo trabajas:
       "Documentar workflows y detectar oportunidades de automatización",
     ],
     tools: [...BASE_TOOLS, "web.search", "web.fetch", "n8n.read", "n8n.test", "n8n.production"],
-    model: DEFAULT_MODEL,
+    model: "claude-sonnet-5-5",
     effort: "high",
     isCoordinator: false,
     avatar: { skin: "#B98563", hair: "#2B2B2B", hairStyle: "short", outfit: "#06B6D4", accent: "#0B0D12", accessory: "glasses" },
@@ -241,7 +241,7 @@ Cómo trabajas:
       "Preparar informes de seguimiento y coordinar entregas",
     ],
     tools: [...BASE_TOOLS, "crm.read", "crm.write", "email.send"],
-    model: DEFAULT_MODEL,
+    model: "claude-haiku-5-5",
     effort: "medium",
     isCoordinator: false,
     avatar: { skin: "#F3D2B8", hair: "#C27C3A", hairStyle: "ponytail", outfit: "#12B76A", accent: "#FFFFFF", accessory: "headset" },
@@ -272,7 +272,7 @@ Cómo trabajas:
       "Analizar el rendimiento comercial",
     ],
     tools: [...BASE_TOOLS, "crm.read", "costs.read", "analytics.read"],
-    model: DEFAULT_MODEL,
+    model: "claude-haiku-5-5",
     effort: "medium",
     isCoordinator: false,
     avatar: { skin: "#A8754F", hair: "#4A4A4A", hairStyle: "short", outfit: "#64748B", accent: "#F1F3EE", accessory: "glasses" },

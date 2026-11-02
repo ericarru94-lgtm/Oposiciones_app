@@ -18,6 +18,10 @@ beforeEach(async () => {
     delete from public.ai_usage;
     update public.settings set value = '{"monthly_ai_budget_usd": null, "task_ai_budget_usd": null}' where key = 'limits';
     update public.agents set status = 'available', current_task_id = null;
+    -- Estas pruebas cubren la mecánica general del motor (dependencias, leases,
+    -- reintentos, aprobaciones) con varios agentes distintos: en ESTA base de
+    -- prueba se activan todos. La barrera de inactivos se prueba en migration-0009.
+    update public.agents set active = true;
   `);
 });
 

@@ -2,7 +2,7 @@
 // la escena es una función del estado de Supabase. Los agentes fuera del
 // piloto se muestran inactivos aunque su fila diga otra cosa.
 
-import { PILOT_AGENT_IDS } from "../agents/catalog";
+import { isActiveAgent } from "../agents/catalog";
 import type { AgentStatus } from "../domain/status";
 
 export type Pose = "idle" | "typing" | "thinking" | "reading" | "waiting" | "alert" | "done" | "off";
@@ -43,10 +43,9 @@ const LOOK: Record<AgentStatus, Omit<SceneLook, "inactive">> = {
   blocked: { pose: "alert", screen: "warning", animated: false, ring: RING.signal },
 };
 
-const PILOT = new Set<string>(PILOT_AGENT_IDS);
-
+/** Activo según la lista única ACTIVE_AGENT_IDS (catalog.ts). */
 export function isPilotAgent(id: string): boolean {
-  return PILOT.has(id);
+  return isActiveAgent(id);
 }
 
 export function sceneLook(agentId: string, status: AgentStatus): SceneLook {

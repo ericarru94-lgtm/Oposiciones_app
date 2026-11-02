@@ -34,6 +34,9 @@ beforeAll(async () => {
     await admin.query(readFileSync(`supabase/migrations/${f}`, "utf8"));
   }
   await admin.query(buildSeedSql());
+  // Mecánica general de concurrencia con varios agentes distintos: en ESTA base de
+  // prueba se activan todos (la barrera de inactivos se prueba en migration-0009).
+  await admin.query(`update public.agents set active = true`);
   await admin.query(`insert into auth.users (id, email) values ('${ADMIN}', 'admin@hesignal.test');
                      insert into public.admins (user_id, email) values ('${ADMIN}', 'admin@hesignal.test');`);
 }, 120_000);

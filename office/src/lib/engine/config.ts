@@ -1,7 +1,7 @@
 // Configuración central del motor. Ningún otro archivo debe fijar modelos,
 // límites de pasos o versiones de herramientas.
 
-import type { AgentDefinition, ModelId } from "../agents/registry";
+import { isActiveAgent, type AgentDefinition, type ModelId } from "../agents/registry";
 import type { ToolId } from "../agents/tools";
 
 export const ENGINE = {
@@ -66,14 +66,47 @@ export const SERVER_TOOL_OVERHEAD_TOKENS = 2_000;
 export type ServerToolId = keyof typeof SERVER_TOOLS;
 
 /**
- * Herramientas activas en el piloto por agente (intersección con los permisos
- * del registro). La web solo la usa Marcus: Sofia trabaja con sus resultados.
+ * Lista blanca de herramientas de los nueve agentes (fase 5.1).
+ *
+ * - `enabled`: lo ÚNICO que el motor entrega a la ToolGateway (intersección con
+ *   los permisos del registro). La web solo la usa Marcus: Sofia trabaja con sus
+ *   resultados.
+ * - `planned`: documentación de lo previsto para fases posteriores. No da acceso.
+ *
+ * Los agentes inactivos tienen `enabled` vacío y, además, `scopeTools` devuelve
+ * una lista vacía para cualquier agente que no esté en ACTIVE_AGENT_IDS, aunque
+ * alguien rellenara `enabled` por error.
  */
-export const PILOT_TOOLS: Record<string, readonly ToolId[]> = {
-  alex: ["memory.read", "crm.read", "content.draft", "tasks.delegate"],
-  marcus: ["memory.read", "crm.read", "crm.write", "content.draft", "web.search", "web.fetch"],
-  sofia: ["memory.read", "crm.read", "content.draft"],
+export interface AgentToolPolicy {
+  enabled: readonly ToolId[];
+  planned: readonly ToolId[];
+}
+export const AGENT_TOOLS: Readonly<Record<string, AgentToolPolicy>> = {
+  alex: { enabled: ["memory.read", "crm.read", "content.draft", "tasks.delegate"], planned: [] },
+  marcus: { enabled: ["memory.read", "crm.read", "crm.write", "content.draft", "web.search", "web.fetch"], planned: [] },
+  sofia: { enabled: ["memory.read", "crm.read", "content.draft"], planned: [] },
+  daniel: { enabled: [], planned: ["memory.read", "crm.read", "content.draft", "web.search"] },
+  lucia: { enabled: [], planned: ["memory.read", "content.draft", "web.fetch"] },
+  david: { enabled: [], planned: ["memory.read", "content.draft", "web.fetch", "n8n.read", "n8n.test"] },
+  emma: { enabled: [], planned: ["memory.read", "crm.read", "crm.write", "content.draft"] },
+  oscar: { enabled: [], planned: ["memory.read", "crm.read", "content.draft", "costs.read"] },
+  victoria: { enabled: [], planned: ["memory.read", "crm.read", "content.draft", "quality.review", "web.fetch"] },
 };
+
+/**
+ * Herramientas que NO se pueden habilitar a ningún agente en esta fase
+ * (acciones externas, gasto, producción, borrado, y las aún no construidas).
+ * Una prueba falla si alguna aparece en `enabled`.
+ */
+export const BLOCKED_TOOLS_PHASE_5_1: readonly ToolId[] = [
+  "email.send", "outreach.contact", "social.publish", "ads.launch", "media.generate", "n8n.production", "data.delete",
+  "quality.review", "costs.read", "n8n.read", "n8n.test",
+];
+
+/** @deprecated Compatibilidad: derivado de AGENT_TOOLS (no es una lista independiente). */
+export const PILOT_TOOLS: Readonly<Record<string, readonly ToolId[]>> = Object.fromEntries(
+  Object.entries(AGENT_TOOLS).map(([id, p]) => [id, p.enabled]),
+);
 
 /**
  * Orden entre subtareas impuesto por el motor: la clave espera a los agentes
@@ -83,7 +116,13 @@ export const PILOT_DEPENDENCIES: Record<string, readonly string[]> = {
   sofia: ["marcus"],
 };
 
+/** Herramientas efectivas de un agente: vacías si no está activo; si no, permisos del registro ∩ `enabled`. */
+export function scopeTools(agent: AgentDefinition): readonly ToolId[] {
+  if (!isActiveAgent(agent.id)) return [];
+  const allowed = AGENT_TOOLS[agent.id]?.enabled ?? [];
+  return agent.tools.filter((t) => allowed.includes(t));
+}
+
 export function pilotScope(agent: AgentDefinition): AgentDefinition {
-  const allowed = PILOT_TOOLS[agent.id] ?? [];
-  return { ...agent, tools: agent.tools.filter((t) => allowed.includes(t)) };
+  return { ...agent, tools: scopeTools(agent) };
 }

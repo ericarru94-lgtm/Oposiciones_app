@@ -67,5 +67,21 @@ export interface AvatarSpec {
   accessory: "none" | "glasses" | "headset" | "earring" | "watch";
 }
 
-/** Agentes que trabajan de verdad en el piloto. El resto aún no se ejecuta. */
-export const PILOT_AGENT_IDS = ["alex", "marcus", "sofia"] as const;
+/**
+ * ÚNICA fuente de verdad de los agentes activos (fase 5.1). Solo estos pueden
+ * ejecutar tareas. El motor lo comprueba en dos sitios independientes:
+ * - en el código (worker.ts rechaza cualquier otro agente), y
+ * - en PostgreSQL (`agents.active`, que el seed sincroniza con esta lista y
+ *   que `claim_next_task` exige desde la migración 0009).
+ * Activar a un agente es una decisión del administrador por fase: no lo
+ * cambies sin autorización expresa.
+ */
+export const ACTIVE_AGENT_IDS = ["alex", "marcus", "sofia"] as const;
+export type ActiveAgentId = (typeof ACTIVE_AGENT_IDS)[number];
+
+export function isActiveAgent(id: string): id is ActiveAgentId {
+  return (ACTIVE_AGENT_IDS as readonly string[]).includes(id);
+}
+
+/** @deprecated Compatibilidad: es la misma lista que ACTIVE_AGENT_IDS (no la dupliques). */
+export const PILOT_AGENT_IDS = ACTIVE_AGENT_IDS;

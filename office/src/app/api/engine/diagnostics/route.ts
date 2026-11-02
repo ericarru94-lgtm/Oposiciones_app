@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import { PILOT_AGENT_IDS, getAgent } from "@/lib/agents/registry";
+import { ACTIVE_AGENT_IDS, getAgent } from "@/lib/agents/registry";
 import { requireAdminApi } from "@/lib/auth/session";
 import { readEnv } from "@/lib/env";
 
@@ -13,7 +13,7 @@ export async function GET() {
   if (!readEnv().ANTHROPIC_API_KEY) return NextResponse.json({ error: "Falta ANTHROPIC_API_KEY." }, { status: 503 });
 
   const client = new Anthropic({ maxRetries: 0, timeout: 20_000 });
-  const wanted = [...new Set(PILOT_AGENT_IDS.map((id) => getAgent(id)!.model))];
+  const wanted = [...new Set(ACTIVE_AGENT_IDS.map((id) => getAgent(id)!.model))];
   const models = await Promise.all(
     wanted.map(async (id) => {
       try {
@@ -25,7 +25,7 @@ export async function GET() {
       }
     }),
   );
-  const agents = PILOT_AGENT_IDS.map((id) => {
+  const agents = ACTIVE_AGENT_IDS.map((id) => {
     const a = getAgent(id)!;
     return { id, model: a.model, effort: a.effort };
   });

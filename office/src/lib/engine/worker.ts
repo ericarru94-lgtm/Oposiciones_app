@@ -13,7 +13,7 @@
 // queda «incierta» (cuenta como gastada) y la llamada NO se repite sola.
 
 import { randomUUID } from "node:crypto";
-import { PILOT_AGENT_IDS, getAgent } from "../agents/registry";
+import { getAgent, isActiveAgent } from "../agents/registry";
 import { ENGINE, SEARCH_RESULT_TOKENS_ASSUMED, SERVER_TOOLS, SERVER_TOOL_OVERHEAD_TOKENS, callLimits, pilotScope, type ServerToolId } from "./config";
 import { budgetStopMessage } from "./budget-message";
 import { buildModelRequest, callModel, initialState, resolveLocal, type RunState, type StepInput } from "./loop";
@@ -86,7 +86,8 @@ export async function runTick(deps: TickDeps): Promise<TickReport> {
 async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canStep: (callMs: number) => boolean): Promise<string> {
   const { store } = deps;
   const def = getAgent(run.agentId);
-  if (!def || !(PILOT_AGENT_IDS as readonly string[]).includes(run.agentId)) {
+  // Barrera de aplicación (la de PostgreSQL está en claim_next_task, migración 0009).
+  if (!def || !isActiveAgent(run.agentId)) {
     await store.failRun(run.runId, worker, `«${run.agentId}» no participa en el piloto.`, false);
     return "failed";
   }

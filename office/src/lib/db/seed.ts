@@ -2,7 +2,7 @@
 // global. Es idempotente: se puede ejecutar varias veces sin duplicar datos y
 // sin pisar el estado en tiempo real de los agentes.
 
-import { AGENTS } from "../agents/registry";
+import { AGENTS, isActiveAgent } from "../agents/registry";
 import { GLOBAL_MEMORY } from "../agents/company-memory";
 
 function lit(value: string): string {
@@ -33,6 +33,7 @@ export function buildSeedSql(): string {
         lit(a.model),
         lit(a.effort),
         a.isCoordinator ? "true" : "false",
+        isActiveAgent(a.id) ? "true" : "false",
         json(a.avatar),
         json(a.desk),
       ].join(", ")})`,
@@ -47,7 +48,7 @@ export function buildSeedSql(): string {
 
 insert into public.agents
   (id, name, role, department, specialty, description, personality, instructions,
-   tools, model, effort, is_coordinator, avatar, desk)
+   tools, model, effort, is_coordinator, active, avatar, desk)
 values
 ${agentRows}
 on conflict (id) do update set
@@ -62,9 +63,11 @@ on conflict (id) do update set
   model = excluded.model,
   effort = excluded.effort,
   is_coordinator = excluded.is_coordinator,
+  active = excluded.active,
   avatar = excluded.avatar,
   desk = excluded.desk;
--- El modelo y el esfuerzo se definen en el código (registry.ts) y se sincronizan aquí.
+-- El modelo, el esfuerzo y si el agente está activo se definen en el código
+-- (registry.ts y ACTIVE_AGENT_IDS en catalog.ts) y se sincronizan aquí.
 
 insert into public.memory_items (scope, category, title, content, source, created_by)
 values
