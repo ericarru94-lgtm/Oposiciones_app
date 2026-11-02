@@ -1,0 +1,34 @@
+{
+  "id": "sofia",
+  "nota": "Fase 4.3.1. Marketing: mujer de unos 30 años, cara ovalada, pelo largo castaño, conjunto elegante (blusa y falda; el pack no tiene pantalón de vestir femenino). Tono de piel de su avatar (#F1C6A6).",
+  "macros": {
+    "gender": 0.0,
+    "age": 0.52,
+    "muscle": 0.45,
+    "weight": 0.45,
+    "height": 0.52,
+    "proportions": 0.65
+  },
+  "rasgos": {
+    "head-oval": 0.5,
+    "chin-width-decr": 0.25,
+    "nose-scale-horiz-decr": 0.2,
+    "nose-point-up": 0.2,
+    "mouth-scale-horiz-decr": 0.1
+  },
+  "piel": "skins/young_caucasian_female/young_caucasian_female.mhmat",
+  "ojos_malla": "eyes/high-poly/high-poly.mhclo",
+  "cejas": "eyebrows/eyebrow010/eyebrow010.mhclo",
+  "pestanas": "eyelashes/eyelashes02/eyelashes02.mhclo",
+  "pelo": "hair/long01/long01.mhclo",
+  "ropa": [
+    "clothes/female_elegantsuit01/female_elegantsuit01.mhclo",
+    "clothes/shoes03/shoes03.mhclo"
+  ],
+  "esqueleto": "default",
+  "postproceso": {
+    "ojos_textura": "eyes/materials/green_eye.png",
+    "tono_piel": "#C8977C",
+    "nota_tono": "Tono del avatar #F1C6A6 compensado (más oscuro) porque la textura clara del pack se ve casi blanca con la luz de la oficina; así el resultado en pantalla se parece al avatar."
+  }
+}

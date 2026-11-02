@@ -45,7 +45,7 @@ export default async function EmployeePage({ params }: PageProps<"/empleados/[id
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-5 rounded-2xl bg-surface/80 ring-1 ring-white/5 p-6 sm:flex-row sm:items-center">
-        <AgentAvatar avatar={agent.avatar} size={96} label={`Avatar de ${agent.name}`} />
+        <AgentAvatar agentId={agent.id} avatar={agent.avatar} size={96} label={`Avatar de ${agent.name}`} />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-xs uppercase tracking-[0.18em]" style={{ color: dept.color }}>
             {dept.name}

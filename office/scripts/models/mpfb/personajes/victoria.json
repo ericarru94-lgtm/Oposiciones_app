@@ -1,0 +1,49 @@
+{
+  "id": "victoria",
+  "nota": "Fase 4.4. Control de calidad: ~35 años, complexión media, cara angulosa, pelo recogido en trenza; traje de pantalón verde oscuro con camisa clara (male_elegantsuit01 ajustado a cuerpo femenino, solo la tela oscura recoloreada).",
+  "macros": {
+    "gender": 0.0,
+    "age": 0.58,
+    "muscle": 0.48,
+    "weight": 0.47,
+    "height": 0.55,
+    "proportions": 0.62
+  },
+  "rasgos": {
+    "head-diamond": 0.4,
+    "chin-prominent-incr": 0.25,
+    "chin-width-decr": 0.2,
+    "nose-scale-horiz-decr": 0.2,
+    "nose-greek-incr": 0.2
+  },
+  "piel": "skins/middleage_asian_female/middleage_asian_female.mhmat",
+  "ojos_malla": "eyes/high-poly/high-poly.mhclo",
+  "cejas": "eyebrows/eyebrow009/eyebrow009.mhclo",
+  "pestanas": "eyelashes/eyelashes04/eyelashes04.mhclo",
+  "pelo": "hair/braid01/braid01.mhclo",
+  "ropa": [
+    "clothes/male_elegantsuit01/male_elegantsuit01.mhclo",
+    "clothes/shoes03/shoes03.mhclo"
+  ],
+  "esqueleto": "default",
+  "postproceso": {
+    "ojos_textura": "eyes/materials/deepblue_eye.png",
+    "tono_piel": "#E8B996",
+    "pelo_color": "#24180F",
+    "ropa": {
+      "male_elegantsuit01": {
+        "corte_y": 0.6,
+        "zonas": [
+          {
+            "zona": "todo",
+            "color": "#22463b",
+            "luminancia": [
+              0.0,
+              0.3
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

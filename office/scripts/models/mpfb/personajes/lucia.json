@@ -1,0 +1,50 @@
+{
+  "id": "lucia",
+  "nota": "Fase 4.4. Creatividad: ~29 años, esbelta, cara redondeada, media melena negra; smart casual creativo: camiseta coral sin logotipo y pantalón gris marengo (female_casualsuit01 recoloreada; el pack no tiene pantalón de vestir femenino, los vaqueros se tiñen de marengo).",
+  "macros": {
+    "gender": 0.0,
+    "age": 0.53,
+    "muscle": 0.42,
+    "weight": 0.44,
+    "height": 0.5,
+    "proportions": 0.62
+  },
+  "rasgos": {
+    "head-round": 0.45,
+    "nose-scale-horiz-decr": 0.15,
+    "nose-point-up": 0.3,
+    "mouth-scale-horiz-incr": 0.15,
+    "chin-width-incr": 0.1
+  },
+  "piel": "skins/young_asian_female/young_asian_female.mhmat",
+  "ojos_malla": "eyes/high-poly/high-poly.mhclo",
+  "cejas": "eyebrows/eyebrow011/eyebrow011.mhclo",
+  "pestanas": "eyelashes/eyelashes03/eyelashes03.mhclo",
+  "pelo": "hair/bob01/bob01.mhclo",
+  "ropa": [
+    "clothes/female_casualsuit01/female_casualsuit01.mhclo",
+    "clothes/shoes06/shoes06.mhclo"
+  ],
+  "esqueleto": "default",
+  "postproceso": {
+    "ojos_textura": "eyes/materials/brownlight_eye.png",
+    "tono_piel": "#D9A07A",
+    "pelo_color": "#111111",
+    "ropa": {
+      "female_casualsuit01": {
+        "corte_y": 0.0,
+        "zonas": [
+          {
+            "zona": "arriba",
+            "color": "#d9654f",
+            "quitar_logos": true
+          },
+          {
+            "zona": "abajo",
+            "color": "#33353d"
+          }
+        ]
+      }
+    }
+  }
+}

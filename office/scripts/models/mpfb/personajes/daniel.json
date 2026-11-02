@@ -1,0 +1,50 @@
+{
+  "id": "daniel",
+  "nota": "Fase 4.4. Contenidos: ~33 años, complexión media, cara alargada, pelo corto castaño oscuro con raya al lado; casual profesional en tonos tierra: camisa verde oliva y chinos beige (prenda male_casualsuit03 recoloreada).",
+  "macros": {
+    "gender": 1.0,
+    "age": 0.56,
+    "muscle": 0.45,
+    "weight": 0.48,
+    "height": 0.55,
+    "proportions": 0.6
+  },
+  "rasgos": {
+    "head-oval": 0.4,
+    "head-scale-vert-incr": 0.3,
+    "nose-scale-vert-incr": 0.2,
+    "chin-height-incr": 0.25,
+    "mouth-scale-horiz-decr": 0.15
+  },
+  "piel": "skins/young_caucasian_male/young_caucasian_male.mhmat",
+  "ojos_malla": "eyes/high-poly/high-poly.mhclo",
+  "cejas": "eyebrows/eyebrow003/eyebrow003.mhclo",
+  "pestanas": "eyelashes/eyelashes01/eyelashes01.mhclo",
+  "pelo": "hair/short03/short03.mhclo",
+  "ropa": [
+    "clothes/male_casualsuit03/male_casualsuit03.mhclo",
+    "clothes/shoes02/shoes02.mhclo"
+  ],
+  "esqueleto": "default",
+  "postproceso": {
+    "ojos_textura": "eyes/materials/bluegreen_eye.png",
+    "tono_piel": "#E0AC84",
+    "pelo_color": "#3A2A1E",
+    "ropa": {
+      "male_casualsuit03": {
+        "corte_y": 0.0,
+        "zonas": [
+          {
+            "zona": "arriba",
+            "color": "#5d6a41",
+            "contraste": 0.45
+          },
+          {
+            "zona": "abajo",
+            "color": "#b8a383"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,8 +1,9 @@
 import type { AvatarSpec } from "@/lib/agents/catalog";
+import { portraitOf } from "@/lib/agents/portraits";
 
-// Personaje original dibujado en SVG a partir de sus rasgos. La oficina 3D
-// (fase 2) usa exactamente los mismos rasgos para que el personaje sea
-// reconocible en las dos vistas.
+// Cara de un trabajador. Si tiene modelo 3D aprobado, su retrato renderizado
+// desde ese modelo (misma cara que en la oficina 3D). Si no, el personaje
+// dibujado en SVG a partir de sus rasgos.
 
 function Hair({ style, color }: { style: AvatarSpec["hairStyle"]; color: string }) {
   switch (style) {
@@ -48,7 +49,21 @@ function Hair({ style, color }: { style: AvatarSpec["hairStyle"]; color: string 
   }
 }
 
-export function AgentAvatar({ avatar, size = 64, label }: { avatar: AvatarSpec; size?: number; label: string }) {
+export function AgentAvatar({ agentId, avatar, size = 64, label }: { agentId: string; avatar: AvatarSpec; size?: number; label: string }) {
+  const portrait = portraitOf(agentId);
+  if (portrait) {
+    return (
+      <span
+        className="relative inline-block shrink-0 overflow-hidden rounded-full bg-[radial-gradient(circle_at_50%_35%,#2a3346,#141721_70%)] ring-1 ring-white/15"
+        style={{ width: size, height: size }}
+        data-portrait={agentId}
+      >
+        {/* Imagen estática pequeña (≈8 KB) y cacheable: <img> evita la optimización de imágenes del servidor. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={portrait.src} width={size} height={size} alt={label} decoding="async" draggable={false} className="size-full object-cover" />
+      </span>
+    );
+  }
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={label} className="shrink-0">
       <circle cx={50} cy={50} r={50} fill="#141721" />

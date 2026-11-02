@@ -16,7 +16,7 @@ import type { ScreenKind, Station, StationProp } from "@/lib/office/layout";
 import { staffModelOf } from "@/lib/office/staff-models";
 import type { OfficeAgent } from "../types";
 import { Character, StatusMark } from "./character";
-import { StaffModel } from "./staff-model";
+import { StaffModelLod } from "./staff-model";
 import { idleScreenTexture, screenTexture, signTexture } from "./textures";
 
 const OAK = "#a07a55";
@@ -392,8 +392,10 @@ export function Workstation({
             <group scale={0.85 * staff.scale}>
               <Chair lit={lit} accent={dept.color} />
             </group>
-            <Suspense fallback={<group scale={1.2} position={[0, 0.048, 0.024]}><Character agentId={agent.id} avatar={agent.avatar} look={look} reducedMotion={reducedMotion} /></group>}>
-              <StaffModel model={staff} avatar={agent.avatar} look={look} reducedMotion={reducedMotion} />
+            {/* La figura de reserva (mientras carga el GLB) se marca como dinámica: si se fusionara con el mobiliario
+                estático, su copia fusionada seguiría visible después de cargar el modelo. */}
+            <Suspense fallback={<group scale={1.2} position={[0, 0.048, 0.024]} userData={{ dynamic: true }}><Character agentId={agent.id} avatar={agent.avatar} look={look} reducedMotion={reducedMotion} /></group>}>
+              <StaffModelLod model={staff} avatar={agent.avatar} look={look} reducedMotion={reducedMotion} compact={compact} />
             </Suspense>
             <group scale={1.2} userData={{ dynamic: true }}>
               <StatusMark look={look} reducedMotion={reducedMotion} />

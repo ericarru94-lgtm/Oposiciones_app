@@ -11,10 +11,19 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
+// Retratos del equipo: imágenes estáticas que cambian muy poco. Un día en caché y revalidación en segundo
+// plano durante una semana (sin «immutable»: los nombres no llevan versión). Solo los retratos: el proxy de
+// sesión los excluye (.webp). Los modelos .glb sí pasan por el proxy y a una visita sin sesión le responde
+// con una redirección al acceso, que no debe quedarse en caché.
+const assetCache = [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/avatars/equipo/:file*", headers: assetCache },
+    ];
   },
   turbopack: {
     rules: {

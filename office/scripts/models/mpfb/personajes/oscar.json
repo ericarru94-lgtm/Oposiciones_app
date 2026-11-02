@@ -1,0 +1,50 @@
+{
+  "id": "oscar",
+  "nota": "Fase 4.4. Finanzas y datos: ~38 años, robusto, cara rectangular, pelo corto rizado oscuro (la textura del pack es más oscura que el gris previsto y el factor de color solo puede oscurecer); business casual: chaqueta burdeos y pantalón gris oscuro de vestir (male_casualsuit05 recoloreada).",
+  "macros": {
+    "gender": 1.0,
+    "age": 0.6,
+    "muscle": 0.5,
+    "weight": 0.62,
+    "height": 0.52,
+    "proportions": 0.55
+  },
+  "rasgos": {
+    "head-rectangular": 0.45,
+    "chin-width-incr": 0.2,
+    "nose-scale-horiz-incr": 0.2,
+    "nose-hump-incr": 0.25,
+    "neck-scale-horiz-incr": 0.2
+  },
+  "piel": "skins/young_asian_male/young_asian_male.mhmat",
+  "ojos_malla": "eyes/high-poly/high-poly.mhclo",
+  "cejas": "eyebrows/eyebrow005/eyebrow005.mhclo",
+  "pestanas": "eyelashes/eyelashes01/eyelashes01.mhclo",
+  "pelo": "hair/afro01/afro01.mhclo",
+  "ropa": [
+    "clothes/male_casualsuit05/male_casualsuit05.mhclo",
+    "clothes/shoes01/shoes01.mhclo"
+  ],
+  "esqueleto": "default",
+  "postproceso": {
+    "ojos_textura": "eyes/materials/grey_eye.png",
+    "tono_piel": "#A8754F",
+    "pelo_color": "#5a5a5a",
+    "ropa": {
+      "male_casualsuit05": {
+        "corte_y": 0.0,
+        "zonas": [
+          {
+            "zona": "arriba",
+            "color": "#5b2232",
+            "contraste": 0.7
+          },
+          {
+            "zona": "abajo",
+            "color": "#3a3d44"
+          }
+        ]
+      }
+    }
+  }
+}

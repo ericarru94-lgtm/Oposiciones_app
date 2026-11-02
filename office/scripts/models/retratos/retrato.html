@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- Retrato de un trabajador desde su modelo aprobado (fase 4.3.2). Servir la carpeta office/ (p. ej. python3 -m http.server 8090) y abrir
+     /scripts/models/retratos/retrato.html?m=/public/models/equipo/ID-realista.glb . Fondo transparente, 768×768. --><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script></head>
+<body><script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const q = new URLSearchParams(location.search);
+const S = +(q.get('s') || 768);
+const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+r.setSize(S, S); r.setClearColor(0x000000, 0); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.0;
+document.body.appendChild(r.domElement);
+const s = new THREE.Scene();
+const pm = new THREE.PMREMGenerator(r); s.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; s.environmentIntensity = 0.5;
+// Iluminación de retrato: clave cálida a 45°, relleno frío suave y contraluz para separar del fondo.
+const key = new THREE.DirectionalLight('#fff3e6', 2.0); key.position.set(1.2, 2.0, 2.2); s.add(key);
+const fill = new THREE.DirectionalLight('#c9d6ff', 0.55); fill.position.set(-2, 1.2, 1.5); s.add(fill);
+const rim = new THREE.DirectionalLight('#ffffff', 1.1); rim.position.set(-0.5, 2.2, -2.5); s.add(rim);
+s.add(new THREE.HemisphereLight('#e6ecff', '#2a2118', 0.35));
+const cam = new THREE.PerspectiveCamera(17, 1, 0.05, 50);
+new GLTFLoader().load(q.get('m'), (g) => {
+  s.add(g.scene); g.scene.updateMatrixWorld(true);
+  const head = g.scene.getObjectByName('head').getWorldPosition(new THREE.Vector3());
+  // Encuadre común: centro un poco por debajo de la cabeza (cabeza y hombros), giro de tres cuartos leve.
+  const az = +(q.get('az') || 0.22), target = new THREE.Vector3(0, head.y + 0.05, head.z + 0.02), d = +(q.get("d") || 1.12);
+  cam.position.set(target.x + Math.sin(az) * d, target.y + 0.04, target.z + Math.cos(az) * d); cam.lookAt(target);
+  r.render(s, cam); window.__done = true;
+});
+</script></body></html>

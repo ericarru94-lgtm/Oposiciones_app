@@ -1,0 +1,51 @@
+{
+  "id": "emma",
+  "nota": "Fase 4.4. Atención al cliente: ~31 años, complexión media, cara suave, coleta cobriza; business casual: camisa crema y pantalón azul marino (male_casualsuit01 recoloreada, ajustada a cuerpo femenino por MPFB2).",
+  "macros": {
+    "gender": 0.0,
+    "age": 0.545,
+    "muscle": 0.45,
+    "weight": 0.52,
+    "height": 0.48,
+    "proportions": 0.6
+  },
+  "rasgos": {
+    "head-round": 0.3,
+    "head-oval": 0.2,
+    "nose-scale-horiz-decr": 0.1,
+    "nose-point-up": 0.15,
+    "mouth-scale-horiz-incr": 0.2,
+    "chin-width-decr": 0.1
+  },
+  "piel": "skins/young_caucasian_female2/young_caucasian_female2.mhmat",
+  "ojos_malla": "eyes/high-poly/high-poly.mhclo",
+  "cejas": "eyebrows/eyebrow012/eyebrow012.mhclo",
+  "pestanas": "eyelashes/eyelashes02/eyelashes02.mhclo",
+  "pelo": "hair/ponytail01/ponytail01.mhclo",
+  "ropa": [
+    "clothes/male_casualsuit01/male_casualsuit01.mhclo",
+    "clothes/shoes04/shoes04.mhclo"
+  ],
+  "esqueleto": "default",
+  "postproceso": {
+    "ojos_textura": "eyes/materials/blue_eye.png",
+    "tono_piel": "#B4866B",
+    "pelo_color": "#C27C3A",
+    "ropa": {
+      "male_casualsuit01": {
+        "corte_y": 0.0,
+        "zonas": [
+          {
+            "zona": "arriba",
+            "color": "#e6dac5"
+          },
+          {
+            "zona": "abajo",
+            "color": "#28324a"
+          }
+        ]
+      }
+    },
+    "nota_tono": "Tono del avatar #F3D2B8 compensado (más oscuro), igual que Sofia: la textura clara del pack se ve casi blanca con la luz de la oficina."
+  }
+}

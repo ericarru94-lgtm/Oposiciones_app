@@ -25,6 +25,13 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 macros = TargetService.get_default_macro_info_dict()
 macros.update(spec["macros"])
 basemesh = HumanService.create_human(macro_detail_dict=macros)
+# Rasgos de la cara y el cuerpo (controles de forma CC0 de MPFB2), antes del esqueleto y la ropa
+# para que ambos se ajusten a la forma final.
+for target, weight in spec.get("rasgos", {}).items():
+    path = TargetService.target_full_path(target)
+    if not path:
+        sys.exit(f"Control de forma desconocido: {target}")
+    TargetService.load_target(basemesh, path, weight=weight)
 rig = HumanService.add_builtin_rig(basemesh, spec.get("esqueleto", "default"))
 
 
@@ -37,10 +44,14 @@ def need(rel):
 
 if assets != "-":
     HumanService.set_character_skin(need(spec["piel"]), basemesh, skin_type="GAMEENGINE")
+    # Materiales «GAMEENGINE»: principled BSDF con texturas, exportables a glTF tal cual.
+    add = lambda rel, kind: HumanService.add_mhclo_asset(need(rel), basemesh, asset_type=kind, subdiv_levels=0,
+                                                         material_type="GAMEENGINE")
+    eyes = add(spec["ojos_malla"], "Eyes")
     for kind, key in (("Eyebrows", "cejas"), ("Eyelashes", "pestanas"), ("Hair", "pelo")):
-        HumanService.add_mhclo_asset(need(spec[key]), basemesh, asset_type=kind, subdiv_levels=0)
+        add(spec[key], kind)
     for rel in spec["ropa"]:
-        HumanService.add_mhclo_asset(need(rel), basemesh, asset_type="Clothes", subdiv_levels=0)
+        add(rel, "Clothes")
 
 bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", export_skins=True, export_morph=False,
                           export_animations=False, export_apply=True)

@@ -129,7 +129,7 @@ function AgentPanel({ agent, onClose, live }: { agent: OfficeAgentData; onClose:
       <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/15 lg:hidden" aria-hidden />
       <header className="flex items-start gap-4 px-5 pb-4 pt-4">
         <div className="shrink-0 rounded-2xl p-0.5" style={{ background: `${dept.color}33` }}>
-          <AgentAvatar avatar={agent.avatar} label={`Avatar de ${agent.name}`} />
+          <AgentAvatar agentId={agent.id} avatar={agent.avatar} label={`Avatar de ${agent.name}`} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-display text-xl font-semibold leading-tight">{agent.name}</p>
@@ -245,7 +245,7 @@ function AgentList({ agents, selectedId, onSelect }: { agents: OfficeAgentData[]
             >
               <span className="absolute inset-y-0 left-0 w-0.5" style={{ background: a.pilot ? dept.color : "transparent" }} />
               <div className="flex items-center gap-3">
-                <AgentAvatar avatar={a.avatar} label={`Avatar de ${a.name}`} />
+                <AgentAvatar agentId={a.id} avatar={a.avatar} label={`Avatar de ${a.name}`} />
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-base font-semibold">{a.name}</p>
                   <p className="truncate text-sm text-muted">{a.role}</p>

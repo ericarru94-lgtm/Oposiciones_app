@@ -14,6 +14,7 @@ import { needsAnimation, sceneLook } from "@/lib/office/scene";
 import { focusPoint, OFFICE_SIZE, stationOf } from "@/lib/office/layout";
 import { Baked } from "./scene/baked";
 import { Environment } from "./scene/environment";
+import { releaseStaffModels } from "./scene/staff-model";
 import { Workstation } from "./scene/workstation";
 import type { OfficeAgent, OfficeAgentData } from "./types";
 
@@ -265,6 +266,8 @@ export default function Office3D({
     return q === "alta" ? "high" : q === "baja" ? "low" : null;
   });
   const effective = forced ?? quality;
+  // Al salir de la vista 3D se liberan geometrías y texturas de los trabajadores (también en GPU).
+  useEffect(() => () => releaseStaffModels(), []);
   const goLow = useMemo(() => () => setQuality("low"), []);
   const [probed, setProbed] = useState(false);
   const probeDone = useMemo(() => () => setProbed(true), []);

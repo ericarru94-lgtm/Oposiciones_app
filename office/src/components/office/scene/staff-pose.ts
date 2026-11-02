@@ -9,6 +9,31 @@ import type { SceneLook } from "@/lib/office/scene";
 export const POSE_BONES = ["Hips", "Chest", "Neck", "Head", "UpperArmL", "LowerArmL", "WristL", "UpperArmR", "LowerArmR", "WristR", "UpperLegL", "LowerLegL", "FootL", "UpperLegR", "LowerLegR", "FootR"] as const;
 export type BoneName = (typeof POSE_BONES)[number];
 
+/** Esqueletos admitidos: nombre lógico → nombre del hueso en el archivo (Three quita los puntos). */
+export type RigKind = "quaternius" | "makehuman";
+export const RIG_BONES: Readonly<Record<RigKind, Readonly<Record<BoneName, string>>>> = {
+  quaternius: Object.fromEntries(POSE_BONES.map((n) => [n, n])) as Record<BoneName, string>,
+  // Esqueleto «default» de MakeHuman/MPFB (163 huesos). Los huesos «…02» intermedios giran con el padre.
+  makehuman: {
+    Hips: "root", Chest: "spine03", Neck: "neck01", Head: "head",
+    UpperArmL: "upperarm01L", LowerArmL: "lowerarm01L", WristL: "wristL",
+    UpperArmR: "upperarm01R", LowerArmR: "lowerarm01R", WristR: "wristR",
+    UpperLegL: "upperleg01L", LowerLegL: "lowerleg01L", FootL: "footL",
+    UpperLegR: "upperleg01R", LowerLegR: "lowerleg01R", FootR: "footR",
+  },
+};
+
+/** Busca los huesos de la postura en un modelo; error claro si falta alguno. */
+export function findPoseBones(root: Object3D, rig: RigKind, label: string): Record<BoneName, Object3D> {
+  const b = {} as Record<BoneName, Object3D>;
+  for (const n of POSE_BONES) {
+    const o = root.getObjectByName(RIG_BONES[rig][n]);
+    if (!o) throw new Error(`Modelo sin el hueso ${RIG_BONES[rig][n]} (${n}): ${label}`);
+    b[n] = o;
+  }
+  return b;
+}
+
 /** De la animación «Idle_Neutral» solo se conserva la respiración del tronco y la cabeza. */
 export const BREATH_TRACKS = /^(Abdomen|Torso|Chest|Neck|Head)\.(quaternion)$/;
 

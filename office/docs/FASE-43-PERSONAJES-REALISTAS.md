@@ -2,15 +2,38 @@
 
 Fecha: 01/11/2026. Todo el trabajo es local, sin commit, push ni despliegue. No se ha tocado el motor, los prompts, los modelos de IA, los permisos, los presupuestos, Supabase, la base de datos, las migraciones, las variables ni las misiones. Coste: **0 €**.
 
-## Resumen
+## Resumen (actualizado el 02/11/2026)
 
-- **Herramienta elegida: MPFB2** (MakeHuman Plugin for Blender) con **Blender 5.2 LTS**. Es la única opción gratuita con anatomía realista y una licencia limpia para una web comercial.
-- **La cadena técnica funciona en el entorno**: Blender en modo sin pantalla, MPFB2, el cuerpo de Alex con sus parámetros y esqueleto completo, y la exportación a GLB.
-- **El piloto visual de Alex está bloqueado**:
-  - el traje, el pelo, la piel con textura, las cejas y las pestañas están en el pack oficial «MakeHuman system assets» (CC0);
-  - ese pack solo se descarga desde `files.makehumancommunity.org`;
-  - la política de red del entorno bloquea ese dominio (solo deja GitHub, npm y PyPI).
-- **No se ha integrado nada en la oficina** ni se han hecho capturas de Alex: un cuerpo sin ropa, pelo ni piel no sirve como piloto, y no se ha sustituido por nada parecido.
+- **Piloto de Alex terminado** con MPFB2 + Blender 5.2 + el pack oficial «MakeHuman system assets» (CC0). Ya no hay bloqueo: el dominio se permitió el 02/11.
+- **Resultado:**
+  - persona adulta con anatomía real, cara creíble, ojos y pestañas;
+  - pelo con volumen;
+  - traje formal con solapas, botones, bolsillos, camisa y corbata;
+  - zapatos de vestir y manos con dedos.
+  - **Claramente superior a Quaternius** (ver capturas).
+- **Integrado en su despacho**, sentado. Su postura depende solo del estado real.
+  - Marcus y Sofia siguen con Quaternius y los otros 6, con la figura geométrica, hasta que se decida producirlos.
+  - `?modelos=quaternius` y `?modelos=no` permiten comparar o volver atrás.
+- **Coste:** 0 €.
+
+### Medidas del piloto
+
+| | Figura (4.1) | Quaternius (4.2) | **Alex realista (4.3)** |
+|---|---|---|---|
+| Peso GLB | — (código) | 320 KB | **2,0 MB** (texturas WebP ~570 KB) |
+| Triángulos del personaje | ~2.500 | 6.634 | **39.700** |
+| Piezas / materiales | ~40 / planos | 4 / 8 colores | **7 / 7** (piel, ojos, cejas, pestañas, pelo, traje, zapatos) |
+| Texturas | 0 | 0 | **8** (1024 px) |
+| Esqueleto | — | 62 huesos | **163 huesos** (cara y dedos) |
+
+**Escena completa** (Alex realista, Marcus y Sofia con Quaternius y 6 figuras), medida con GPU por software (SwiftShader):
+
+- Llamadas de dibujo: 177 con Quaternius → **174**.
+- Triángulos: 145.500 → **178.600**.
+- Fotograma, calidad alta: entre +5 % y +15 % (668–728 ms frente a 639–684 ms; el ruido de la medida es de ±10 %).
+- Fotograma, calidad baja: igual (408 ms frente a 400 ms).
+- Carga: entre 1 y 4 s más en modo desarrollo.
+- No se ha medido en una GPU real: hace falta probarlo en un equipo físico.
 
 ## 1. Comparativa de herramientas
 
@@ -33,7 +56,7 @@ Fecha: 01/11/2026. Todo el trabajo es local, sin commit, push ni despliegue. No 
 - **Blender**: paquete oficial `bpy` 5.2.3 de PyPI.
 - **Packs comunitarios** («Hair 02», «Skins 01/02»…): no se usan hasta comprobar la licencia de cada recurso.
 
-## 3. Lo que ya funciona
+## 3. Proceso (reproducible)
 
 Probado en el entorno el 01/11/2026:
 
@@ -44,7 +67,19 @@ Probado en el entorno el 01/11/2026:
    - esqueleto `default` de 163 huesos;
    - exportación a GLB.
 4. Resultado del cuerpo sin ropa: **26.756 triángulos, 163 huesos, 945 KB** antes de optimizar.
-5. Cuando haya recursos, el script aplica piel (`GAMEENGINE`, material compatible con glTF), ojos, cejas, pestañas, pelo, traje y zapatos. Si falta uno, se detiene (no lo sustituye).
+5. Con el pack, el script aplica piel, ojos, cejas, pestañas, pelo, traje y zapatos con materiales `GAMEENGINE` (compatibles con glTF). Si falta un recurso, se detiene.
+6. `postproceso.mjs` (glTF-Transform):
+   - transparencia correcta por pieza; sin esto la cara tenía manchas y los ojos se veían blancos;
+   - ojos `brownlight` (el `brown` del pack es rojizo);
+   - tono de piel del avatar mediante un factor de color;
+   - texturas a 1024 px en WebP: de 13 MB a 2,0 MB.
+7. Meshopt **descartado** para estos modelos: su cuantización creaba un esqueleto por pieza (7 en vez de 1). KTX2 no se ha probado (necesita la herramienta `toktx`, no disponible); WebP da un peso razonable.
+
+Problemas resueltos durante el piloto:
+- las zapatillas `shoes02` se cambiaron por los zapatos de vestir `shoes04`;
+- manchas en la cara y pelo fino, por la transparencia mal ordenada;
+- ojos blancos, por la capa de la córnea;
+- piel demasiado clara frente al avatar.
 
 ## 4. Diseño del piloto (Alex)
 
@@ -69,17 +104,18 @@ Probado en el entorno el 01/11/2026:
   - una postura por huesos para el esqueleto MakeHuman, que depende solo del estado real;
   - los 6 inactivos, sin animación de trabajo.
 
-## 6. Rendimiento
+## 6. Rendimiento con los 9 (estimación a partir del piloto)
 
-Todavía no hay mediciones del personaje vestido.
-
-- Estimación a comprobar: entre 40.000 y 60.000 triángulos y 2–4 MB por trabajador con texturas.
-- Es entre 6 y 10 veces más que Quaternius (6.600 triángulos y 320 KB).
-- Las cifras reales se medirán con el piloto. No se dará por bueno el rendimiento en GPU real sin una prueba en un equipo físico.
+- Unos 357.000 triángulos de personajes y unos 18 MB de GLB, que se cargan en diferido.
+- Las texturas de traje, pelo, cejas y ojos se pueden compartir entre personajes, lo que bajaría el peso.
+- Con 9 personajes realistas, la escena en GPU por software iría claramente más lenta.
+- Propuestas antes de producir los 9:
+  1. una versión ligera para la vista general (proxy de MakeHuman de ~1.600 vértices), con el modelo completo solo al acercarse;
+  2. probar en un equipo real con GPU integrada.
 
 ## 7. Limitaciones y riesgos
 
-1. **Bloqueo de red** (impide avanzar): hace falta `files.makehumancommunity.org`.
+1. **Red**: resuelto (dominio permitido el 02/11/2026).
 2. **Coste de render**: los personajes realistas pesan bastante más. Para los 9 habrá que medir y, quizá, usar versiones ligeras a distancia.
 3. **Pelo**: en MakeHuman son tarjetas con transparencia. Se ve bien de cerca, pero en WebGL hay que ajustar la transparencia para evitar artefactos.
 4. **Rostros**: realistas pero algo genéricos. La diferencia entre trabajadores depende de ajustar bien los controles de forma.
@@ -87,16 +123,20 @@ Todavía no hay mediciones del personaje vestido.
 
 ## 8. Recomendación
 
-**Seguir con MPFB2.** Es la única opción gratuita que cumple a la vez la calidad realista y la licencia comercial limpia (CC0), y la cadena técnica ya está probada.
+**Continuar con MPFB2 para los otros 8.** La calidad es claramente superior a Quaternius, la licencia es CC0, el proceso es reproducible y el coste es 0 €.
 
-Para terminar el piloto de Alex, falta solo el pack oficial de recursos. Hay dos formas:
+Antes de producirlos conviene:
 
-- **A (recomendada)**: permitir `files.makehumancommunity.org` (y `static.makehumancommunity.org`) en el acceso a red del entorno. Ajustes del entorno → Network access → Allowed domains: https://code.claude.com/docs/en/cloud-environments#network-access
-- **B**: subir el archivo `makehuman_system_assets_cc0.zip` (unos 267 MB), descargado desde https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html
+1. Aprobar el aspecto de Alex: cara, traje y pelo. Se puede afinar: traje azul marino, otros peinados y rasgos de la cara.
+2. Decidir el vestuario de cada uno. El pack tiene 2 trajes formales (hombre y mujer), 7 conjuntos casuales, 1 de trabajo, 6 zapatos, 10 peinados y 21 pieles.
+   - Para más variedad de ropa habrá que añadir recursos comunitarios, verificando la licencia de cada uno.
+3. Aceptar el coste de rendimiento o pedir antes la versión ligera para la vista general.
 
-Con el pack, el siguiente paso será:
+## Capturas
 
-1. generar a Alex;
-2. hacer las 5 vistas (frontal, lateral, cuerpo completo, sentado y desde la cámara de la oficina) y la comparación con Quaternius;
-3. medir el rendimiento;
-4. decidir si se hacen los otros 8.
+`docs/capturas-fase43/`:
+
+- `00-comparacion-tres-versiones.png`: figura, Quaternius y realista en la misma toma;
+- `01-frontal.png`, `02-lateral.png`, `03-cuerpo-completo.png`, `03b-tres-cuartos.png`;
+- `04-sentado-escritorio.png`;
+- `05-camara-oficina.png`: cámara isométrica real, con su ficha.

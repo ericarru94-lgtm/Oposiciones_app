@@ -1,0 +1,50 @@
+{
+  "id": "david",
+  "nota": "Fase 4.4. Automatización e IA: ~31 años, alto y delgado, cara en triángulo invertido, pelo corto negro; estilo técnico: camiseta azul petróleo y pantalón casi negro (male_casualsuit06 recoloreada, sin logotipo).",
+  "macros": {
+    "gender": 1.0,
+    "age": 0.545,
+    "muscle": 0.42,
+    "weight": 0.4,
+    "height": 0.66,
+    "proportions": 0.62
+  },
+  "rasgos": {
+    "head-invertedtriangular": 0.45,
+    "chin-prominent-incr": 0.2,
+    "chin-width-decr": 0.25,
+    "nose-scale-vert-incr": 0.15,
+    "nose-hump-incr": 0.2
+  },
+  "piel": "skins/young_caucasian_male2/young_caucasian_male2.mhmat",
+  "ojos_malla": "eyes/high-poly/high-poly.mhclo",
+  "cejas": "eyebrows/eyebrow004/eyebrow004.mhclo",
+  "pestanas": "eyelashes/eyelashes01/eyelashes01.mhclo",
+  "pelo": "hair/short04/short04.mhclo",
+  "ropa": [
+    "clothes/male_casualsuit06/male_casualsuit06.mhclo",
+    "clothes/shoes05/shoes05.mhclo"
+  ],
+  "esqueleto": "default",
+  "postproceso": {
+    "ojos_textura": "eyes/materials/brownlight_eye.png",
+    "tono_piel": "#B98563",
+    "pelo_color": "#2B2B2B",
+    "ropa": {
+      "male_casualsuit06": {
+        "corte_y": 0.0,
+        "zonas": [
+          {
+            "zona": "arriba",
+            "color": "#1e5560",
+            "quitar_logos": true
+          },
+          {
+            "zona": "abajo",
+            "color": "#22252b"
+          }
+        ]
+      }
+    }
+  }
+}

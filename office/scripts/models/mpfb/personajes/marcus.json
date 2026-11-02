@@ -1,0 +1,18 @@
+{
+  "id": "marcus",
+  "nota": "Fase 4.3.1. Comercial: más joven y corpulento que Alex, cara más ancha y mandíbula marcada, pelo muy corto, smart casual con camisa azul y vaqueros. Tono de piel de su avatar (#8D5A3B).",
+  "macros": { "gender": 1.0, "age": 0.56, "muscle": 0.7, "weight": 0.58, "height": 0.5, "proportions": 0.6 },
+  "rasgos": {
+    "head-square": 0.45, "chin-width-incr": 0.35, "chin-prominent-incr": 0.25,
+    "nose-scale-horiz-incr": 0.3, "nose-flaring-incr": 0.25, "mouth-scale-horiz-incr": 0.2,
+    "neck-scale-horiz-incr": 0.3
+  },
+  "piel": "skins/young_african_male/young_african_male.mhmat",
+  "ojos_malla": "eyes/high-poly/high-poly.mhclo",
+  "cejas": "eyebrows/eyebrow006/eyebrow006.mhclo",
+  "pestanas": "eyelashes/eyelashes01/eyelashes01.mhclo",
+  "pelo": "hair/short01/short01.mhclo",
+  "ropa": ["clothes/male_casualsuit01/male_casualsuit01.mhclo", "clothes/shoes01/shoes01.mhclo"],
+  "esqueleto": "default",
+  "postproceso": { "ojos_textura": "eyes/materials/brownlight_eye.png", "tono_piel": "#8D5A3B" }
+}
