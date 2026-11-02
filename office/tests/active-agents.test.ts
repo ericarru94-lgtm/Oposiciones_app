@@ -137,8 +137,10 @@ describe("barrera de aplicación (worker)", () => {
   });
 
   it("aunque la base de datos dejara pasar la tarea de un inactivo, no se llama a Claude ni se gasta nada", async () => {
-    // Se simula un fallo de la segunda barrera: Daniel activo SOLO en la base de datos.
-    await t.db.exec(`update public.agents set active = true where id = 'daniel';
+    // Se simula un fallo de las barreras de la base de datos: Daniel activo SOLO en ella
+    // (para eso hay que retirar en ESTA base la restricción de agentes aprobados de 0010).
+    await t.db.exec(`alter table public.agents drop constraint agents_active_aprobados;
+      update public.agents set active = true where id = 'daniel';
       update public.settings set value = '{"monthly_ai_budget_usd": 10, "task_ai_budget_usd": 1, "mission_ai_budget_usd": 1}' where key = 'limits';`);
     const [task] = await raw<{ id: string }>(`insert into public.tasks (title, agent_id, status) values ('Texto', 'daniel', 'assigned') returning id`);
     const calls: ModelRequest[] = [];

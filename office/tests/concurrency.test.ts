@@ -35,8 +35,9 @@ beforeAll(async () => {
   }
   await admin.query(buildSeedSql());
   // Mecánica general de concurrencia con varios agentes distintos: en ESTA base de
-  // prueba se activan todos (la barrera de inactivos se prueba en migration-0009).
-  await admin.query(`update public.agents set active = true`);
+  // prueba se activan todos (la barrera de inactivos se prueba en migration-0009 y la
+  // restricción de agentes aprobados de 0010, que aquí se retira, en migration-0010).
+  await admin.query(`alter table public.agents drop constraint agents_active_aprobados; update public.agents set active = true`);
   await admin.query(`insert into auth.users (id, email) values ('${ADMIN}', 'admin@hesignal.test');
                      insert into public.admins (user_id, email) values ('${ADMIN}', 'admin@hesignal.test');`);
 }, 120_000);

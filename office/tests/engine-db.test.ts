@@ -20,7 +20,9 @@ beforeEach(async () => {
     update public.agents set status = 'available', current_task_id = null;
     -- Estas pruebas cubren la mecánica general del motor (dependencias, leases,
     -- reintentos, aprobaciones) con varios agentes distintos: en ESTA base de
-    -- prueba se activan todos. La barrera de inactivos se prueba en migration-0009.
+    -- prueba se activan todos. La barrera de inactivos se prueba en migration-0009 y
+    -- la restricción de agentes aprobados de 0010, que aquí se retira, en migration-0010.
+    alter table public.agents drop constraint if exists agents_active_aprobados;
     update public.agents set active = true;
   `);
 });
@@ -103,11 +105,14 @@ describe("escrituras del navegador", () => {
     await expect(
       t.as(ADMIN, () => q(`update public.agents set status = 'working' where id = 'alex'`)),
     ).rejects.toThrow(/permission denied/);
-    await t.as(ADMIN, () => q(`update public.agents set model = 'claude-haiku-5-5' where id = 'oscar'`));
-    expect((await q<{ model: string }>(`select model from public.agents where id = 'oscar'`))[0].model).toBe(
-      "claude-haiku-5-5",
-    );
-    await q(`update public.agents set model = 'claude-opus-5-5' where id = 'oscar'`);
+    // Desde 0010 tampoco puede cambiar modelo, esfuerzo ni si está activo (antes sí podía).
+    const before = (await q<{ model: string }>(`select model from public.agents where id = 'oscar'`))[0].model;
+    for (const sql of [
+      `update public.agents set model = 'claude-sonnet-5-5' where id = 'oscar'`,
+      `update public.agents set effort = 'high' where id = 'oscar'`,
+      `update public.agents set active = false where id = 'alex'`,
+    ]) await expect(t.as(ADMIN, () => q(sql))).rejects.toThrow(/permission denied/);
+    expect((await q<{ model: string }>(`select model from public.agents where id = 'oscar'`))[0].model).toBe(before);
   });
 
   it("el administrador crea tareas pero no puede saltarse el motor", async () => {
