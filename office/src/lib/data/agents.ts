@@ -1,5 +1,5 @@
 import "server-only";
-import { AGENTS, getAgent, MODELS, type AgentDefinition, type ModelId } from "../agents/registry";
+import { AGENTS, getAgent, isActiveAgent, MODELS, type AgentDefinition, type ModelId } from "../agents/registry";
 import type { Viewer } from "../auth/session";
 import type { AgentStatus, TaskPriority, TaskStatus } from "../domain/status";
 import { createSupabaseServerClient } from "../supabase/server";
@@ -16,6 +16,8 @@ export interface AgentState {
 
 export interface AgentWithState extends AgentDefinition {
   state: AgentState;
+  /** `agents.active` en la base de datos (en la vista previa local, la lista ACTIVE_AGENT_IDS). */
+  active: boolean;
   /** «database» = estado real de Supabase; «registry» = vista previa local sin base de datos. */
   source: "database" | "registry";
 }
@@ -54,29 +56,38 @@ function asModel(value: string, fallback: ModelId): ModelId {
   return Object.hasOwn(MODELS, value) ? (value as ModelId) : fallback;
 }
 
-export async function listAgents(viewer: Viewer): Promise<AgentWithState[]> {
-  if (viewer.mode === "local-preview") {
-    return AGENTS.map((a) => ({ ...a, state: idleState(a), source: "registry" }));
-  }
-  const supabase = await createSupabaseServerClient();
-  const [{ data: rows, error }, { data: tasks, error: taskError }] = await Promise.all([
-    supabase
-      .from("agents")
-      .select("id, status, status_detail, status_updated_at, model, current_task_id, active")
-      .eq("active", true),
-    supabase.from("tasks").select("id, title, status, agent_id").not("agent_id", "is", null),
-  ]);
-  if (error) throw new Error(`No se pudieron leer los agentes: ${error.message}`);
-  if (taskError) throw new Error(`No se pudieron leer las tareas: ${taskError.message}`);
+export interface AgentRow {
+  id: string;
+  status: string;
+  status_detail: string | null;
+  status_updated_at: string | null;
+  model: string;
+  current_task_id: string | null;
+  active: boolean;
+}
+export interface AgentTaskRow {
+  id: string;
+  title: string;
+  status: string;
+  agent_id: string | null;
+}
 
-  const byId = new Map((rows ?? []).map((r) => [r.id as string, r]));
+/**
+ * Une el registro con las filas de la base de datos. Devuelve TODOS los agentes
+ * que existen en `agents` (activos e inactivos): la oficina muestra a los nueve y
+ * marca a los inactivos. Solo lectura; no decide quién trabaja (eso lo hacen el
+ * worker y claim_next_task).
+ */
+export function mergeAgents(rows: AgentRow[], tasks: AgentTaskRow[]): AgentWithState[] {
+  const byId = new Map(rows.map((r) => [r.id, r]));
   return AGENTS.filter((a) => byId.has(a.id)).map((a) => {
     const row = byId.get(a.id)!;
-    const mine = (tasks ?? []).filter((t) => t.agent_id === a.id);
+    const mine = tasks.filter((t) => t.agent_id === a.id);
     const current = mine.find((t) => t.id === row.current_task_id);
     return {
       ...a,
       source: "database",
+      active: row.active === true,
       state: {
         status: row.status as AgentStatus,
         statusDetail: row.status_detail,
@@ -88,6 +99,23 @@ export async function listAgents(viewer: Viewer): Promise<AgentWithState[]> {
       },
     };
   });
+}
+
+export async function listAgents(viewer: Viewer): Promise<AgentWithState[]> {
+  if (viewer.mode === "local-preview") {
+    return AGENTS.map((a) => ({ ...a, state: idleState(a), source: "registry", active: isActiveAgent(a.id) }));
+  }
+  const supabase = await createSupabaseServerClient();
+  const [{ data: rows, error }, { data: tasks, error: taskError }] = await Promise.all([
+    supabase
+      .from("agents")
+      .select("id, status, status_detail, status_updated_at, model, current_task_id, active"),
+    supabase.from("tasks").select("id, title, status, agent_id").not("agent_id", "is", null),
+  ]);
+  if (error) throw new Error(`No se pudieron leer los agentes: ${error.message}`);
+  if (taskError) throw new Error(`No se pudieron leer las tareas: ${taskError.message}`);
+
+  return mergeAgents((rows ?? []) as AgentRow[], (tasks ?? []) as AgentTaskRow[]);
 }
 
 export interface AgentProfile {

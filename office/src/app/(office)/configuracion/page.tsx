@@ -63,7 +63,10 @@ export default async function SettingsPage() {
                 const m = MODELS[a.state.model];
                 return (
                   <tr key={a.id}>
-                    <td className="py-2 pr-4">{a.name}</td>
+                    <td className="py-2 pr-4">
+                      {a.name}
+                      {!a.active && <span className="ml-1 text-xs text-muted">· inactivo</span>}
+                    </td>
                     <td className="py-2 pr-4">{m.label}</td>
                     <td className="py-2 text-muted">
                       {m.inputUsdPerMTok} $ / {m.outputUsdPerMTok} $

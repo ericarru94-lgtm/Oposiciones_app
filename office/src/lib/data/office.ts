@@ -20,7 +20,8 @@ export function toOfficeAgent(a: AgentWithState): OfficeAgentData {
     currentTask: a.state.currentTask,
     openTasks: a.state.openTasks,
     completedTasks: a.state.completedTasks,
-    pilot: isPilotAgent(a.id),
+    // Activo solo si lo está en el código (ACTIVE_AGENT_IDS) Y en la base de datos.
+    pilot: isPilotAgent(a.id) && a.active,
     specialty: a.specialty,
     description: a.description,
     responsibilities: [...a.responsibilities],

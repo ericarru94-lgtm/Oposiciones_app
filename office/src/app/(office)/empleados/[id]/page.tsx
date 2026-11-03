@@ -7,6 +7,7 @@ import { DEPARTMENTS, MODELS } from "@/lib/agents/registry";
 import { availabilityLabel, getTool } from "@/lib/agents/tools";
 import { requireViewer } from "@/lib/auth/session";
 import { getAgentProfile, type TaskSummary } from "@/lib/data/agents";
+import { isPilotAgent } from "@/lib/office/scene";
 import { TASK_PRIORITY_LABEL, TASK_STATUS_LABEL } from "@/lib/domain/status";
 
 function TaskList({ tasks, empty }: { tasks: TaskSummary[]; empty: string }) {
@@ -41,6 +42,7 @@ export default async function EmployeePage({ params }: PageProps<"/empleados/[id
   if (!profile) notFound();
   const { agent, openTasks, completedTasks, history } = profile;
   const dept = DEPARTMENTS[agent.department];
+  const inPilot = isPilotAgent(agent.id) && agent.active;
 
   return (
     <div className="space-y-6">
@@ -53,8 +55,14 @@ export default async function EmployeePage({ params }: PageProps<"/empleados/[id
           <h1 className="mt-1 font-display text-3xl font-semibold">{agent.name}</h1>
           <p className="text-muted">{agent.role}</p>
           <div className="mt-3">
-            <StatusBadge status={agent.state.status} />
-            {agent.state.statusDetail && <span className="ml-3 text-xs text-muted">{agent.state.statusDetail}</span>}
+            {inPilot ? (
+              <>
+                <StatusBadge status={agent.state.status} />
+                {agent.state.statusDetail && <span className="ml-3 text-xs text-muted">{agent.state.statusDetail}</span>}
+              </>
+            ) : (
+              <span className="text-xs font-medium text-muted">Inactivo · fuera del piloto</span>
+            )}
           </div>
         </div>
         <div className="flex gap-2 sm:flex-col">
