@@ -100,7 +100,7 @@ describe("Row Level Security", () => {
 
   it("el registro de actividad no se puede editar ni borrar", async () => {
     await as(ADMIN, () =>
-      db.exec(`insert into public.activity_log (actor_type, actor_id, action) values ('admin', '${ADMIN}', 'login')`),
+      db.exec(`insert into public.activity_log (actor_type, actor_id, action) values ('admin', '${ADMIN}', 'auth.login')`), // acción de la interfaz (0011)
     );
     await expect(as(ADMIN, () => db.exec(`delete from public.activity_log`))).rejects.toThrow(/permission denied/);
     await expect(

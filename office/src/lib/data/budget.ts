@@ -1,5 +1,6 @@
 import "server-only";
 import type { Viewer } from "../auth/session";
+import { readCeilings, type LimitCeilings } from "../domain/limits";
 import { createSupabaseServerClient } from "../supabase/server";
 
 export interface BudgetStatus {
@@ -8,6 +9,14 @@ export interface BudgetStatus {
   taskLimitUsd: number | null;
   missionLimitUsd: number | null;
   exceeded: boolean;
+}
+
+/** Máximos aprobados (public.settings_ceilings, migración 0012); null si no se pueden leer. */
+export async function getBudgetCeilings(viewer: Viewer): Promise<LimitCeilings | null> {
+  if (viewer.mode === "local-preview") return null;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("settings_ceilings");
+  return error ? null : readCeilings(data);
 }
 
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));

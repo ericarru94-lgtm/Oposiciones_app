@@ -38,6 +38,9 @@ beforeAll(async () => {
   // prueba se activan todos (la barrera de inactivos se prueba en migration-0009 y la
   // restricción de agentes aprobados de 0010, que aquí se retira, en migration-0010).
   await admin.query(`alter table public.agents drop constraint agents_active_aprobados; update public.agents set active = true`);
+  // Límites de cualquier forma para probar las reservas: aquí se retira la validación
+  // de settings de 0012, que se prueba en migration-0012.
+  await admin.query(`drop trigger settings_guard on public.settings`);
   await admin.query(`insert into auth.users (id, email) values ('${ADMIN}', 'admin@hesignal.test');
                      insert into public.admins (user_id, email) values ('${ADMIN}', 'admin@hesignal.test');`);
 }, 120_000);

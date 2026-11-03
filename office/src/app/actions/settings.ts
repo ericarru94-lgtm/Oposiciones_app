@@ -1,24 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { requireViewer } from "@/lib/auth/session";
+import { limitsError, parseAmount, readCeilings, type Limits } from "@/lib/domain/limits";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-const amount = z
-  .string()
-  .trim()
-  .transform((v) => (v === "" ? null : Number(v.replace(",", "."))))
-  .refine((v) => v === null || (Number.isFinite(v) && v >= 0 && v <= 10_000), "Importe no válido");
-
-const limitsSchema = z
-  .object({ monthly: amount, task: amount, mission: amount })
-  .refine((l) => l.monthly === null || l.task === null || l.task <= l.monthly, {
-    message: "El límite por tarea no puede superar el mensual.",
-  })
-  .refine((l) => l.monthly === null || l.mission === null || l.mission <= l.monthly, {
-    message: "El límite por misión no puede superar el mensual.",
-  });
 
 export type LimitsState = { ok: boolean; message: string | null };
 
@@ -26,21 +11,27 @@ export async function updateLimits(_prev: LimitsState, form: FormData): Promise<
   const viewer = await requireViewer();
   if (viewer.mode !== "admin") return { ok: false, message: "Conecta Supabase para guardar límites." };
 
-  const parsed = limitsSchema.safeParse({
-    monthly: form.get("monthly") ?? "",
-    task: form.get("task") ?? "",
-    mission: form.get("mission") ?? "",
-  });
-  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa los importes." };
+  const supabase = await createSupabaseServerClient();
+  // Techos aprobados: los define la base de datos (migración 0012), no el navegador.
+  const { data: rawCeilings, error: ceilingsError } = await supabase.rpc("settings_ceilings");
+  const ceilings = ceilingsError ? null : readCeilings(rawCeilings);
+  if (!ceilings) return { ok: false, message: "No se pudieron leer los máximos aprobados. No se ha guardado nada." };
 
   const value = {
-    monthly_ai_budget_usd: parsed.data.monthly,
-    task_ai_budget_usd: parsed.data.task,
-    mission_ai_budget_usd: parsed.data.mission,
+    monthly_ai_budget_usd: parseAmount(form.get("monthly")),
+    task_ai_budget_usd: parseAmount(form.get("task")),
+    mission_ai_budget_usd: parseAmount(form.get("mission")),
   };
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("settings").upsert({ key: "limits", value });
-  if (error) return { ok: false, message: "No se pudieron guardar los límites." };
+  const invalid = limitsError(value, ceilings);
+  if (invalid) return { ok: false, message: invalid };
+
+  // Solo se actualiza la fila existente (el navegador no puede crear ni borrar ajustes).
+  const { data, error } = await supabase
+    .from("settings")
+    .update({ value: value as Limits })
+    .eq("key", "limits")
+    .select("key");
+  if (error || !data?.length) return { ok: false, message: "No se pudieron guardar los límites." };
 
   await supabase.from("activity_log").insert({
     actor_type: "admin",

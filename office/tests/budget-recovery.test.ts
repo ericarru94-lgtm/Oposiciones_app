@@ -17,6 +17,10 @@ const limits = (monthly: number, task: number, mission: number) =>
 
 beforeAll(async () => {
   t = await createTestDb();
+  // Estas pruebas cubren la mecánica del motor con límites de cualquier forma (incluso
+  // «sin límite»): en ESTA base se retira la validación de settings de 0012, que se
+  // prueba en migration-0012.
+  await t.db.exec(`drop trigger settings_guard on public.settings`);
 });
 afterAll(async () => {
   await t?.close();

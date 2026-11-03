@@ -2,7 +2,7 @@ import { APPROVAL_REQUIRED_RISKS, RISK_LABEL } from "@/lib/agents/permissions";
 import { MODELS } from "@/lib/agents/registry";
 import { requireViewer } from "@/lib/auth/session";
 import { listAgents } from "@/lib/data/agents";
-import { getBudgetStatus } from "@/lib/data/budget";
+import { getBudgetCeilings, getBudgetStatus } from "@/lib/data/budget";
 import { defaultModel, integrationStatus, readEnv } from "@/lib/env";
 import { LimitsForm } from "./limits-form";
 
@@ -10,7 +10,7 @@ export default async function SettingsPage() {
   const viewer = await requireViewer();
   const env = readEnv();
   const integrations = integrationStatus(env);
-  const [agents, budget] = await Promise.all([listAgents(viewer), getBudgetStatus(viewer)]);
+  const [agents, budget, ceilings] = await Promise.all([listAgents(viewer), getBudgetStatus(viewer), getBudgetCeilings(viewer)]);
   const usd = (v: number) => `${v.toLocaleString("es-ES", { maximumFractionDigits: 2 })} $`;
 
   return (
@@ -91,7 +91,7 @@ export default async function SettingsPage() {
               </dd>
             </div>
           </dl>
-          <LimitsForm monthly={budget?.monthlyLimitUsd ?? null} task={budget?.taskLimitUsd ?? null} mission={budget?.missionLimitUsd ?? null} disabled={!budget} />
+          <LimitsForm monthly={budget?.monthlyLimitUsd ?? null} task={budget?.taskLimitUsd ?? null} mission={budget?.missionLimitUsd ?? null} ceilings={ceilings} disabled={!budget} />
           <p className="mt-3 text-xs text-muted">
             Al llegar al límite mensual, el motor deja de empezar o continuar tareas. El límite por tarea corta una
             ejecución cuando la supera. Fija también un tope en la consola de Anthropic.

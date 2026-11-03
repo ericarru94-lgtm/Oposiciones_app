@@ -75,7 +75,7 @@ ${memoryRows}
 on conflict do nothing;
 
 insert into public.settings (key, value) values
-  ('limits', '{"monthly_ai_budget_usd": null, "task_ai_budget_usd": null}'::jsonb),
+  ('limits', '{"monthly_ai_budget_usd": 10, "mission_ai_budget_usd": 1, "task_ai_budget_usd": 1}'::jsonb),
   ('notifications', '{"approvals": true, "failures": true}'::jsonb)
 on conflict (key) do nothing;
 `;

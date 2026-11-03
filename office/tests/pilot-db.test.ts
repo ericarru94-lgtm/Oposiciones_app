@@ -10,6 +10,10 @@ const claim = (w = "w1") => svc<Claim>(`select * from public.claim_next_task($1,
 
 beforeAll(async () => {
   t = await createTestDb();
+  // Estas pruebas cubren la mecánica del motor con límites de cualquier forma (incluso
+  // «sin límite»): en ESTA base se retira la validación de settings de 0012, que se
+  // prueba en migration-0012.
+  await t.db.exec(`drop trigger settings_guard on public.settings`);
 });
 afterAll(async () => {
   await t?.close();
