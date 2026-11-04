@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { DEFAULT_MODEL, MODELS, type ModelId } from "./agents/registry";
+import { previewUsesProductionSupabase } from "./env-guard";
 
 // Variables de entorno del servidor. Las claves nunca se envían al navegador:
 // la interfaz solo recibe si cada integración está configurada o no.
@@ -31,6 +32,17 @@ export function readEnv(source: Record<string, string | undefined> = process.env
   if (!parsed.success) {
     const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
     throw new Error(`Variables de entorno no válidas: ${fields}. Revisa .env.local (ver .env.example).`);
+  }
+  // Barrera: una vista previa de Vercel nunca usa el Supabase de producción.
+  // Se descartan URL, claves y administrador: la oficina queda «sin configurar».
+  if (previewUsesProductionSupabase(source)) {
+    return {
+      ...parsed.data,
+      NEXT_PUBLIC_SUPABASE_URL: undefined,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: undefined,
+      SUPABASE_SECRET_KEY: undefined,
+      ADMIN_EMAIL: undefined,
+    };
   }
   return parsed.data;
 }

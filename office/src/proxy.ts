@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { previewUsesProductionSupabase } from "@/lib/env-guard";
 
 // Refresca la sesión de Supabase en cada navegación y manda al login a quien
 // no la tenga. La comprobación de administrador se repite en el servidor
@@ -10,7 +11,8 @@ const PUBLIC_PATHS = ["/login"];
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return NextResponse.next();
+  // Barrera: una vista previa nunca se conecta al Supabase de producción.
+  if (!url || !key || previewUsesProductionSupabase()) return NextResponse.next();
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {
