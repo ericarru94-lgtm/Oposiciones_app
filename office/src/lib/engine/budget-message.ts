@@ -31,7 +31,27 @@ export function budgetStopMessage(reason: BudgetStopReason, nextReserveUsd: numb
     available !== null && available > 0
       ? "El límite no se ha gastado entero: lo que no cabe es la reserva prudente de la siguiente llamada."
       : "El límite está comprometido por completo (gasto real más reservas).",
+    reason === "monthly_budget"
+      ? "Además, el dinero ya comprometido por los planes aprobados de otras misiones abiertas no se puede usar hasta que terminen."
+      : "",
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+/** 0013 · Parada por los límites aprobados de un paso del plan. */
+export function stepStopMessage(
+  reason: "step_budget" | "max_calls", nextReserveUsd: number, s: BudgetSnapshot, step: { budgetUsd: number | null; maxCalls: number | null },
+): string {
+  if (reason === "max_calls") {
+    return `Paso detenido: se alcanzó el número máximo de llamadas aprobado en el plan (${step.maxCalls ?? "—"}). Lo ya entregado se conserva.`;
+  }
+  const committed = s.real.task + s.open.task + s.uncertain.task;
+  const available = step.budgetUsd === null ? 0 : Math.max(0, step.budgetUsd - committed);
+  return [
+    `Paso detenido: la siguiente llamada no cabe en el presupuesto aprobado del paso (${usd(step.budgetUsd ?? 0)}).`,
+    `Reserva necesaria para la siguiente llamada: ${usd(nextReserveUsd)}.`,
+    `Gasto real del paso: ${usd(s.real.task)} · reservas abiertas: ${usd(s.open.task)} · reservas inciertas: ${usd(s.uncertain.task)}.`,
+    `Saldo del paso: ${usd(available)}. Lo ya entregado se conserva.`,
+  ].join(" ");
 }

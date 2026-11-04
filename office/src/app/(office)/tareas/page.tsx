@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireViewer } from "@/lib/auth/session";
 import { getBudgetStatus } from "@/lib/data/budget";
 import { listMissions } from "@/lib/data/missions";
+import { PLAN_SCHEMA_NOT_READY, planSchemaReady } from "@/lib/data/plan-readiness";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { TASK_STATUS_LABEL } from "@/lib/domain/status";
 import { integrationStatus } from "@/lib/env";
 import { MissionForm } from "./mission-form";
@@ -12,8 +14,11 @@ export default async function TasksPage() {
   const viewer = await requireViewer();
   const [missions, budget] = await Promise.all([listMissions(viewer), getBudgetStatus(viewer)]);
   const claude = integrationStatus().find((i) => i.id === "anthropic")?.configured ?? false;
+  // 0013 · Ventana de publicación: sin el plan de misión en la base de datos, el formulario se bloquea.
+  const planReady = viewer.mode === "admin" ? await planSchemaReady(await createSupabaseServerClient()) : true;
   const reason =
     viewer.mode !== "admin" ? "Conecta Supabase para crear encargos."
+    : !planReady ? PLAN_SCHEMA_NOT_READY
     : !claude ? "Falta la clave de Anthropic en el servidor."
     : budget?.exceeded ? "Se ha alcanzado el límite mensual de gasto en IA."
     : null;
@@ -24,7 +29,7 @@ export default async function TasksPage() {
         <p className="text-xs uppercase tracking-[0.18em] text-cobalt-soft">Piloto · Alex, Marcus y Sofia</p>
         <h1 className="mt-2 font-display text-3xl font-semibold">Encargos</h1>
         <p className="mt-2 text-sm text-muted">
-          Alex planifica y delega; Marcus investiga con fuentes; Sofia prepara la estrategia. Todo queda en borrador: nadie contacta, publica ni gasta fuera de los límites.
+          Alex propone un plan que tú apruebas; Marcus investiga con fuentes; Sofia prepara la estrategia. Todo queda en borrador: nadie contacta, publica ni gasta fuera de los límites.
         </p>
       </div>
 

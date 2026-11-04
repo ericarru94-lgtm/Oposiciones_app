@@ -130,8 +130,8 @@ describe("concurrencia real (PostgreSQL 18)", () => {
     await root.query(`delete from public.ai_reservations; delete from public.ai_usage;
       update public.settings set value = '{"monthly_ai_budget_usd": 0.5, "task_ai_budget_usd": 1, "mission_ai_budget_usd": 1}' where key = 'limits'`);
     const agents = ["alex", "marcus", "sofia", "oscar", "victoria", "daniel"];
-    await root.query(`insert into public.tasks (title, agent_id, status, input)
-                      select 'Reserva ' || a, a, 'assigned', '{"kind": "mission"}' from unnest($1::text[]) a`, [agents]);
+    await root.query(`insert into public.tasks (title, agent_id, status, input, plan_required)
+                      select 'Reserva ' || a, a, 'assigned', '{"kind": "mission"}', false from unnest($1::text[]) a`, [agents]);
     const svc = await connect();
     const runs: { run_id: string; w: string }[] = [];
     for (let i = 0; i < agents.length; i++) {

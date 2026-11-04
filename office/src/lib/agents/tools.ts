@@ -53,6 +53,14 @@ export const TOOLS = {
     risk: "internal_write",
     availability: { state: "planned", phase: 3 },
   },
+  "mission.plan": {
+    id: "mission.plan",
+    name: "Proponer plan de misión",
+    description:
+      "Propone al administrador el plan de la misión: pasos, agente de cada paso, dependencias, herramientas, presupuesto, llamadas y búsquedas máximas. Nada se ejecuta hasta que el administrador lo aprueba.",
+    risk: "internal_write",
+    availability: { state: "planned", phase: 5 },
+  },
   "tasks.request_review": {
     id: "tasks.request_review",
     name: "Pedir revisión",

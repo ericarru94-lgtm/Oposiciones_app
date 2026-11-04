@@ -9,6 +9,7 @@ import { missionPhase, type MissionPhase } from "@/lib/domain/mission-state";
 import { TASK_STATUS_LABEL, agentStatusForTask } from "@/lib/domain/status";
 import { CancelForm } from "./cancel-form";
 import { EngineRunner } from "./engine-runner";
+import { PlanPanel } from "./plan-panel";
 
 const usd = (v: number) => `${v.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} $`;
 const n = (v: number) => v.toLocaleString("es-ES");
@@ -30,6 +31,8 @@ function PhaseBanner({ phase }: { phase: MissionPhase }) {
         return ["border-warn/50 text-warn", "En pausa: hay trabajo listo. Se reanuda solo mientras esta página esté abierta."];
       case "waiting":
         return ["border-line text-muted", "Esperando a que el equipo termine sus tareas."];
+      case "plan_review":
+        return ["border-warn/50 text-warn", "Alex ha propuesto un plan: revísalo abajo. Nadie trabaja hasta que lo apruebes."];
     }
   })();
   return <p className={`rounded-xl border bg-ink px-4 py-3 text-sm ${tone}`}>{text}</p>;
@@ -46,6 +49,9 @@ function TaskCard({ t }: { t: MissionTask }) {
       <p className="mt-1 text-xs text-muted">
         {TASK_STATUS_LABEL[t.status]} · {usd(t.costUsd)} · {t.modelCalls} llamadas{t.searches ? ` · ${t.searches} búsquedas` : ""}
       </p>
+      {t.budgetUsd !== null && (
+        <p className="mt-1 text-xs text-muted">Paso «{t.planStepKey}» · máximo {usd(t.budgetUsd)} y {t.maxCalls} llamadas</p>
+      )}
       {t.error && <p className="mt-2 text-xs text-signal">{t.error}</p>}
     </div>
   );
@@ -57,9 +63,11 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const detail = await getMission(viewer, id);
   if (!detail) notFound();
-  const { mission, children, events, documents, companies, totals } = detail;
+  const { mission, children, events, documents, companies, totals, plans } = detail;
   const phase = missionPhase(mission, children);
   const active = phase.kind !== "completed" && phase.kind !== "stopped";
+  // Mientras el plan espera tu decisión no hay nada que ejecutar.
+  const runnable = active && phase.kind !== "plan_review";
   const spent = detail.budget.claudeUsd + detail.budget.searchUsd;
   const finalReport = documents.find((d) => d.taskId === mission.id && d.kind === "report");
 
@@ -71,11 +79,14 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
         <p className="text-sm text-muted">
           {TASK_STATUS_LABEL[mission.status]}
           {mission.phase === "synthesis" && mission.status !== "completed" ? " · Alex revisa las entregas" : ""}
+          {mission.phase === "plan_review" && mission.status === "needs_approval" ? " · plan pendiente de tu aprobación" : ""}
         </p>
         <PhaseBanner phase={phase} />
-        <EngineRunner active={active} />
+        <EngineRunner active={runnable} />
         {active && <CancelForm missionId={mission.id} />}
       </div>
+
+      {mission.planRequired && <PlanPanel missionId={mission.id} plans={plans} missionStopped={!active} />}
 
       <section className="grid gap-3 sm:grid-cols-3">
         <TaskCard t={mission} />

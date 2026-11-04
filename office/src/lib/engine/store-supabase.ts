@@ -4,7 +4,7 @@ import type { AgentStatus } from "../domain/status";
 import { createSupabaseServiceClient } from "../supabase/server";
 import type { DeliveryRecord, DeliveryRow } from "./coordination";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow, type MissionPlan, type PlanStepInput, type PlanSubmission } from "./store";
 
 // EngineStore de producción: mismas operaciones que SqlEngineStore, a través
 // de la API de Supabase con la clave secreta (solo servidor).
@@ -38,10 +38,15 @@ export class SupabaseEngineStore implements EngineStore {
     return (r as { state: unknown }).state ?? {};
   }
   async getTask(id: string) {
-    return must(
-      await this.db.from("tasks").select("id, title, description, agent_id, status, parent_task_id, client_id, input, result").eq("id", id).single(),
-      "tasks",
-    ) as TaskRow;
+    // «*»: funciona con y sin las columnas de 0013 (compatibilidad y marcha atrás).
+    const r = must(await this.db.from("tasks").select("*").eq("id", id).single(), "tasks") as Record<string, unknown>;
+    const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+    return {
+      id: r.id, title: r.title, description: r.description, agent_id: r.agent_id, status: r.status,
+      parent_task_id: r.parent_task_id, client_id: r.client_id, input: r.input, result: r.result,
+      plan_required: r.plan_required === true, plan_id: (r.plan_id as string | null) ?? null, plan_step_key: (r.plan_step_key as string | null) ?? null,
+      budget_usd: num(r.budget_usd), max_calls: num(r.max_calls), max_searches: num(r.max_searches),
+    } as TaskRow;
   }
   async children(id: string) {
     return must(await this.db.from("tasks").select(RELATED).eq("parent_task_id", id).order("created_at"), "tasks") as RelatedTask[];
@@ -228,6 +233,36 @@ export class SupabaseEngineStore implements EngineStore {
       p_run_id: runId, p_worker: worker, p_tool_use_id: toolUseId, p_agent: agent, p_title: title,
       p_description: description, p_depends_on: dependsOn,
     });
+  }
+  async submitPlan(runId: string, worker: string, summary: string, steps: PlanStepInput[]) {
+    const r = await this.rpc<PlanSubmission>("submit_mission_plan", { p_run_id: runId, p_worker: worker, p_summary: summary, p_steps: steps });
+    return { ...r, estimate_usd: Number(r.estimate_usd) };
+  }
+  async awaitPlanApproval(runId: string, worker: string, summary: string) {
+    await this.rpc("await_plan_approval", { p_run_id: runId, p_worker: worker, p_summary: summary });
+  }
+  async missionPlans(missionId: string): Promise<MissionPlan[]> {
+    const plans = must(
+      await this.db.from("mission_plans")
+        .select("id, mission_id, version, kind, plan, plan_hash, estimate_usd, status, proposed_run_id, expires_at, decided_at, decision_note, created_at")
+        .eq("mission_id", missionId).order("version"),
+      "mission_plans",
+    ) as (Omit<MissionPlan, "steps" | "summary"> & { plan: { summary?: string } })[];
+    if (plans.length === 0) return [];
+    const steps = must(
+      await this.db.from("mission_plan_steps")
+        .select("plan_id, step_key, agent_id, title, instructions, depends_on, tools, budget_usd, max_calls, max_searches, carried, task_id, position")
+        .in("plan_id", plans.map((p) => p.id)).order("position"),
+      "mission_plan_steps",
+    ) as Record<string, unknown>[];
+    return plans.map(({ plan, ...p }) => ({
+      ...p, estimate_usd: Number(p.estimate_usd), summary: plan?.summary ?? "",
+      steps: steps.filter((x) => x.plan_id === p.id).map((x) => ({
+        key: x.step_key as string, agent: x.agent_id as string, title: x.title as string, instructions: x.instructions as string,
+        depends_on: x.depends_on as string[], tools: x.tools as string[], budget_usd: Number(x.budget_usd),
+        max_calls: Number(x.max_calls), max_searches: Number(x.max_searches), carried: x.carried === true, task_id: (x.task_id as string | null) ?? null,
+      })),
+    }));
   }
   enginePort(runId: string, worker: string): EnginePort {
     const rpc = this.rpc.bind(this);

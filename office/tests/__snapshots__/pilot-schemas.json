@@ -242,5 +242,104 @@
       "instructions"
     ],
     "additionalProperties": false
+  },
+  "mission.plan": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "summary": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 4000,
+        "description": "Resumen del plan para el administrador: objetivo, reparto y por qué."
+      },
+      "steps": {
+        "minItems": 1,
+        "maxItems": 6,
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]{0,39}$",
+              "description": "Identificador corto y único del paso (lo usan las dependencias)."
+            },
+            "agent": {
+              "type": "string",
+              "enum": [
+                "marcus",
+                "sofia"
+              ],
+              "description": "marcus = comercial e investigación; sofia = marketing y estrategia."
+            },
+            "title": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 300
+            },
+            "instructions": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 8000,
+              "description": "Qué debe entregar, con qué criterios y qué no debe hacer."
+            },
+            "depends_on": {
+              "default": [],
+              "description": "Claves de los pasos que deben terminar antes.",
+              "maxItems": 6,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tools": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Herramientas que podrá usar el agente en este paso (de las suyas)."
+            },
+            "budget_usd": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1,
+              "description": "Gasto máximo del paso en dólares (hasta 4 decimales)."
+            },
+            "max_calls": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30,
+              "description": "Llamadas máximas a Claude del paso."
+            },
+            "max_searches": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 15,
+              "description": "Búsquedas web máximas (0 si el paso no usa web.search)."
+            }
+          },
+          "required": [
+            "key",
+            "agent",
+            "title",
+            "instructions",
+            "depends_on",
+            "tools",
+            "budget_usd",
+            "max_calls",
+            "max_searches"
+          ],
+          "additionalProperties": false
+        },
+        "description": "Pasos NUEVOS (en una ampliación, no repitas los ya aprobados)."
+      }
+    },
+    "required": [
+      "summary",
+      "steps"
+    ],
+    "additionalProperties": false
   }
 }

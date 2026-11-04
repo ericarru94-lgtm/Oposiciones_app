@@ -51,7 +51,7 @@ export const AGENTS: readonly AgentDefinition[] = [
       "Supervisar resultados y resolver conflictos",
       "Controlar prioridades y preparar informes de actividad",
     ],
-    tools: [...BASE_TOOLS, "tasks.delegate", "quality.review", "crm.read", "costs.read", "web.search"],
+    tools: [...BASE_TOOLS, "tasks.delegate", "mission.plan", "quality.review", "crm.read", "costs.read", "web.search"],
     model: "claude-sonnet-5-5",
     effort: "medium",
     isCoordinator: true,

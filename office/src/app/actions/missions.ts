@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireViewer } from "@/lib/auth/session";
+import { PLAN_SCHEMA_NOT_READY, planSchemaReady } from "@/lib/data/plan-readiness";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const missionSchema = z.object({
@@ -35,6 +36,8 @@ export async function createMission(_prev: MissionState, form: FormData): Promis
   const { data: existing } = await supabase.from("tasks").select("id").eq("idempotency_key", key).maybeSingle();
   let id = existing?.id as string | undefined;
   if (!id) {
+    // 0013 · Sin el plan de misión en la base de datos no se crean encargos nuevos.
+    if (!(await planSchemaReady(supabase))) return { message: PLAN_SCHEMA_NOT_READY };
     // Fichas ya investigadas por misiones anteriores (máx. 5, el tope de la misión).
     let reuseIds: string[] = [];
     if (parsed.data.reuse) {

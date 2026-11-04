@@ -75,7 +75,8 @@ describe("permisos de funciones", () => {
         where p.prosecdef and n.nspname in ('public', 'private') order by 1`,
     );
     // log_settings_change (0012): auditoría de settings, solo como trigger (sin EXECUTE para la API).
-    expect(rows.map((r) => r.name)).toEqual(["decide_approval", "is_admin", "link_admin", "log_settings_change", "memory_items_versioning"]);
+    // approve_mission_plan y reject_mission_plan (0013): decisiones del administrador sobre el plan (is_admin dentro).
+    expect(rows.map((r) => r.name)).toEqual(["approve_mission_plan", "decide_approval", "is_admin", "link_admin", "log_settings_change", "memory_items_versioning", "reject_mission_plan"]);
     for (const r of rows) expect(r.config).toContain("search_path=\"\"");
   });
 
@@ -444,14 +445,15 @@ describe("auditoría final: privilegios efectivos", () => {
     }
   });
 
-  it("authenticated solo ejecuta is_admin, decide_approval, ai_budget_status y las funciones puras de settings", async () => {
+  it("authenticated solo ejecuta is_admin, decide_approval, ai_budget_status, las funciones puras de settings y las decisiones del plan", async () => {
     const rows = await q<{ name: string }>(
       `select p.proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace
         where n.nspname in ('public', 'private') and p.prorettype <> 'trigger'::regtype
           and has_function_privilege('authenticated', p.oid, 'execute') order by 1`,
     );
     // settings_ceilings y settings_value_error (0012): sin efectos; las usan el formulario y la validación.
-    expect(rows.map((r) => r.name)).toEqual(["ai_budget_status", "decide_approval", "is_admin", "settings_ceilings", "settings_value_error"]);
+    // approve_mission_plan y reject_mission_plan (0013): exigen is_admin dentro de la función.
+    expect(rows.map((r) => r.name)).toEqual(["ai_budget_status", "approve_mission_plan", "decide_approval", "is_admin", "reject_mission_plan", "settings_ceilings", "settings_value_error"]);
   });
 
   it("approvals.payload no se puede usar", async () => {

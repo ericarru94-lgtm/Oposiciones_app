@@ -54,7 +54,12 @@ export default async function Page() {
               tone={budget?.exceeded ? "text-danger" : undefined}
             />
             <Stat label="Encargos en marcha" value={String(data.running)} />
-            <Stat label="Aprobaciones pendientes" value={String(data.approvals.length)} tone={data.approvals.length ? "text-signal" : undefined} />
+            <Stat
+              label="Aprobaciones pendientes"
+              value={String(data.approvals.length + data.plans.length)}
+              hint={data.plans.length ? `${data.plans.length} plan(es) de misión` : undefined}
+              tone={data.approvals.length + data.plans.length ? "text-signal" : undefined}
+            />
             <Stat label="Encargos fallidos (30 días)" value={String(data.failed30d)} tone={data.failed30d ? "text-danger" : undefined} />
             <Stat label="Fichas en el CRM" value={String(data.companies)} />
             <Stat label="Documentos" value={String(data.documents)} />
@@ -73,6 +78,20 @@ export default async function Page() {
               ))}
             </ul>
           </section>
+
+          {data.plans.length > 0 && (
+            <section aria-labelledby="planes">
+              <h2 id="planes" className="font-display text-lg font-semibold">Planes pendientes de tu aprobación</h2>
+              <ul className="mt-3 space-y-2">
+                {data.plans.map((p) => (
+                  <li key={p.id} className="rounded-xl border border-warn/40 bg-warn/5 p-3 text-sm">
+                    Plan v{p.version}{p.kind === "amendment" ? " (ampliación)" : ""} · máximo {usd(p.estimateUsd)} · caduca {when(p.expiresAt)}
+                    <Link className="ml-2 underline" href={`/tareas/${p.missionId}`}>Revisar</Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {data.approvals.length > 0 && (
             <section aria-labelledby="aprobaciones">

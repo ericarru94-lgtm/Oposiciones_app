@@ -8,6 +8,8 @@ export interface MissionTaskState {
   runAfter: string | null;
   heartbeatAt: string | null;
   error: string | null;
+  /** Fase del encargo principal (0013: plan_review = esperando tu decisión sobre el plan). */
+  phase?: string | null;
 }
 
 export type MissionPhase =
@@ -15,6 +17,7 @@ export type MissionPhase =
   | { kind: "stopped"; reason: string | null }
   | { kind: "working"; lastActivity: string | null }
   | { kind: "retry"; at: string }
+  | { kind: "plan_review" } // 0013 · el plan espera tu decisión: nadie trabaja
   | { kind: "ready" } //  hay trabajo listo: se reanuda con la página abierta
   | { kind: "waiting" };
 
@@ -23,6 +26,7 @@ const OPEN = new Set(["pending", "assigned", "in_progress"]);
 export function missionPhase(mission: MissionTaskState, children: MissionTaskState[], now = new Date()): MissionPhase {
   if (mission.status === "completed") return { kind: "completed" };
   if (mission.status === "failed") return { kind: "stopped", reason: mission.error };
+  if (mission.status === "needs_approval" && mission.phase === "plan_review") return { kind: "plan_review" };
   const all = [mission, ...children];
   const t = now.getTime();
   const working = all.filter((x) => x.lockedUntil && Date.parse(x.lockedUntil) > t);

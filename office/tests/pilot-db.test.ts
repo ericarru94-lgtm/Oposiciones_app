@@ -26,8 +26,8 @@ beforeEach(async () => {
 
 async function mission() {
   const [m] = await q<{ id: string }>(
-    `insert into public.tasks (title, description, agent_id, status, input)
-     values ('Estudio gimnasios', 'Encargo de prueba', 'alex', 'assigned', '{"kind": "mission", "round": 1}') returning id`,
+    `insert into public.tasks (title, description, agent_id, status, input, plan_required)
+     values ('Estudio gimnasios', 'Encargo de prueba', 'alex', 'assigned', '{"kind": "mission", "round": 1}', false) returning id`,
   );
   const [c] = await claim();
   expect(c.task_id).toBe(m.id);

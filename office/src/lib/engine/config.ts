@@ -82,7 +82,7 @@ export interface AgentToolPolicy {
   planned: readonly ToolId[];
 }
 export const AGENT_TOOLS: Readonly<Record<string, AgentToolPolicy>> = {
-  alex: { enabled: ["memory.read", "crm.read", "content.draft", "tasks.delegate"], planned: [] },
+  alex: { enabled: ["memory.read", "crm.read", "content.draft", "tasks.delegate", "mission.plan"], planned: [] },
   marcus: { enabled: ["memory.read", "crm.read", "crm.write", "content.draft", "web.search", "web.fetch"], planned: [] },
   sofia: { enabled: ["memory.read", "crm.read", "content.draft"], planned: [] },
   daniel: { enabled: [], planned: ["memory.read", "crm.read", "content.draft", "web.search"] },

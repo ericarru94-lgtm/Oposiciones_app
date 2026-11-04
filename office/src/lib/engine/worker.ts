@@ -14,14 +14,16 @@
 
 import { randomUUID } from "node:crypto";
 import { getAgent, isActiveAgent } from "../agents/registry";
-import { ENGINE, SEARCH_RESULT_TOKENS_ASSUMED, SERVER_TOOLS, SERVER_TOOL_OVERHEAD_TOKENS, callLimits, pilotScope, type ServerToolId } from "./config";
-import { budgetStopMessage } from "./budget-message";
+import { ENGINE, SEARCH_RESULT_TOKENS_ASSUMED, SERVER_TOOLS, SERVER_TOOL_OVERHEAD_TOKENS, callLimits, scopeTools, type ServerToolId } from "./config";
+import { budgetStopMessage, stepStopMessage } from "./budget-message";
+import { canAmend, isPlanMission, minStepBudgetUsd, runMaxSteps, runTools } from "./plan";
 import { buildModelRequest, callModel, initialState, resolveLocal, type RunState, type StepInput } from "./loop";
 import { estimateTokens, reserveUsd } from "./cost";
 import { PILOT_SCHEMAS, pilotGateway } from "./pilot-tools";
 import { DOC_CHARS, initialPrompt, pilotSystemPrompt } from "./pilot-prompts";
 import { buildDeliveries, coherenceCheck, inventorySection, subtaskOutcome, type ResultData } from "./coordination";
-import type { ClaimedRun, EngineStore } from "./store";
+import type { ClaimedRun, EngineStore, MissionPlan, TaskRow } from "./store";
+import type { PlanPromptContext } from "./pilot-prompts";
 import type { ModelClient, ModelRequest } from "./types";
 
 export interface TickDeps {
@@ -49,6 +51,8 @@ const PROGRESS_NOTE =
 const STOP_MESSAGE = {
   searches:
     "Tarea detenida: se alcanzó el máximo de búsquedas web de la misión. Las fichas y documentos ya creados se conservan.",
+  stepSearches:
+    "Paso detenido: se alcanzó el máximo de búsquedas web aprobado para el paso (o el de la misión). Las fichas y documentos ya creados se conservan.",
   uncertain:
     "Una llamada anterior a Claude quedó con resultado incierto (el proceso se cortó o se perdió la respuesta). Cuenta como gastada y no se repite automáticamente.",
 } as const;
@@ -91,20 +95,38 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     await store.failRun(run.runId, worker, `«${run.agentId}» no participa en el piloto.`, false);
     return "failed";
   }
-  const agent = pilotScope(def);
   const task = await store.getTask(run.taskId);
   if (task.parent_task_id && (await store.getTask(task.parent_task_id)).status === "failed") {
     // Encargo principal detenido (presupuesto, error…): no se gasta más en él.
     await store.failRun(run.runId, worker, "El encargo principal se ha detenido; esta subtarea no se ejecuta.", false);
     return "parent_stopped";
   }
-  const allowedServerTools = agent.tools.filter((t): t is ServerToolId => Object.hasOwn(SERVER_TOOLS, t));
-  const limits = callLimits(agent.id);
 
   // Misión y fichas del CRM de la misión (creadas en ella, aunque la subtarea
   // que las creó fallara, + las reutilizadas de una misión anterior).
   const mission = task.parent_task_id ? await store.getTask(task.parent_task_id) : task;
   const reuseIds = reuseIdsOf(mission.input);
+  const pilot = await store.pilotSettings();
+  const maxRounds = Number(pilot.max_rounds ?? 2);
+
+  // 0013 · Plan de misión: herramientas de la fase o del paso aprobado.
+  const planMode = isPlanMission(mission);
+  const plans: MissionPlan[] = planMode ? await store.missionPlans(mission.id) : [];
+  // Las propuestas de ESTA ejecución no cuentan: la lista de herramientas no
+  // puede cambiar entre llamadas de una misma ejecución.
+  // Barrera del motor (la de la base de datos está en tasks_plan_guard): una
+  // subtarea de una misión con plan solo se ejecuta si viene de un paso aprobado.
+  if (planMode && task.parent_task_id && !(task.plan_id && plans.some((p) => p.id === task.plan_id && p.steps.some((s) => s.key === task.plan_step_key && s.task_id === task.id)))) {
+    await store.failRun(run.runId, worker, "Esta subtarea no procede de un paso aprobado del plan: no se ejecuta.", false);
+    return "not_in_plan";
+  }
+  const plansBefore = plans.filter((p) => p.proposed_run_id !== run.runId);
+  const stepTools = task.plan_id && task.plan_step_key
+    ? (plans.find((p) => p.id === task.plan_id)?.steps.find((s) => s.key === task.plan_step_key)?.tools ?? [])
+    : null;
+  const agent = { ...def, tools: runTools(def, task, { plans: plansBefore, stepTools, maxRounds }) };
+  const allowedServerTools = agent.tools.filter((t): t is ServerToolId => Object.hasOwn(SERVER_TOOLS, t));
+  const limits = callLimits(agent.id);
 
   let state: RunState;
   const saved = await store.loadRunState(run.runId);
@@ -118,12 +140,13 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     const documents = await store.documentsOfTasks(related);
     const companies = await store.missionCompanies(mission.id, reuseIds);
     const facts = await store.companyFacts(companies.map((c) => c.id));
-    const maxCompanies = Number((await store.pilotSettings()).max_companies ?? 5);
+    const maxCompanies = Number(pilot.max_companies ?? 5);
     // C · Alex recibe en la síntesis el inventario exacto de lo que recibió cada agente.
     const inventory = isMission && task.input.phase === "synthesis"
       ? inventorySection(await store.missionDeliveries(mission.id), children)
       : undefined;
-    state = initialState(initialPrompt({ task, children, dependencies, documents, companies, reuseIds, maxCompanies, facts, inventory }));
+    const plan = planMode && isMission ? await planContext(store, task, plansBefore, pilot, maxRounds) : undefined;
+    state = initialState(initialPrompt({ task, children, dependencies, documents, companies, reuseIds, maxCompanies, facts, inventory, plan }));
     // Entrega «preparada»: lo que contiene este mensaje, por emisor. Pasa a
     // «enviada» y «recibida» solo cuando la llamada ocurre de verdad.
     if (!(await store.runHasDeliveries(run.runId))) {
@@ -135,7 +158,7 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
   const base: Omit<StepInput, "state"> = {
     agent, runId: run.runId, taskId: task.id, client: deps.client, gateway,
     engine: store.enginePort(run.runId, worker), toolSchemas: PILOT_SCHEMAS,
-    system: pilotSystemPrompt(def), maxSteps: ENGINE.maxStepsPerRun,
+    system: pilotSystemPrompt(def, { planMode }), maxSteps: runMaxSteps(task),
     // A · Con herramientas web, recordatorio tras cada ronda: el límite es por llamada.
     progressNote: allowedServerTools.length ? PROGRESS_NOTE : undefined,
   };
@@ -152,7 +175,7 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       await store.failRun(run.runId, worker, local.error, false);
       return "failed";
     }
-    if (local.kind === "completed") return finish(store, worker, run, task, local.result, mission.id, reuseIds);
+    if (local.kind === "completed") return finish(store, worker, run, task, local.result, mission.id, reuseIds, planMode);
 
     if (!canStep(limits.timeoutMs)) {
       // Sin tiempo para otra llamada: se guarda y se libera para la siguiente pasada.
@@ -187,7 +210,9 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       const message =
         reservation.reason === "uncertain"
           ? STOP_MESSAGE.uncertain
-          : budgetStopMessage(reservation.reason, estimate, await store.budgetSnapshot(mission.id, task.id), task.parent_task_id !== null);
+          : reservation.reason === "step_budget" || reservation.reason === "max_calls"
+            ? stepStopMessage(reservation.reason, estimate, await store.budgetSnapshot(mission.id, task.id), { budgetUsd: task.budget_usd ?? null, maxCalls: task.max_calls ?? null })
+            : budgetStopMessage(reservation.reason, estimate, await store.budgetSnapshot(mission.id, task.id), task.parent_task_id !== null);
       await store.failRun(run.runId, worker, message, false);
       return reservation.reason === "uncertain" ? "uncertain" : "budget_stop";
     }
@@ -196,7 +221,7 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       // lista de herramientas (error 400), así que la tarea se detiene; sus
       // fichas y documentos se conservan y Alex informa con lo que haya.
       await store.closeReservation(run.runId, reservation.reservation_id, false);
-      await store.failRun(run.runId, worker, STOP_MESSAGE.searches, false);
+      await store.failRun(run.runId, worker, task.max_searches != null ? STOP_MESSAGE.stepSearches : STOP_MESSAGE.searches, false);
       return "searches_exhausted";
     }
 
@@ -262,12 +287,51 @@ function reuseIdsOf(input: Record<string, unknown>): string[] {
   return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [];
 }
 
+/** 0013 · Cifras reales para que Alex planifique (no las inventa). */
+async function planContext(store: EngineStore, task: TaskRow, plans: MissionPlan[], pilot: Record<string, unknown>, maxRounds: number): Promise<PlanPromptContext> {
+  const snap = await store.budgetSnapshot(task.id, task.id);
+  const specialists = ["marcus", "sofia"].filter((id) => isActiveAgent(id) && getAgent(id));
+  const agentTools = Object.fromEntries(
+    specialists.map((id) => [id, scopeTools(getAgent(id)!).filter((t) => t !== "mission.plan" && t !== "tasks.delegate")]),
+  );
+  const minCallUsd = Object.fromEntries(specialists.map((id) => {
+    const web = agentTools[id].filter((t) => t === "web.search" || t === "web.fetch");
+    return [id, { withoutWeb: minStepBudgetUsd(id, []), ...(web.length ? { withWeb: minStepBudgetUsd(id, web) } : {}) }];
+  }));
+  return {
+    plans,
+    canAmend: canAmend(task, plans, maxRounds),
+    missionLimitUsd: snap.limits.mission,
+    committedUsd: snap.real.mission + snap.open.mission + snap.uncertain.mission,
+    synthesisReserveUsd: snap.limits.synthesisReserve,
+    taskLimitUsd: snap.limits.task,
+    maxSearches: Number(pilot.max_searches ?? 15),
+    minCallUsd,
+    agentTools,
+  };
+}
+
 async function finish(
   store: EngineStore, worker: string, run: ClaimedRun, task: Awaited<ReturnType<EngineStore["getTask"]>>, result: string,
-  missionId: string, reuseIds: string[],
+  missionId: string, reuseIds: string[], planMode = false,
 ): Promise<string> {
   const text = result.trim() || "(Sin texto de respuesta.)";
   let resultData: ResultData;
+  // 0013 · Misión con plan: una propuesta de esta ejecución espera al administrador.
+  let approvedPlan: MissionPlan | undefined;
+  if (planMode && task.input.kind === "mission") {
+    const plans = await store.missionPlans(task.id);
+    if (plans.some((p) => p.proposed_run_id === run.runId && p.status === "pending")) {
+      await store.awaitPlanApproval(run.runId, worker, text);
+      return "waiting_plan_approval";
+    }
+    if ((task.input.phase ?? "planning") === "planning") {
+      // Sin plan no se ejecuta nada: nunca se delega por otro camino.
+      await store.failRun(run.runId, worker, "Alex terminó la planificación sin proponer un plan válido; no se ha ejecutado nada.", false);
+      return "failed";
+    }
+    approvedPlan = plans.filter((p) => p.status === "approved").at(-1);
+  }
   if (task.input.kind === "mission") {
     const children = await store.children(task.id);
     const pending = children.filter((c) => c.status !== "completed" && c.status !== "failed");
@@ -285,6 +349,15 @@ async function finish(
       report: text, companies, documents, tasks: children,
       knownIds: [task.id, ...deliveries.map((d) => d.id), ...facts.map((f) => f.id)],
     });
+    // 0013 · Coherencia con el plan aprobado: estado de cada paso.
+    if (approvedPlan) {
+      for (const st of approvedPlan.steps) {
+        const t = children.find((c) => c.id === st.task_id);
+        checks.push(`Paso «${st.key}» (${st.agent}) del plan v${approvedPlan.version}: ${t ? t.status : "sin subtarea"}`);
+        if (!t) warnings.push(`El paso «${st.key}» del plan aprobado no tiene subtarea.`);
+        else if (t.status === "failed") warnings.push(`El paso «${st.key}» (${st.agent}) terminó en fallo: ${t.error ?? "sin detalle"}`);
+      }
+    }
     resultData = {
       outcome: warnings.length ? "completed_with_warnings" : "completed",
       declared: false, objectives_completed: [], objectives_pending: [], warnings, coherence_checks: checks,

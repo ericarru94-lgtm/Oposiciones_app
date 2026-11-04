@@ -7,7 +7,7 @@
 import type { AgentDefinition } from "../agents/registry";
 import { composeSystemPrompt } from "../agents/prompts";
 import { OUTCOME_LABEL, outcomeOf, pendingOf, type ResultData } from "./coordination";
-import type { CompanyFact, DocumentSummary, MissionCompany, RelatedTask, TaskRow } from "./store";
+import type { CompanyFact, DocumentSummary, MissionCompany, MissionPlan, RelatedTask, TaskRow } from "./store";
 
 const PILOT_COMMON = `Modo piloto de la oficina:
 - Todo lo que produces es un BORRADOR interno. No hay herramientas para contactar, enviar, publicar, lanzar campañas ni gastar: no las pidas ni digas que lo has hecho.
@@ -64,8 +64,22 @@ Reglas de estrategia (obligatorias):
 ${RESULT_BLOCK}`,
 };
 
-export function pilotSystemPrompt(agent: AgentDefinition): string {
-  const guide = PILOT_GUIDES[agent.id];
+// 0013 · Alex en una misión con plan aprobado: propone, no delega.
+const ALEX_PLAN_GUIDE = `${PILOT_COMMON}
+
+Tu papel en el piloto: coordinar a Marcus (investigación comercial y CRM) y Sofia (estrategia de marketing). En esta misión NO delegas directamente: propones un PLAN y el administrador lo aprueba, pide cambios o lo rechaza. Nada se ejecuta antes de su aprobación.
+- Fase de planificación: lee la memoria o el CRM solo si lo necesitas y propone UN plan con «mission__plan». Cada paso lleva: clave corta, agente (marcus o sofia), título, instrucciones claras (qué entregar, criterios, límites), dependencias por clave, herramientas del agente que necesita, presupuesto en dólares, llamadas máximas y búsquedas web máximas (0 si no usa web.search). Pide a Marcus como mucho 5 empresas. El sistema hace que Sofia espere a Marcus. Después explica el plan en texto (por qué cada paso y cada presupuesto) y termina tu turno sin herramientas.
+- Presupuesto: la suma de los pasos + lo ya gastado en la misión + la reserva para tu informe no puede superar el límite de la misión. Usa las cifras de «PRESUPUESTO PARA EL PLAN» del mensaje: no inventes otras. Un paso con menos del mínimo por llamada se detendría sin hacer nada.
+- Si el administrador ha pedido cambios, propón una versión nueva que los resuelva y explica qué has cambiado. Hay como máximo 3 versiones por misión.
+- Fase de síntesis: revisa lo que entregó cada paso y la sección «FICHAS DEL CRM DE LA MISIÓN». Si falta algo imprescindible y el sistema te lo permite, puedes proponer UNA ampliación con «mission__plan» (solo pasos NUEVOS; los aprobados no se repiten ni se cambian) y terminar tu turno: necesita otra aprobación. Si no, redacta el informe final.
+- Nunca inventes resultados del equipo: usa solo sus entregas y las fichas del CRM de la misión.
+- Distingue siempre: paso FALLIDO (error; puede haber dejado fichas o documentos) y paso COMPLETADO SIN RESULTADOS. Usa el ESTADO DE RESULTADO de cada paso y cita los objetivos pendientes que declaró cada agente.
+- Lo que recibió cada agente está en el «INVENTARIO DE ENTREGAS» del sistema: no lo deduzcas.
+- El informe final es tu respuesta de texto (se guarda solo). Debe estar priorizado, con motivo y fuente de cada oportunidad, y un plan de actuación con lo que requiere aprobación del administrador.
+- Antes de entregarlo, añade una sección «Control de coherencia» que confirme: (1) cada ficha citada existe (con su id); (2) los documentos de cada paso, por id; (3) el estado de cada paso del plan aprobado; (4) qué recibió cada agente según el inventario; (5) la separación entre resultados, inferencias y recomendaciones; (6) los datos contradictorios (⚠) o antiguos. El sistema revisará además el informe de forma automática.`;
+
+export function pilotSystemPrompt(agent: AgentDefinition, opts: { planMode?: boolean } = {}): string {
+  const guide = opts.planMode && agent.id === "alex" ? ALEX_PLAN_GUIDE : PILOT_GUIDES[agent.id];
   return composeSystemPrompt(guide ? `${agent.instructions}\n\n---\n\n${guide}` : agent.instructions);
 }
 
@@ -153,7 +167,51 @@ export interface PromptContext {
   facts?: CompanyFact[];
   /** C · Inventario de entregas (solo para la síntesis de Alex). */
   inventory?: string;
+  /** 0013 · Misión con plan: versiones, cifras para planificar y si se puede ampliar. */
+  plan?: PlanPromptContext;
   now?: Date;
+}
+
+export interface PlanPromptContext {
+  plans: MissionPlan[];
+  canAmend: boolean;
+  missionLimitUsd: number | null;
+  committedUsd: number;
+  synthesisReserveUsd: number;
+  taskLimitUsd: number | null;
+  /** Búsquedas web máximas de la misión (incluidas las ya usadas). */
+  maxSearches: number;
+  /** Reserva mínima de una llamada por agente (con y sin web). */
+  minCallUsd: Record<string, { withWeb?: number; withoutWeb: number }>;
+  agentTools: Record<string, readonly string[]>;
+}
+
+const fmt = (v: number) => `${v.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} $`;
+
+function planStepsText(plan: MissionPlan, tasks: RelatedTask[] = []): string {
+  return plan.steps
+    .map((s) => {
+      const t = s.task_id ? tasks.find((x) => x.id === s.task_id) : undefined;
+      return `- «${s.key}» · ${s.agent} · ${s.title} · ${fmt(s.budget_usd)}, ${s.max_calls} llamadas, ${s.max_searches} búsquedas · herramientas: ${s.tools.join(", ") || "ninguna"}${s.depends_on.length ? ` · espera a ${s.depends_on.join(", ")}` : ""}${s.carried ? " · aprobado en una versión anterior" : ""}${t ? ` · estado: ${t.status}${s.task_id ? ` (task_id ${s.task_id})` : ""}` : ""}`;
+    })
+    .join("\n");
+}
+
+/** Cifras con las que Alex debe planificar (sale de la base de datos). */
+function planBudgetSection(p: PlanPromptContext): string {
+  const available = p.missionLimitUsd === null ? null : Math.max(0, p.missionLimitUsd - p.committedUsd - p.synthesisReserveUsd);
+  const mins = Object.entries(p.minCallUsd)
+    .map(([a, m]) => `${a}: ${fmt(m.withoutWeb)} por llamada sin web${m.withWeb !== undefined ? `, ${fmt(m.withWeb)} con búsqueda y lectura web` : ""}`)
+    .join(" · ");
+  const tools = Object.entries(p.agentTools).map(([a, t]) => `${a}: ${t.join(", ")}`).join(" · ");
+  return [
+    "PRESUPUESTO PARA EL PLAN (datos del sistema):",
+    `- Límite de la misión: ${p.missionLimitUsd === null ? "—" : fmt(p.missionLimitUsd)} · ya comprometido: ${fmt(p.committedUsd)} · reserva para tu informe: ${fmt(p.synthesisReserveUsd)}.`,
+    `- Disponible para los pasos: ${available === null ? "—" : fmt(available)}. Máximo por paso: ${p.taskLimitUsd === null ? "—" : fmt(p.taskLimitUsd)}.`,
+    `- Reserva mínima de una llamada: ${mins}. El presupuesto de un paso debe cubrir al menos su primera llamada; cada llamada siguiente reserva algo más.`,
+    `- Búsquedas web: como máximo ${p.maxSearches} en toda la misión (incluidas las ya usadas).`,
+    `- Herramientas de cada agente: ${tools}.`,
+  ].join("\n");
 }
 
 export function initialPrompt(c: PromptContext): string {
@@ -165,6 +223,24 @@ export function initialPrompt(c: PromptContext): string {
   const fichas = companiesSection(companies, reuse, c.facts ?? []);
   const quota = `Tope de la misión: ${max} empresas en total; ya hay ${companies.length}${reuse.length ? ` (${reuse.length} reutilizadas)` : ""}.`;
 
+  if (task.input.kind === "mission" && c.plan) {
+    const p = c.plan;
+    const approved = p.plans.filter((x) => x.status === "approved").at(-1);
+    const last = p.plans.at(-1);
+    const feedback = typeof task.input.plan_feedback === "string" && last?.status === "changes_requested"
+      ? `\n\nEL ADMINISTRADOR HA PEDIDO CAMBIOS en la versión ${last.version}:\n«${task.input.plan_feedback}»\n\nLa versión que propusiste:\n${clip(last.summary, 3000)}\n${planStepsText(last)}\n\nPropón una versión nueva que resuelva lo que pide. Te quedan ${Math.max(0, 3 - p.plans.length)} versiones.`
+      : "";
+    if (task.input.phase === "synthesis") {
+      const amend = p.canAmend
+        ? "Si falta algo imprescindible, puedes proponer UNA ampliación con «mission__plan» (solo pasos nuevos; necesita aprobación) y terminar tu turno. Si no, escribe ahora el informe final priorizado (será tu respuesta)."
+        : "Ya no se puede ampliar el plan: escribe ahora el informe final priorizado (será tu respuesta).";
+      return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}\n\nPLAN APROBADO (versión ${approved?.version ?? "—"}):\n${clip(approved?.summary, 3000)}\n${approved ? planStepsText(approved, c.children) : ""}${feedback}\n\nENTREGAS DEL EQUIPO:\n\n${teamSection(c.children, c.documents, companies, DOC_CHARS)}\n\n${c.inventory ?? "INVENTARIO DE ENTREGAS: no disponible."}\n\n${fichas}${p.canAmend ? `\n\n${planBudgetSection(p)}` : ""}\n\n${amend}`;
+    }
+    const reuseNote = reuse.length
+      ? `\n\nEsta misión parte de ${reuse.length} fichas ya investigadas. ${quota} Planifica que Marcus complete solo lo PENDIENTE de esas fichas (con su company_id), sin investigarlas de nuevo, y que Sofia trabaje con ellas.\n\n${fichas}`
+      : "";
+    return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}${reuseNote}${feedback}\n\n${planBudgetSection(p)}\n\nPropón el plan con «mission__plan», explícalo y termina tu turno. Nada se ejecuta hasta que el administrador lo apruebe.`;
+  }
   if (task.input.kind === "mission" && task.input.phase === "synthesis") {
     return `${date}\n\nENCARGO DEL ADMINISTRADOR:\n${task.title}\n\n${task.description}\n\nTu plan anterior:\n${clip(task.result, 4000)}\n\nENTREGAS DEL EQUIPO:\n\n${teamSection(c.children, c.documents, companies, DOC_CHARS)}\n\n${c.inventory ?? "INVENTARIO DE ENTREGAS: no disponible."}\n\n${fichas}\n\nRevisa las entregas y las fichas. Si falta algo imprescindible y todavía puedes, delega UNA corrección concreta y termina tu turno. Si no, escribe ahora el informe final priorizado (será tu respuesta).`;
   }
@@ -180,5 +256,8 @@ export function initialPrompt(c: PromptContext): string {
   }
   const deps = c.dependencies.length ? `\n\nRESULTADOS PREVIOS DEL EQUIPO:\n\n${teamSection(c.dependencies, c.documents, companies, DOC_CHARS)}` : "";
   const objectives = objectivesSection(companies);
-  return `${date}\n\nTAREA ASIGNADA POR ALEX:\n${task.title}\n\n${task.description}${deps}\n\n${quota}${objectives ? `\n\n${objectives}` : ""}\n\n${fichas}`;
+  const stepLimits = task.budget_usd != null
+    ? `\n\nLÍMITES APROBADOS DE ESTE PASO DEL PLAN: ${fmt(task.budget_usd)} de gasto, ${task.max_calls ?? "—"} llamadas y ${task.max_searches ?? 0} búsquedas web como máximo. Si no caben, el sistema te detiene y conserva lo hecho: prioriza.`
+    : "";
+  return `${date}\n\nTAREA ASIGNADA POR ALEX:\n${task.title}\n\n${task.description}${stepLimits}${deps}\n\n${quota}${objectives ? `\n\n${objectives}` : ""}\n\n${fichas}`;
 }

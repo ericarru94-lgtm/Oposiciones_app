@@ -34,8 +34,8 @@ beforeEach(async () => {
 
 async function mission() {
   const [m] = await raw<{ id: string }>(
-    `insert into public.tasks (title, description, agent_id, status, input, created_by, timeout_seconds)
-     values ('Estudio gimnasios', 'Encargo de prueba sin contactar a nadie', 'alex', 'assigned', '{"kind": "mission", "round": 1, "phase": "planning"}', 'admin', 86400) returning id`,
+    `insert into public.tasks (title, description, agent_id, status, input, created_by, timeout_seconds, plan_required)
+     values ('Estudio gimnasios', 'Encargo de prueba sin contactar a nadie', 'alex', 'assigned', '{"kind": "mission", "round": 1, "phase": "planning"}', 'admin', 86400, false) returning id`,
   );
   return m.id;
 }
@@ -88,7 +88,7 @@ describe("presupuesto", () => {
       t.asService(() => raw<{ r: { ok: boolean; reason?: string } }>(`select public.reserve_budget($1, $2, 'claude-sonnet-5-5', $3, 0) as r`, [run, worker, usd])).then((x) => x[0].r);
     expect((await reserve(c.run_id, "w1", 9.95)).ok).toBe(true);
     // Otra tarea: 9,95 comprometidos + 0,10 > 10 → no se llama.
-    await raw(`insert into public.tasks (title, description, agent_id, status, input) values ('Otra', 'Otra misión de prueba', 'sofia', 'assigned', '{"kind": "mission"}')`);
+    await raw(`insert into public.tasks (title, description, agent_id, status, input, plan_required) values ('Otra', 'Otra misión de prueba', 'sofia', 'assigned', '{"kind": "mission"}', false)`);
     const [c2] = await t.asService(() => raw<{ run_id: string }>(`select * from public.claim_next_task('w2', 240, 5)`));
     expect(await reserve(c2.run_id, "w2", 0.1)).toEqual({ ok: false, reason: "monthly_budget" });
     // Otra reserva de la misma ejecución con una abierta = llamada anterior incierta.

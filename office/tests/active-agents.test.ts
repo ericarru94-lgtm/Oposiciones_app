@@ -31,7 +31,7 @@ const MODEL_PLAN: Record<string, string> = {
 
 // Herramientas de los tres activos ANTES de la fase 5.1 (no pueden cambiar).
 const PILOT_BEFORE: Record<string, readonly ToolId[]> = {
-  alex: ["memory.read", "crm.read", "content.draft", "tasks.delegate"],
+  alex: ["memory.read", "crm.read", "content.draft", "tasks.delegate", "mission.plan"],
   marcus: ["memory.read", "crm.read", "crm.write", "content.draft", "web.search", "web.fetch"],
   sofia: ["memory.read", "crm.read", "content.draft"],
 };

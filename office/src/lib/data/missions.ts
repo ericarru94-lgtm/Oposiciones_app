@@ -1,5 +1,6 @@
 import "server-only";
 import type { Viewer } from "../auth/session";
+import type { PlanStatus, PlanView } from "../domain/plan";
 import type { TaskStatus } from "../domain/status";
 import { createSupabaseServerClient } from "../supabase/server";
 
@@ -30,10 +31,17 @@ export interface MissionTask {
   lockedUntil: string | null;
   runAfter: string | null;
   heartbeatAt: string | null;
+  /** 0013 · Misión con plan aprobado y límites del paso (subtareas). */
+  planRequired: boolean;
+  planStepKey: string | null;
+  budgetUsd: number | null;
+  maxCalls: number | null;
 }
 
 export interface MissionDetail {
   mission: MissionTask;
+  /** 0013 · Versiones del plan (vacío en las misiones antiguas o sin 0013). */
+  plans: PlanView[];
   children: MissionTask[];
   events: { id: number; taskId: string; agentId: string | null; type: string; toStatus: string | null; message: string | null; createdAt: string }[];
   documents: { id: string; title: string; kind: string; agentId: string | null; taskId: string | null; content: string | null; createdAt: string }[];
@@ -42,7 +50,8 @@ export interface MissionDetail {
   budget: { claudeUsd: number; searchUsd: number; reservedUsd: number; uncertainUsd: number; limitUsd: number | null; synthesisReserveUsd: number; maxCompanies: number; maxSearches: number };
 }
 
-const TASK_COLS = "id, title, description, agent_id, status, result, error, input, created_at, parent_task_id, locked_until, run_after, heartbeat_at";
+// «*»: funciona con y sin las columnas de 0013 (plan_required, límites del paso).
+const TASK_COLS = "*";
 type CostRow = { task_id: string; model_calls: number; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; server_tool_requests: number; cost_usd: number };
 
 export async function listMissions(viewer: Viewer): Promise<MissionRow[]> {
@@ -106,8 +115,11 @@ export async function getMission(viewer: Viewer, id: string): Promise<MissionDet
       result: t.result, error: t.error, phase: (t.input as { phase?: string } | null)?.phase ?? null, createdAt: t.created_at,
       costUsd: Number(c?.cost_usd ?? 0), modelCalls: Number(c?.model_calls ?? 0), searches: Number(c?.server_tool_requests ?? 0),
       lockedUntil: t.locked_until, runAfter: t.run_after, heartbeatAt: t.heartbeat_at,
+      planRequired: t.plan_required === true, planStepKey: t.plan_step_key ?? null,
+      budgetUsd: t.budget_usd == null ? null : Number(t.budget_usd), maxCalls: t.max_calls ?? null,
     };
   };
+  const plans = m.plan_required === true ? await readPlans(supabase, id) : [];
   const rows = [...cost.values()];
   const sum = (k: keyof CostRow) => rows.reduce((s, r) => s + Number(r[k] ?? 0), 0);
 
@@ -121,6 +133,7 @@ export async function getMission(viewer: Viewer, id: string): Promise<MissionDet
 
   return {
     mission: toTask(m),
+    plans,
     children: (kids ?? []).map(toTask),
     events: (events.data ?? []).map((e) => ({ id: e.id, taskId: e.task_id, agentId: e.agent_id, type: e.type, toStatus: e.to_status, message: e.message, createdAt: e.created_at })),
     documents: (docs.data ?? []).map((d) => ({ id: d.id, title: d.title, kind: d.kind, agentId: d.agent_id, taskId: d.task_id, content: d.content, createdAt: d.created_at })),
@@ -140,4 +153,30 @@ export async function getMission(viewer: Viewer, id: string): Promise<MissionDet
       maxSearches: numOr(setting("pilot")?.max_searches, 15)!,
     },
   };
+}
+
+/** 0013 · Planes de la misión con sus pasos (RLS: solo el administrador). */
+async function readPlans(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, missionId: string): Promise<PlanView[]> {
+  const { data: plans, error } = await supabase
+    .from("mission_plans")
+    .select("id, version, kind, plan, plan_hash, estimate_usd, status, expires_at, decided_at, decision_note, created_at")
+    .eq("mission_id", missionId)
+    .order("version");
+  if (error) throw new Error(`No se pudo leer el plan: ${error.message}`);
+  if (!plans?.length) return [];
+  const { data: steps, error: e2 } = await supabase
+    .from("mission_plan_steps")
+    .select("plan_id, step_key, agent_id, title, instructions, depends_on, tools, budget_usd, max_calls, max_searches, carried, task_id, position")
+    .in("plan_id", plans.map((p) => p.id))
+    .order("position");
+  if (e2) throw new Error(`No se pudieron leer los pasos del plan: ${e2.message}`);
+  return plans.map((p) => ({
+    id: p.id, version: p.version, kind: p.kind, summary: (p.plan as { summary?: string } | null)?.summary ?? "",
+    hash: p.plan_hash, estimateUsd: Number(p.estimate_usd), status: p.status as PlanStatus, expiresAt: p.expires_at,
+    decidedAt: p.decided_at, decisionNote: p.decision_note, createdAt: p.created_at,
+    steps: (steps ?? []).filter((x) => x.plan_id === p.id).map((x) => ({
+      key: x.step_key, agent: x.agent_id, title: x.title, instructions: x.instructions, dependsOn: x.depends_on ?? [], tools: x.tools ?? [],
+      budgetUsd: Number(x.budget_usd), maxCalls: x.max_calls, maxSearches: x.max_searches, carried: x.carried === true, taskId: x.task_id,
+    })),
+  }));
 }

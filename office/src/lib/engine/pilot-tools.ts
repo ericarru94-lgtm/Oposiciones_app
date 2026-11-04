@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { ToolId } from "../agents/tools";
 import { ToolGateway, type ToolOutput } from "./gateway";
 import { PILOT_DEPENDENCIES } from "./config";
+import { applyPlanDependencyRules, stepProblems } from "./plan";
 import type { EngineStore } from "./store";
 
 const url = z.string().trim().url().refine((u) => /^https?:\/\//i.test(u), "La fuente debe ser una URL http(s).");
@@ -93,11 +94,30 @@ const Delegate = z.object({
   depends_on: z.array(z.string().uuid()).max(5).optional().describe("task_id de subtareas que deben terminar antes (devueltos por esta herramienta)."),
 });
 
+// 0013 · Plan de misión. En una ampliación solo se envían los pasos NUEVOS:
+// los aprobados los copia la base de datos tal cual.
+const PlanStepSchema = z.object({
+  key: z.string().trim().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/, "Clave en minúsculas, cifras, - y _ (p. ej. investigacion, estrategia).")
+    .describe("Identificador corto y único del paso (lo usan las dependencias)."),
+  agent: z.enum(["marcus", "sofia"]).describe("marcus = comercial e investigación; sofia = marketing y estrategia."),
+  title: z.string().trim().min(3).max(300),
+  instructions: z.string().trim().min(10).max(8000).describe("Qué debe entregar, con qué criterios y qué no debe hacer."),
+  depends_on: z.array(z.string().trim()).max(6).default([]).describe("Claves de los pasos que deben terminar antes."),
+  tools: z.array(z.string().trim()).max(10).describe("Herramientas que podrá usar el agente en este paso (de las suyas)."),
+  budget_usd: z.number().positive().max(1).describe("Gasto máximo del paso en dólares (hasta 4 decimales)."),
+  max_calls: z.number().int().min(1).max(30).describe("Llamadas máximas a Claude del paso."),
+  max_searches: z.number().int().min(0).max(15).describe("Búsquedas web máximas (0 si el paso no usa web.search)."),
+});
+const MissionPlanSchema = z.object({
+  summary: z.string().trim().min(10).max(4000).describe("Resumen del plan para el administrador: objetivo, reparto y por qué."),
+  steps: z.array(PlanStepSchema).min(1).max(6).describe("Pasos NUEVOS (en una ampliación, no repitas los ya aprobados)."),
+});
+
 const MemoryRead = z.object({ query: z.string().trim().max(200).optional().describe("Palabra clave para filtrar; vacío = todo.") });
 const CrmRead = z.object({ query: z.string().trim().max(200).optional() });
 
 /** Esquemas de entrada (los usan las pruebas para fijar el comportamiento de validación). */
-export const PILOT_INPUTS = { MemoryRead, CrmRead, CrmWrite, Draft, Delegate } as const;
+export const PILOT_INPUTS = { MemoryRead, CrmRead, CrmWrite, Draft, Delegate, MissionPlan: MissionPlanSchema } as const;
 
 export const PILOT_SCHEMAS: Partial<Record<ToolId, Record<string, unknown>>> = {
   "memory.read": z.toJSONSchema(MemoryRead),
@@ -105,6 +125,7 @@ export const PILOT_SCHEMAS: Partial<Record<ToolId, Record<string, unknown>>> = {
   "crm.write": z.toJSONSchema(CrmWrite),
   "content.draft": z.toJSONSchema(Draft),
   "tasks.delegate": z.toJSONSchema(Delegate),
+  "mission.plan": z.toJSONSchema(MissionPlanSchema),
 };
 
 function invalid(error: z.ZodError): ToolOutput {
@@ -283,6 +304,26 @@ export function pilotGateway(c: PilotContext): ToolGateway {
       };
     } catch (error) {
       return { content: `No se ha podido delegar: ${(error as Error).message}`, isError: true };
+    }
+  });
+
+  // 0013 · Propuesta de plan: nada se ejecuta hasta que lo apruebe el administrador.
+  gateway.register("mission.plan", async (raw) => {
+    const a = MissionPlanSchema.safeParse(raw);
+    if (!a.success) return invalid(a.error);
+    const ordered = applyPlanDependencyRules(a.data.steps.map((x) => ({ ...x, budget_usd: Math.round(x.budget_usd * 10_000) / 10_000 })));
+    const problems = ordered.steps.flatMap(stepProblems);
+    if (problems.length) return { content: `Plan no válido, no se ha propuesto nada. ${problems.join(" ")}`, isError: true };
+    await busy("Proponer plan");
+    try {
+      const r = await store.submitPlan(c.runId, c.worker, a.data.summary, ordered.steps);
+      const applied = ordered.notes.length ? ` Orden aplicado por el sistema: ${ordered.notes.join("; ")}.` : "";
+      return {
+        content: `${r.duplicate ? "Plan ya propuesto" : "Plan propuesto"}: versión ${r.version} (${r.kind === "amendment" ? "ampliación" : "plan inicial"}), presupuesto de los pasos ${r.estimate_usd} $.${applied} NADA se ejecuta hasta que el administrador lo apruebe. Explica el plan en texto y termina tu turno sin más herramientas.`,
+        providerRef: r.plan_id,
+      };
+    } catch (error) {
+      return { content: `No se ha podido proponer el plan: ${(error as Error).message}`, isError: true };
     }
   });
 

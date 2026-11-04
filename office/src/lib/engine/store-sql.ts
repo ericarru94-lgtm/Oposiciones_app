@@ -5,7 +5,7 @@
 import type { AgentStatus } from "../domain/status";
 import type { DeliveryRecord, DeliveryRow } from "./coordination";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow, type MissionPlan, type PlanStep, type PlanStepInput, type PlanSubmission } from "./store";
 
 export type Query = <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>;
 
@@ -29,7 +29,13 @@ export class SqlEngineStore implements EngineStore {
   }
   async getTask(id: string): Promise<TaskRow> {
     const [r] = await this.q<TaskRow>(
-      `select id, title, description, agent_id, status::text as status, parent_task_id, client_id, input, result from public.tasks where id = $1`, [id]);
+      // to_jsonb: funciona con y sin las columnas de 0013 (compatibilidad y marcha atrás).
+      `select id, title, description, agent_id, status::text as status, parent_task_id, client_id, input, result,
+              coalesce((to_jsonb(t) ->> 'plan_required')::boolean, false) as plan_required,
+              (to_jsonb(t) ->> 'plan_id')::uuid as plan_id, to_jsonb(t) ->> 'plan_step_key' as plan_step_key,
+              (to_jsonb(t) ->> 'budget_usd')::float8 as budget_usd, (to_jsonb(t) ->> 'max_calls')::int as max_calls,
+              (to_jsonb(t) ->> 'max_searches')::int as max_searches
+         from public.tasks t where id = $1`, [id]);
     return r;
   }
   children(id: string) {
@@ -206,6 +212,28 @@ export class SqlEngineStore implements EngineStore {
     const [r] = await this.q<{ r: { task_id: string; duplicate: boolean } }>(
       `select public.delegate_task($1, $2, $3, $4, $5, $6, $7::uuid[]) as r`, [runId, worker, toolUseId, agent, title, description, dependsOn]);
     return r.r;
+  }
+  async submitPlan(runId: string, worker: string, summary: string, steps: PlanStepInput[]) {
+    const [r] = await this.q<{ r: PlanSubmission }>(
+      `select public.submit_mission_plan($1, $2, $3, $4::jsonb) as r`, [runId, worker, summary, JSON.stringify(steps)]);
+    return { ...r.r, estimate_usd: Number(r.r.estimate_usd) };
+  }
+  async awaitPlanApproval(runId: string, worker: string, summary: string) {
+    await this.q(`select public.await_plan_approval($1, $2, $3)`, [runId, worker, summary]);
+  }
+  async missionPlans(missionId: string): Promise<MissionPlan[]> {
+    const plans = await this.q<Omit<MissionPlan, "steps" | "summary"> & { plan: { summary?: string } }>(
+      `select id, mission_id, version, kind, plan, plan_hash, estimate_usd::float8 as estimate_usd, status, proposed_run_id,
+              expires_at::text as expires_at, decided_at::text as decided_at, decision_note, created_at::text as created_at
+         from public.mission_plans where mission_id = $1 order by version`, [missionId]);
+    if (plans.length === 0) return [];
+    const steps = await this.q<PlanStep & { plan_id: string }>(
+      `select plan_id, step_key as key, agent_id as agent, title, instructions, depends_on, tools, budget_usd::float8 as budget_usd,
+              max_calls, max_searches, carried, task_id
+         from public.mission_plan_steps where plan_id = any($1::uuid[]) order by position`, [plans.map((p) => p.id)]);
+    return plans.map(({ plan, ...p }) => ({
+      ...p, summary: plan?.summary ?? "", steps: steps.filter((x) => x.plan_id === p.id).map(({ plan_id: _, ...x }) => x),
+    }));
   }
   enginePort(runId: string, worker: string): EnginePort {
     const q = this.q;

@@ -44,8 +44,8 @@ function lastResults(r: ModelRequest): string {
 
 async function mission(input: Record<string, unknown> = {}) {
   const [m] = await raw<{ id: string }>(
-    `insert into public.tasks (title, description, agent_id, status, input, created_by, timeout_seconds)
-     values ('Estudio gimnasios', 'Estudio comercial en borrador, sin contactar a nadie', 'alex', 'assigned', $1, 'admin', 86400) returning id`,
+    `insert into public.tasks (title, description, agent_id, status, input, created_by, timeout_seconds, plan_required)
+     values ('Estudio gimnasios', 'Estudio comercial en borrador, sin contactar a nadie', 'alex', 'assigned', $1, 'admin', 86400, false) returning id`,
     [JSON.stringify({ kind: "mission", round: 1, phase: "planning", ...input })],
   );
   return m.id;

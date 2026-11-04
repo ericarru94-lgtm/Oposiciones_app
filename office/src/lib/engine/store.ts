@@ -22,9 +22,65 @@ export interface TaskRow {
   status: string;
   parent_task_id: string | null;
   client_id: string | null;
-  input: { kind?: "mission" | "subtask"; phase?: "planning" | "synthesis"; round?: number } & Record<string, unknown>;
+  input: { kind?: "mission" | "subtask"; phase?: "planning" | "synthesis" | "plan_review"; round?: number } & Record<string, unknown>;
   result: string | null;
+  /** 0013 · Misión que necesita un plan aprobado (las antiguas: false o ausente). */
+  plan_required?: boolean;
+  /** 0013 · Paso del plan que originó la subtarea y sus límites. */
+  plan_id?: string | null;
+  plan_step_key?: string | null;
+  budget_usd?: number | null;
+  max_calls?: number | null;
+  max_searches?: number | null;
 }
+
+/** 0013 · Paso de un plan de misión. */
+export interface PlanStep {
+  key: string;
+  agent: string;
+  title: string;
+  instructions: string;
+  depends_on: string[];
+  tools: string[];
+  budget_usd: number;
+  max_calls: number;
+  max_searches: number;
+  /** Paso aprobado en una versión anterior (ampliación). */
+  carried: boolean;
+  task_id: string | null;
+}
+
+export type PlanStatus = "pending" | "approved" | "rejected" | "changes_requested" | "superseded" | "expired";
+
+/** 0013 · Versión de un plan de misión. */
+export interface MissionPlan {
+  id: string;
+  mission_id: string;
+  version: number;
+  kind: "initial" | "amendment";
+  summary: string;
+  plan_hash: string;
+  estimate_usd: number;
+  status: PlanStatus;
+  proposed_run_id: string | null;
+  expires_at: string;
+  decided_at: string | null;
+  decision_note: string | null;
+  created_at: string;
+  steps: PlanStep[];
+}
+
+export interface PlanSubmission {
+  plan_id: string;
+  version: number;
+  plan_hash: string;
+  estimate_usd: number;
+  kind: "initial" | "amendment";
+  duplicate: boolean;
+}
+
+/** Paso tal como lo envía Alex (los aprobados no se reenvían). */
+export type PlanStepInput = Omit<PlanStep, "carried" | "task_id">;
 
 export interface RelatedTask {
   id: string;
@@ -127,7 +183,7 @@ export interface BudgetSnapshot {
 
 export type Reservation =
   | { ok: true; reservation_id: string; searches: number }
-  | { ok: false; reason: "uncertain" | "monthly_budget" | "mission_budget" | "task_budget" };
+  | { ok: false; reason: "uncertain" | "monthly_budget" | "mission_budget" | "task_budget" | "step_budget" | "max_calls" };
 
 export interface CallRecord {
   continue: boolean;
@@ -186,6 +242,12 @@ export interface EngineStore {
   failRun(runId: string, worker: string, error: string, retryable: boolean): Promise<string>;
   awaitSubtasks(runId: string, worker: string, summary: string): Promise<void>;
   delegate(runId: string, worker: string, toolUseId: string, agent: string, title: string, description: string, dependsOn: string[]): Promise<{ task_id: string; duplicate: boolean }>;
+  /** 0013 · Propuesta de plan (validada por la base de datos; idempotente por ejecución). */
+  submitPlan(runId: string, worker: string, summary: string, steps: PlanStepInput[]): Promise<PlanSubmission>;
+  /** 0013 · Fin del turno de Alex con un plan pendiente: la misión espera al administrador. */
+  awaitPlanApproval(runId: string, worker: string, summary: string): Promise<void>;
+  /** 0013 · Versiones del plan de una misión, de la más antigua a la más reciente. */
+  missionPlans(missionId: string): Promise<MissionPlan[]>;
 
   /** Puerto de aprobaciones/ejecuciones para la ToolGateway de una ejecución concreta. */
   enginePort(runId: string, worker: string): EnginePort;

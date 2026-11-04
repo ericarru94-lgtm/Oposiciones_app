@@ -28,8 +28,8 @@ beforeEach(async () => {
 const MISSION = "Preparar un estudio comercial para captar gimnasios en Barcelona. Todo en borrador; no contactar con nadie.";
 async function mission() {
   const [m] = await raw<{ id: string }>(
-    `insert into public.tasks (title, description, agent_id, status, input, created_by)
-     values ('Estudio gimnasios Barcelona', $1, 'alex', 'assigned', '{"kind": "mission", "round": 1, "phase": "planning"}', 'admin') returning id`,
+    `insert into public.tasks (title, description, agent_id, status, input, created_by, plan_required)
+     values ('Estudio gimnasios Barcelona', $1, 'alex', 'assigned', '{"kind": "mission", "round": 1, "phase": "planning"}', 'admin', false) returning id`,
     [MISSION],
   );
   return m.id;

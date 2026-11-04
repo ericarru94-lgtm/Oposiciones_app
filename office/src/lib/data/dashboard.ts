@@ -12,6 +12,8 @@ export interface DashboardData {
   running: number;
   failed30d: number;
   approvals: { id: string; taskId: string | null; agentId: string; summary: string; risk: string; createdAt: string }[];
+  /** 0013 · Planes de misión que esperan tu decisión (vacío si 0013 no está aplicada). */
+  plans: { id: string; missionId: string; version: number; kind: string; estimateUsd: number; createdAt: string; expiresAt: string }[];
   events: { id: number; taskId: string; agentId: string | null; type: string; message: string | null; createdAt: string }[];
   companies: number;
   documents: number;
@@ -32,6 +34,9 @@ export async function getDashboard(viewer: Viewer): Promise<DashboardData | null
   for (const r of [missions, approvals, events, companies, documents]) {
     if (r.error) throw new Error(`No se pudo leer el centro de mando: ${r.error.message}`);
   }
+  // Lectura tolerante: antes de 0013 la tabla no existe y la lista queda vacía.
+  const plans = await supabase.from("mission_plans").select("id, mission_id, version, kind, estimate_usd, created_at, expires_at")
+    .eq("status", "pending").order("created_at");
   const rows = missions.data ?? [];
   const ids = rows.map((m) => m.id);
   const costs = ids.length
@@ -54,6 +59,9 @@ export async function getDashboard(viewer: Viewer): Promise<DashboardData | null
     running: rows.filter((m) => ["pending", "assigned", "in_progress", "in_review", "needs_approval"].includes(m.status)).length,
     failed30d: rows.filter((m) => m.status === "failed" && m.created_at >= since).length,
     approvals: (approvals.data ?? []).map((a) => ({ id: a.id, taskId: a.task_id, agentId: a.agent_id, summary: a.summary, risk: a.risk, createdAt: a.created_at })),
+    plans: plans.error ? [] : (plans.data ?? []).map((p) => ({
+      id: p.id, missionId: p.mission_id, version: p.version, kind: p.kind, estimateUsd: Number(p.estimate_usd), createdAt: p.created_at, expiresAt: p.expires_at,
+    })),
     events: (events.data ?? []).map((e) => ({ id: e.id, taskId: e.task_id, agentId: e.agent_id, type: e.type, message: e.message, createdAt: e.created_at })),
     companies: companies.count ?? 0,
     documents: documents.count ?? 0,
