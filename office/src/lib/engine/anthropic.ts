@@ -72,6 +72,7 @@ export class AnthropicModelClient implements ModelClient {
         cacheReadTokens: msg.usage.cache_read_input_tokens ?? 0,
         cacheWriteTokens: msg.usage.cache_creation_input_tokens ?? 0,
         webSearchRequests: msg.usage.server_tool_use?.web_search_requests ?? 0,
+        webFetchRequests: msg.usage.server_tool_use?.web_fetch_requests ?? 0,
       },
     };
   }

@@ -9,6 +9,8 @@ export interface Usage {
   cacheWriteTokens: number;
   /** Búsquedas web (`usage.server_tool_use.web_search_requests`). */
   webSearchRequests: number;
+  /** PI-16 · Lecturas web (`usage.server_tool_use.web_fetch_requests`); sin coste propio. */
+  webFetchRequests?: number;
 }
 
 export const CACHE_WRITE_MULTIPLIER = 1.25; // TTL de 5 minutos
@@ -47,6 +49,7 @@ export function addUsage(a: Usage, b: Usage): Usage {
     cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
     cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
     webSearchRequests: a.webSearchRequests + b.webSearchRequests,
+    webFetchRequests: (a.webFetchRequests ?? 0) + (b.webFetchRequests ?? 0),
   };
 }
 

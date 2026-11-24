@@ -10,6 +10,7 @@ import { ToolGateway, type ToolOutput } from "./gateway";
 import { PILOT_DEPENDENCIES } from "./config";
 import { applyPlanDependencyRules, stepProblems } from "./plan";
 import type { EngineStore } from "./store";
+import { displaySources, displayText, displayUrl, sanitizeText, sanitizeUrl } from "./url-sanitizer";
 
 const url = z.string().trim().url().refine((u) => /^https?:\/\//i.test(u), "La fuente debe ser una URL http(s).");
 
@@ -128,6 +129,52 @@ export const PILOT_SCHEMAS: Partial<Record<ToolId, Record<string, unknown>>> = {
   "mission.plan": z.toJSONSchema(MissionPlanSchema),
 };
 
+type CrmWriteInput = z.infer<typeof CrmWrite>;
+
+/**
+ * PI-16 · Saneador de las URLs que Marcus guarda en el CRM. Rechaza (no se
+ * guarda nada), normaliza (sin parámetros ni fragmentos) o marca para revisión.
+ * Solo afecta a escrituras nuevas: el histórico no se toca.
+ */
+export function sanitizeCrmWrite(d: CrmWriteInput): { ok: true; data: CrmWriteInput; flags: string[] } | { ok: false; reason: string } {
+  const flags = new Set<string>();
+  const out: CrmWriteInput = { ...d };
+  if (d.website) {
+    const v = sanitizeUrl(d.website, "website");
+    if (!v.ok) return { ok: false, reason: `website: ${v.reason}.` };
+    out.website = v.url;
+    v.flags.forEach((f) => flags.add(`website:${f}`));
+  }
+  const sources: string[] = [];
+  for (const s of d.sources) {
+    const v = sanitizeUrl(s, "source");
+    if (!v.ok) return { ok: false, reason: `sources: ${v.reason}.` };
+    if (!sources.includes(v.url)) sources.push(v.url);
+    v.flags.forEach((f) => flags.add(`sources:${f}`));
+  }
+  out.sources = sources;
+  if (d.facts) {
+    const facts = [];
+    for (const f of d.facts) {
+      if (!f.source_url) { facts.push(f); continue; }
+      const v = sanitizeUrl(f.source_url, "source");
+      if (!v.ok) return { ok: false, reason: `facts.${f.key}.source_url: ${v.reason}.` };
+      v.flags.forEach((x) => flags.add(`facts:${x}`));
+      facts.push({ ...f, source_url: v.url });
+    }
+    out.facts = facts;
+  }
+  for (const k of ["notes", "need_detected", "recommended_service", "name"] as const) {
+    const text = d[k];
+    if (!text) continue;
+    const v = sanitizeText(text);
+    if (!v.ok) return { ok: false, reason: `${k}: ${v.reason}.` };
+    out[k] = v.text;
+    v.flags.forEach((f) => flags.add(`${k}:${f}`));
+  }
+  return { ok: true, data: out, flags: [...flags] };
+}
+
 function invalid(error: z.ZodError): ToolOutput {
   const issues = error.issues.map((i) => `${i.path.join(".") || "entrada"}: ${i.message}`).join("; ");
   return { content: `Datos no válidos, no se ha guardado nada. ${issues}`, isError: true };
@@ -172,7 +219,8 @@ export function pilotGateway(c: PilotContext): ToolGateway {
     if (rows.length === 0) return { content: "El CRM no tiene empresas que coincidan." };
     return {
       content: rows
-        .map((r) => `- ${r.name} (${r.city ?? "sin ciudad"}) · etapa ${r.stage}${r.is_demo ? " · DEMO" : ""} · web ${r.website ?? "—"} · IG ${r.instagram ?? "—"}\n  Necesidad: ${r.need_detected ?? "—"}\n  Fuente: ${r.source}`)
+        // PI-16 · URLs recortadas al mostrarlas (el histórico no se modifica).
+        .map((r) => `- ${r.name} (${r.city ?? "sin ciudad"}) · etapa ${r.stage}${r.is_demo ? " · DEMO" : ""} · web ${displayUrl(r.website, "website")} · IG ${r.instagram && /^https?:/i.test(r.instagram) ? displayUrl(r.instagram) : (r.instagram ?? "—")}\n  Necesidad: ${displayText(r.need_detected) || "—"}\n  Fuente: ${displaySources(r.source)}`)
         .join("\n"),
     };
   });
@@ -199,11 +247,15 @@ export function pilotGateway(c: PilotContext): ToolGateway {
   gateway.register("crm.write", async (raw, ctx) => {
     const a = CrmWrite.safeParse(raw);
     if (!a.success) return invalid(a.error);
-    const d = a.data;
     // Solo fichas de empresa: nada de contactos personales.
-    if ([d.name, d.phone, d.notes, d.need_detected].some((v) => v && EMAIL.test(v))) {
+    if ([a.data.name, a.data.phone, a.data.notes, a.data.need_detected].some((v) => v && EMAIL.test(v))) {
       return { content: "No guardes direcciones de email ni contactos personales en el CRM durante el piloto.", isError: true };
     }
+    // PI-16 · URLs saneadas antes de guardar nada.
+    const clean = sanitizeCrmWrite(a.data);
+    if (!clean.ok) return { content: `URL no válida, no se ha guardado nada. ${clean.reason}`, isError: true };
+    const d = clean.data;
+    const review = clean.flags.length ? ` Marcado para revisión: ${clean.flags.join(", ")}.` : "";
     await busy("Actualizar CRM");
     const missionId = c.missionId ?? c.taskId;
     const scope = await store.missionCompanies(missionId, c.reuseIds ?? []);
@@ -218,14 +270,14 @@ export function pilotGateway(c: PilotContext): ToolGateway {
         recommended_service: d.recommended_service, notes: d.notes, addSources: d.sources,
       });
       const facts = await recordFacts(target.id, d.facts);
-      return { content: `Ficha «${target.name}» completada (id ${target.id}); fuentes añadidas a las anteriores.${facts}`, providerRef: target.id };
+      return { content: `Ficha «${target.name}» completada (id ${target.id}); fuentes añadidas a las anteriores.${facts}${review}`, providerRef: target.id };
     }
 
     const existing = await store.findCompany(d.name!, d.city!);
     if (existing) {
       const inScope = scope.some((x) => x.id === existing.id);
       return {
-        content: `«${existing.name}» ya está en el CRM (id ${existing.id}); no se ha duplicado.${inScope ? " Para añadir datos, usa company_id." : ""} Fuente original: ${existing.source}`,
+        content: `«${existing.name}» ya está en el CRM (id ${existing.id}); no se ha duplicado.${inScope ? " Para añadir datos, usa company_id." : ""} Fuente original: ${displaySources(existing.source)}`,
       };
     }
     // Tope de empresas de la misión, contando las fichas reutilizadas.
@@ -247,7 +299,7 @@ export function pilotGateway(c: PilotContext): ToolGateway {
       created_in_task: c.taskId,
     });
     const facts = await recordFacts(id, d.facts);
-    return { content: `Ficha creada en el CRM (id ${id}, etapa «investigada»).${facts}`, providerRef: id };
+    return { content: `Ficha creada en el CRM (id ${id}, etapa «investigada»).${facts}${review}`, providerRef: id };
   });
 
   gateway.register("content.draft", async (raw, ctx) => {

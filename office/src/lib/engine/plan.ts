@@ -105,6 +105,8 @@ export function stepProblems(step: PlanStepInput): string[] {
   const extra = step.tools.filter((t) => !allowed.includes(t as ToolId));
   if (extra.length) out.push(`«${step.key}»: ${step.agent} no tiene ${extra.join(", ")} (puede usar ${allowed.join(", ")}).`);
   const web = step.tools.includes("web.search");
+  // PI-16 · La lectura solo puede usar URLs de resultados de búsqueda.
+  if (step.tools.includes("web.fetch") && !web) out.push(`«${step.key}»: web.fetch necesita también web.search (solo se leen URLs de resultados de búsqueda).`);
   if (web && step.max_searches < 1) out.push(`«${step.key}»: con búsqueda web necesita al menos 1 búsqueda.`);
   if (!web && step.max_searches !== 0) out.push(`«${step.key}»: sin búsqueda web, sus búsquedas máximas deben ser 0.`);
   const min = minStepBudgetUsd(step.agent, step.tools);

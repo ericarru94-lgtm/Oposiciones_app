@@ -1,10 +1,11 @@
 import "server-only";
+import type { WebToolEvent } from "./web-audit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentStatus } from "../domain/status";
 import { createSupabaseServiceClient } from "../supabase/server";
 import type { DeliveryRecord, DeliveryRow } from "./coordination";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow, type MissionPlan, type PlanStepInput, type PlanSubmission } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow, type MissionPlan, type PlanStepInput, type PlanSubmission, type WebSchemaStatus, parseSchemaStatus } from "./store";
 
 // EngineStore de producción: mismas operaciones que SqlEngineStore, a través
 // de la API de Supabase con la clave secreta (solo servidor).
@@ -156,9 +157,10 @@ export class SupabaseEngineStore implements EngineStore {
   async activity(runId: string, worker: string, status: AgentStatus, event: string, detail?: string) {
     await this.rpc("set_run_activity", { p_run_id: runId, p_worker: worker, p_status: status, p_event: event, p_detail: detail ?? null });
   }
-  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number) {
+  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number, fetches = 0) {
     return this.rpc<Reservation>("reserve_budget", {
       p_run_id: runId, p_worker: worker, p_model: model, p_estimate_usd: estimateUsd, p_searches: searches, p_lease_seconds: leaseSeconds,
+      ...(fetches > 0 ? { p_fetches: fetches } : {}),
     });
   }
   async recordCall(i: Parameters<EngineStore["recordCall"]>[0]) {
@@ -167,7 +169,27 @@ export class SupabaseEngineStore implements EngineStore {
       p_input_tokens: i.inputTokens, p_output_tokens: i.outputTokens, p_cache_read_tokens: i.cacheReadTokens,
       p_cache_write_tokens: i.cacheWriteTokens, p_server_tool_requests: i.serverToolRequests,
       p_claude_cost_usd: i.claudeUsd, p_search_cost_usd: i.searchUsd, p_agent_status: i.agentStatus,
+      ...((i.webFetchAttempts ?? 0) > 0 || (i.webToolErrors ?? 0) > 0
+        ? { p_web_fetch_attempts: i.webFetchAttempts ?? 0, p_web_tool_errors: i.webToolErrors ?? 0 } : {}),
     });
+  }
+  async recordWebEvents(runId: string, worker: string, events: readonly WebToolEvent[]) {
+    if (events.length === 0) return;
+    await this.rpc("record_web_events", { p_run_id: runId, p_worker: worker, p_events: events });
+  }
+  async stopMissionSecurity(runId: string, reason: string) {
+    await this.rpc("stop_mission_security", { p_run_id: runId, p_reason: reason });
+  }
+  async webSchemaStatus(): Promise<WebSchemaStatus> {
+    const res = await this.db.rpc("pi16_schema_status", {});
+    if (!res.error) return parseSchemaStatus(res.data);
+    // PGRST202 = la función no existe (base sin 0014). Cualquier otro error: no se
+    // puede leer el esquema → el motor se detiene (fallo cerrado).
+    if (res.error.code !== "PGRST202") throw new Error(`No se pudo comprobar el esquema (${res.error.code ?? "sin código"}).`);
+    // ¿Existe al menos 0013? Evidencia positiva: GET de cero filas con recuento exacto.
+    const probe = await this.db.from("mission_plans").select("id", { count: "exact" }).limit(0);
+    const has0013 = probe.error === null && (probe.status === 200 || probe.status === 206) && Array.isArray(probe.data) && typeof probe.count === "number";
+    return { ok: false, missing: [...(has0013 ? [] : ["0013"]), "0014"] };
   }
   async closeReservation(runId: string, reservationId: string, uncertain: boolean) {
     await this.rpc("close_reservation", { p_run_id: runId, p_reservation_id: reservationId, p_uncertain: uncertain });

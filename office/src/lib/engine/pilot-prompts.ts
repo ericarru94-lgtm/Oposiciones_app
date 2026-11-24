@@ -8,6 +8,7 @@ import type { AgentDefinition } from "../agents/registry";
 import { composeSystemPrompt } from "../agents/prompts";
 import { OUTCOME_LABEL, outcomeOf, pendingOf, type ResultData } from "./coordination";
 import type { CompanyFact, DocumentSummary, MissionCompany, MissionPlan, RelatedTask, TaskRow } from "./store";
+import { displaySources, displayText, displayUrl } from "./url-sanitizer";
 
 const PILOT_COMMON = `Modo piloto de la oficina:
 - Todo lo que produces es un BORRADOR interno. No hay herramientas para contactar, enviar, publicar, lanzar campañas ni gastar: no las pidas ni digas que lo has hecho.
@@ -47,6 +48,7 @@ Reglas de investigación (obligatorias):
 - Antes de crear fichas, consulta el CRM («crm__read») para no duplicar.
 - Si te llegan fichas existentes de la misión: NO investigues de nuevo lo que ya está VERIFICADO con fuente. Completa solo lo PENDIENTE con «crm__write» indicando su company_id y una versión completa y actualizada de notes (VERIFICADO / ESTIMADO / PENDIENTE). No crees fichas nuevas de empresas que ya existen.
 - Límites de la misión: como máximo 5 empresas EN TOTAL, contando las fichas reutilizadas (el sistema rechaza el exceso), y unas 15 búsquedas web. Prioriza calidad.
+- Busca antes de leer: solo puedes leer URLs que hayan salido en tus resultados de búsqueda de esta tarea. Revisar una empresa ya registrada cuesta una búsqueda: reparte las 15 búsquedas y 10 lecturas de la misión.
 - El límite de 1 búsqueda web y 1 lectura es POR LLAMADA, no por tarea: cuando lo uses, continúa en tu siguiente turno. Antes de cada turno repasa los OBJETIVOS PENDIENTES y lo que ya has hecho; no repitas búsquedas ni lecturas que ya funcionaron. Termina solo cuando hayas completado los objetivos o no puedas avanzar más (si no queda presupuesto, el sistema te detendrá y conservará tu trabajo).
 - Registra cada dato relevante en «facts» de «crm__write» (clave, valor, URL exacta, tipo de fuente, estado y la fecha que muestre la fuente si la muestra). La fecha de consulta y la confianza las pone el sistema: no las inventes. Si un dato contradice a otro, regístralo igualmente: quedan ambos.
 - Guarda una ficha comercial por empresa con «content__draft» (kind client_file) o un único informe con todas, y termina con un resumen de lo encontrado.
@@ -134,15 +136,16 @@ export function companiesSection(companies: MissionCompany[], reuseIds: string[]
     const origin = reuseIds.includes(x.id) ? "reutilizada de una misión anterior" : `creada en esta misión por ${x.created_by}`;
     const own = facts.filter((f) => f.company_id === x.id);
     const factLines = own.map((f) =>
-      `- ${f.in_contradiction ? "⚠ " : ""}${f.fact_key}: ${f.fact_value} · ${f.verification_status} · confianza ${f.confidence_score} (${SOURCE_LABEL[f.source_type] ?? f.source_type}) · consultado ${f.observed_at.slice(0, 10)}${f.source_date ? ` · fuente del ${f.source_date}` : ""}${f.source_url ? ` · ${f.source_url}` : ""}${f.in_contradiction ? " · CONTRADICCIÓN con otro valor registrado" : ""}`);
+      `- ${f.in_contradiction ? "⚠ " : ""}${f.fact_key}: ${displayText(f.fact_value)} · ${f.verification_status} · confianza ${f.confidence_score} (${SOURCE_LABEL[f.source_type] ?? f.source_type}) · consultado ${f.observed_at.slice(0, 10)}${f.source_date ? ` · fuente del ${f.source_date}` : ""}${f.source_url ? ` · ${displayUrl(f.source_url)}` : ""}${f.in_contradiction ? " · CONTRADICCIÓN con otro valor registrado" : ""}`);
     return [
       `### ${x.name} · ${x.city ?? "sin ciudad"} (id ${x.id}) · ${origin}`,
-      `Web: ${x.website ?? "—"} · Instagram: ${x.instagram ?? "—"} · Teléfono: ${x.phone ?? "—"}`,
-      `Necesidad detectada: ${x.need_detected ?? "—"}`,
-      x.recommended_service ? `Servicio recomendado: ${x.recommended_service}` : "",
-      x.notes ? `Notas (verificado / estimado / pendiente): ${x.notes}` : "",
+      // PI-16 · URLs recortadas al mostrarlas (el histórico no se modifica).
+      `Web: ${displayUrl(x.website, "website")} · Instagram: ${x.instagram && /^https?:/i.test(x.instagram) ? displayUrl(x.instagram) : (x.instagram ?? "—")} · Teléfono: ${x.phone ?? "—"}`,
+      `Necesidad detectada: ${displayText(x.need_detected) || "—"}`,
+      x.recommended_service ? `Servicio recomendado: ${displayText(x.recommended_service)}` : "",
+      x.notes ? `Notas (verificado / estimado / pendiente): ${displayText(x.notes)}` : "",
       factLines.length ? `Datos con procedencia (${factLines.length}):\n${factLines.join("\n")}` : "",
-      `Fuentes: ${x.source}`,
+      `Fuentes: ${displaySources(x.source)}`,
     ].filter(Boolean).join("\n");
   });
   return `FICHAS DEL CRM DE LA MISIÓN (${companies.length}):\n\n${items.join("\n\n")}`;

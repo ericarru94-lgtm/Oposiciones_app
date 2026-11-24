@@ -206,8 +206,8 @@ describe("D (revisada) · lista de herramientas constante en cada ejecución", (
   });
 
   it("orden fijo de las herramientas web y reserva de 3 pasadas", () => {
-    expect(serverToolsFor(["web.fetch", "web.search"]).map((t) => t.name)).toEqual(["web_search", "web_fetch"]);
-    expect(serverToolsFor([])).toEqual([]);
+    expect(serverToolsFor(["web.fetch", "web.search"], "marcus").map((t) => t.name)).toEqual(["web_search", "web_fetch"]);
+    expect(serverToolsFor([], "marcus")).toEqual([]);
     const r = reserveUsd("claude-sonnet-5-5", 30_000, { maxOutputTokens: 8_000, searches: 1, fetches: 1, fetchTokens: 8_000, searchResultTokens: 15_000 });
     expect(r).toBeCloseTo((3 * 53_000 * 2 * 1.25 + 8_000 * 10) / 1e6 + 0.01, 6);
   });

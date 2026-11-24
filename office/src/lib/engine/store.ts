@@ -5,6 +5,7 @@
 
 import type { AgentStatus } from "../domain/status";
 import type { BeginOutcome, EnginePort } from "./gateway";
+import type { WebToolEvent } from "./web-audit";
 
 export interface ClaimedRun {
   taskId: string;
@@ -182,12 +183,25 @@ export interface BudgetSnapshot {
 }
 
 export type Reservation =
-  | { ok: true; reservation_id: string; searches: number }
-  | { ok: false; reason: "uncertain" | "monthly_budget" | "mission_budget" | "task_budget" | "step_budget" | "max_calls" };
+  | { ok: true; reservation_id: string; searches: number; fetches?: number }
+  | { ok: false; reason: "uncertain" | "monthly_budget" | "mission_budget" | "task_budget" | "step_budget" | "max_calls" | "mission_calls" | "web_errors" };
+
+export interface WebSchemaStatus {
+  ok: boolean;
+  /** Piezas que faltan, p. ej. «0014:web_tool_events» o «0013:mission_plans». */
+  missing: string[];
+}
+
+/** Solo «ok» si la respuesta lo demuestra; cualquier otra forma = no listo. */
+export function parseSchemaStatus(x: unknown): WebSchemaStatus {
+  const o = (x && typeof x === "object" ? x : {}) as { ok?: unknown; missing?: unknown };
+  const missing = Array.isArray(o.missing) ? o.missing.filter((m): m is string => typeof m === "string") : ["respuesta no válida"];
+  return { ok: o.ok === true && missing.length === 0, missing: o.ok === true && missing.length === 0 ? [] : missing.length ? missing : ["respuesta no válida"] };
+}
 
 export interface CallRecord {
   continue: boolean;
-  reason?: "lease_lost" | "cost_overrun";
+  reason?: "lease_lost" | "cost_overrun" | "web_errors" | "web_overuse";
   budget_warning?: boolean;
 }
 
@@ -218,13 +232,24 @@ export interface EngineStore {
 
   activity(runId: string, worker: string, status: AgentStatus, event: "thinking" | "tool_executing" | "researching", detail?: string): Promise<void>;
   /** Reserva atómica antes de llamar a Claude; renueva el lease. */
-  reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number): Promise<Reservation>;
+  reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number, fetches?: number): Promise<Reservation>;
   /** Coste real de la llamada (siempre se guarda) y estado (si se conserva el lease). */
   recordCall(input: {
     runId: string; worker: string; reservationId: string; state: unknown; model: string; inputTokens: number;
     outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; serverToolRequests: number;
     claudeUsd: number; searchUsd: number; agentStatus: AgentStatus;
+    /** PI-16 · Intentos de lectura web (también fallidos) y errores de herramientas web de la llamada. */
+    webFetchAttempts?: number; webToolErrors?: number;
   }): Promise<CallRecord>;
+  /** PI-16 · Eventos de auditoría web de una llamada (sin URLs, consultas ni valores). */
+  recordWebEvents(runId: string, worker: string, events: readonly WebToolEvent[]): Promise<void>;
+  /** PI-16 · Parada inmediata de la misión por anomalía web. */
+  stopMissionSecurity(runId: string, reason: string): Promise<void>;
+  /**
+   * PI-16 · ¿Tiene la base de datos 0013 y 0014 completas? Solo «ok» con evidencia
+   * positiva. Lanza un error si no se puede leer el esquema (el motor se detiene).
+   */
+  webSchemaStatus(): Promise<WebSchemaStatus>;
   closeReservation(runId: string, reservationId: string, uncertain: boolean): Promise<void>;
   saveRunState(runId: string, worker: string, state: unknown, release: boolean): Promise<void>;
   deferRun(runId: string, worker: string, state: unknown, seconds: number, reason: string): Promise<void>;

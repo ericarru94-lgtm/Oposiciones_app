@@ -56,7 +56,8 @@ describe("cliente real de Claude (sin red)", () => {
     const { client, calls } = fakeClient(() => message());
     const r = await new AnthropicModelClient(client).create({ ...base, model: "claude-sonnet-5-5" });
     expect(r.content[0]).toEqual({ type: "thinking", thinking: "", signature: "abc" });
-    expect(r.usage).toEqual({ inputTokens: 100, outputTokens: 20, cacheReadTokens: 500, cacheWriteTokens: 50, webSearchRequests: 2 });
+    // PI-16 · También se mapean las lecturas web (0 si la API no las informa).
+    expect(r.usage).toEqual({ inputTokens: 100, outputTokens: 20, cacheReadTokens: 500, cacheWriteTokens: 50, webSearchRequests: 2, webFetchRequests: 0 });
     expect(r.model).toBe("claude-sonnet-5-5");
     expect(calls[0].body.fallbacks).toBeUndefined();
     expect(calls[0].body.model).toBe("claude-sonnet-5-5");

@@ -2,10 +2,11 @@
 // contra PostgreSQL con las migraciones reales; las consultas son las mismas
 // que hace la implementación de Supabase.
 
+import type { WebToolEvent } from "./web-audit";
 import type { AgentStatus } from "../domain/status";
 import type { DeliveryRecord, DeliveryRow } from "./coordination";
 import type { EnginePort } from "./gateway";
-import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow, type MissionPlan, type PlanStep, type PlanStepInput, type PlanSubmission } from "./store";
+import { parseBegin, type ClaimedRun, type CompanyRow, type DocumentSummary, type EngineStore, type RelatedTask, type BudgetSnapshot, type CallRecord, type CompanyFact, type FactInput, type CompanyPatch, type MissionCompany, type Reservation, type TaskRow, type MissionPlan, type PlanStep, type PlanStepInput, type PlanSubmission, type WebSchemaStatus, parseSchemaStatus } from "./store";
 
 export type Query = <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>;
 
@@ -135,16 +136,41 @@ export class SqlEngineStore implements EngineStore {
   async activity(runId: string, worker: string, status: AgentStatus, event: string, detail?: string) {
     await this.q(`select public.set_run_activity($1, $2, $3::agent_status, $4, $5)`, [runId, worker, status, event, detail ?? null]);
   }
-  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number): Promise<Reservation> {
-    const [r] = await this.q<{ r: Reservation }>(`select public.reserve_budget($1, $2, $3, $4, $5, $6) as r`, [runId, worker, model, estimateUsd, searches, leaseSeconds]);
+  async reserve(runId: string, worker: string, model: string, estimateUsd: number, searches: number, leaseSeconds: number, fetches = 0): Promise<Reservation> {
+    // Sin lecturas no se pasa p_fetches: los agentes sin web funcionan también sobre una base sin 0014.
+    const [r] = fetches > 0
+      ? await this.q<{ r: Reservation }>(`select public.reserve_budget($1, $2, $3, $4, $5, $6, $7) as r`, [runId, worker, model, estimateUsd, searches, leaseSeconds, fetches])
+      : await this.q<{ r: Reservation }>(`select public.reserve_budget($1, $2, $3, $4, $5, $6) as r`, [runId, worker, model, estimateUsd, searches, leaseSeconds]);
     return r.r;
   }
   async recordCall(i: Parameters<EngineStore["recordCall"]>[0]): Promise<CallRecord> {
-    const [r] = await this.q<{ r: CallRecord }>(
-      `select public.record_call($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::agent_status) as r`,
-      [i.runId, i.worker, i.reservationId, JSON.stringify(i.state), i.model, i.inputTokens, i.outputTokens, i.cacheReadTokens,
-        i.cacheWriteTokens, i.serverToolRequests, i.claudeUsd, i.searchUsd, i.agentStatus]);
+    const base = [i.runId, i.worker, i.reservationId, JSON.stringify(i.state), i.model, i.inputTokens, i.outputTokens, i.cacheReadTokens,
+      i.cacheWriteTokens, i.serverToolRequests, i.claudeUsd, i.searchUsd, i.agentStatus];
+    const web = (i.webFetchAttempts ?? 0) > 0 || (i.webToolErrors ?? 0) > 0;
+    const [r] = web
+      ? await this.q<{ r: CallRecord }>(
+        `select public.record_call($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::agent_status, $14, $15) as r`,
+        [...base, i.webFetchAttempts ?? 0, i.webToolErrors ?? 0])
+      : await this.q<{ r: CallRecord }>(
+        `select public.record_call($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::agent_status) as r`, base);
     return r.r;
+  }
+  async recordWebEvents(runId: string, worker: string, events: readonly WebToolEvent[]) {
+    if (events.length === 0) return;
+    await this.q(`select public.record_web_events($1, $2, $3)`, [runId, worker, JSON.stringify(events)]);
+  }
+  async stopMissionSecurity(runId: string, reason: string) {
+    await this.q(`select public.stop_mission_security($1, $2)`, [runId, reason]);
+  }
+  async webSchemaStatus(): Promise<WebSchemaStatus> {
+    // Sin la función (base sin 0014) se averigua qué falta; nunca se da por listo.
+    const [f] = await this.q<{ ok: boolean }>(`select to_regprocedure('public.pi16_schema_status()') is not null as ok`);
+    if (!f?.ok) {
+      const [p] = await this.q<{ ok: boolean }>(`select to_regclass('public.mission_plans') is not null as ok`);
+      return { ok: false, missing: [...(p?.ok ? [] : ["0013"]), "0014"] };
+    }
+    const [r] = await this.q<{ r: { ok?: unknown; missing?: unknown } }>(`select public.pi16_schema_status() as r`);
+    return parseSchemaStatus(r?.r);
   }
   async closeReservation(runId: string, reservationId: string, uncertain: boolean) {
     await this.q(`select public.close_reservation($1, $2, $3)`, [runId, reservationId, uncertain]);

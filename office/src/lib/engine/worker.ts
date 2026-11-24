@@ -24,7 +24,9 @@ import { DOC_CHARS, initialPrompt, pilotSystemPrompt } from "./pilot-prompts";
 import { buildDeliveries, coherenceCheck, inventorySection, subtaskOutcome, type ResultData } from "./coordination";
 import type { ClaimedRun, EngineStore, MissionPlan, TaskRow } from "./store";
 import type { PlanPromptContext } from "./pilot-prompts";
-import type { ModelClient, ModelRequest } from "./types";
+import type { ContentBlock, ModelClient, ModelRequest } from "./types";
+import { secureServerTools } from "./web-policy";
+import { auditKeyStatus, auditWebResponse, type AuditKey } from "./web-audit";
 
 export interface TickDeps {
   store: EngineStore;
@@ -33,6 +35,11 @@ export interface TickDeps {
   budgetMs?: number;
   stepReserveMs?: number;
   now?: () => number;
+  /**
+   * PI-16 · Clave HMAC de la auditoría web. Por defecto, la del entorno
+   * (WEB_AUDIT_HMAC_KEY). null = sin clave. Sin clave válida no se usan herramientas web.
+   */
+  webAuditKey?: AuditKey | null;
 }
 
 export interface TickReport {
@@ -55,6 +62,22 @@ const STOP_MESSAGE = {
     "Paso detenido: se alcanzó el máximo de búsquedas web aprobado para el paso (o el de la misión). Las fichas y documentos ya creados se conservan.",
   uncertain:
     "Una llamada anterior a Claude quedó con resultado incierto (el proceso se cortó o se perdió la respuesta). Cuenta como gastada y no se repite automáticamente.",
+  fetches:
+    "Tarea detenida: se alcanzó el máximo de lecturas web de la misión. Las fichas y documentos ya creados se conservan.",
+  missionCalls:
+    "Tarea detenida: se alcanzó el máximo de llamadas a Claude de la misión. Las fichas y documentos ya creados se conservan.",
+  webErrors:
+    "Tarea detenida por seguridad: la misión superó el máximo de errores de herramientas web.",
+  webConfig:
+    "Tarea detenida (fallo cerrado): la configuración segura de las herramientas web no se pudo preparar. No se ha llamado a Claude.",
+  webAuditKey:
+    "Tarea detenida (fallo cerrado): falta la clave de auditoría web (WEB_AUDIT_HMAC_KEY). Las herramientas web no se usan sin auditoría.",
+  webAuditKeyMalformed:
+    "Tarea detenida (fallo cerrado): la clave de auditoría web (WEB_AUDIT_HMAC_KEY o su identificador) no tiene el formato exigido. Las herramientas web no se usan sin auditoría.",
+  webSchema:
+    "Tarea detenida antes de empezar (fallo cerrado): la base de datos no tiene las migraciones que exigen las herramientas web protegidas (0013 y 0014). No se ha llamado a Claude ni se ha reservado presupuesto. Falta:",
+  webSchemaUnknown:
+    "Tarea detenida antes de empezar (fallo cerrado): no se pudo comprobar el esquema de la base de datos para las herramientas web. No se ha llamado a Claude ni se ha reservado presupuesto.",
 } as const;
 
 export async function runTick(deps: TickDeps): Promise<TickReport> {
@@ -191,7 +214,43 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     // por llamada: hasta 3 pasadas, reservadas sin suponer caché).
     // La actividad se marca antes: entre la reserva y la llamada no hay nada
     // que pueda fallar y dejar una reserva incierta sin haber llamado.
-    const serverTools = serverToolsFor(allowedServerTools);
+    let serverTools: ReturnType<typeof serverToolsFor>;
+    try {
+      serverTools = serverToolsFor(allowedServerTools, agent.id);
+    } catch (error) {
+      await store.failRun(run.runId, worker, `${STOP_MESSAGE.webConfig} ${(error as Error).message}`, false);
+      return "web_config_error";
+    }
+    // PI-16 · Requisitos previos de las herramientas web, ANTES de reservar nada:
+    // esquema 0013 + 0014 y clave de auditoría. Los agentes sin web no se ven afectados.
+    let auditKey: AuditKey | null = null;
+    if (serverTools.length > 0) {
+      let schema: Awaited<ReturnType<EngineStore["webSchemaStatus"]>>;
+      try {
+        schema = await store.webSchemaStatus();
+      } catch {
+        await store.failRun(run.runId, worker, STOP_MESSAGE.webSchemaUnknown, false);
+        return "web_schema_unknown";
+      }
+      if (!schema.ok) {
+        await store.failRun(run.runId, worker, `${STOP_MESSAGE.webSchema} ${schema.missing.join(", ")}.`, false);
+        return "web_schema_missing";
+      }
+      if (deps.webAuditKey !== undefined) {
+        auditKey = deps.webAuditKey;
+      } else {
+        const k = auditKeyStatus();
+        if (!k.ok && k.reason === "malformed") {
+          await store.failRun(run.runId, worker, STOP_MESSAGE.webAuditKeyMalformed, false);
+          return "web_audit_key_malformed";
+        }
+        auditKey = k.ok ? k.key : null;
+      }
+      if (!auditKey) {
+        await store.failRun(run.runId, worker, STOP_MESSAGE.webAuditKey, false);
+        return "web_audit_key_missing";
+      }
+    }
     const searches = allowedServerTools.includes("web.search") ? SERVER_TOOLS["web.search"].max_uses : 0;
     const fetches = allowedServerTools.includes("web.fetch") ? SERVER_TOOLS["web.fetch"].max_uses : 0;
     const searching = serverTools.length > 0;
@@ -205,11 +264,15 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       fetchTokens: SERVER_TOOLS["web.fetch"].max_content_tokens,
       searchResultTokens: SEARCH_RESULT_TOKENS_ASSUMED,
     });
-    const reservation = await store.reserve(run.runId, worker, agent.model, estimate, searches, limits.leaseSeconds);
+    const reservation = await store.reserve(run.runId, worker, agent.model, estimate, searches, limits.leaseSeconds, fetches);
     if (!reservation.ok) {
       const message =
         reservation.reason === "uncertain"
           ? STOP_MESSAGE.uncertain
+          : reservation.reason === "mission_calls"
+            ? STOP_MESSAGE.missionCalls
+          : reservation.reason === "web_errors"
+            ? STOP_MESSAGE.webErrors
           : reservation.reason === "step_budget" || reservation.reason === "max_calls"
             ? stepStopMessage(reservation.reason, estimate, await store.budgetSnapshot(mission.id, task.id), { budgetUsd: task.budget_usd ?? null, maxCalls: task.max_calls ?? null })
             : budgetStopMessage(reservation.reason, estimate, await store.budgetSnapshot(mission.id, task.id), task.parent_task_id !== null);
@@ -223,6 +286,14 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       await store.closeReservation(run.runId, reservation.reservation_id, false);
       await store.failRun(run.runId, worker, task.max_searches != null ? STOP_MESSAGE.stepSearches : STOP_MESSAGE.searches, false);
       return "searches_exhausted";
+    }
+    // PI-16 · Igual con las lecturas: sin lecturas restantes la tarea se detiene
+    // (quitar web_fetch cambiaría la lista de herramientas). Sin el dato (base de
+    // datos sin 0014) se trata como 0: fallo cerrado.
+    if ((reservation.fetches ?? 0) < fetches) {
+      await store.closeReservation(run.runId, reservation.reservation_id, false);
+      await store.failRun(run.runId, worker, STOP_MESSAGE.fetches, false);
+      return "fetches_exhausted";
     }
 
     // ── 2. Llamada ──
@@ -249,6 +320,14 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
     }
 
     // ── 3. Coste real y respuesta guardados antes de tocar herramientas ──
+    // PI-16 · Auditoría de las herramientas web de esta respuesta (pura; se
+    // reconstruye desde la conversación guardada, así resiste reinicios).
+    const priorMessages = call.state.messages.slice(0, -1);
+    const lastContent = (call.state.messages.at(-1)?.content ?? []) as ContentBlock[];
+    const audit = serverTools.length > 0 && auditKey
+      ? auditWebResponse({ content: Array.isArray(lastContent) ? lastContent : [], priorMessages, callIndex: call.state.steps,
+          agentId: agent.id, key: auditKey, usageFetchRequests: call.usage.webFetchRequests ?? 0 })
+      : null;
     state = { ...call.state, transientRetries: 0 };
     const rec = await store.recordCall({
       runId: run.runId, worker, reservationId: reservation.reservation_id, state, model: call.model,
@@ -256,7 +335,22 @@ async function runClaimed(deps: TickDeps, worker: string, run: ClaimedRun, canSt
       cacheReadTokens: call.usage.cacheReadTokens, cacheWriteTokens: call.usage.cacheWriteTokens,
       serverToolRequests: call.usage.webSearchRequests, claudeUsd: call.claudeUsd, searchUsd: call.searchUsd,
       agentStatus: call.researched ? "researching" : "working",
+      webFetchAttempts: audit?.fetchAttempts ?? 0, webToolErrors: audit?.webErrors ?? 0,
     });
+    // PI-16 · Eventos (sin URLs ni consultas) y parada inmediata ante una anomalía
+    // grave. Si los eventos no se pueden guardar, también se detiene (fallo cerrado).
+    if (audit) {
+      let stopReason = audit.stop;
+      try {
+        await store.recordWebEvents(run.runId, worker, audit.events);
+      } catch (error) {
+        stopReason ??= `no se pudo registrar la auditoría web (${(error as Error).message})`;
+      }
+      if (stopReason) {
+        await store.stopMissionSecurity(run.runId, stopReason);
+        return "security_stop";
+      }
+    }
     // El gasto ya está registrado. Sobrecoste → la base de datos ya ha detenido la misión.
     if (!rec.continue) return rec.reason ?? "lease_lost";
     // Claude respondió a una petición que contenía la entrega: «recibida».
@@ -277,9 +371,13 @@ async function promptTokensOf(client: ModelClient, req: ModelRequest): Promise<n
   return estimateTokens([req.system, req.messages, req.tools]);
 }
 
-/** Herramientas de servidor del agente: siempre las mismas y en el mismo orden. */
-export function serverToolsFor(allowed: readonly ServerToolId[]) {
-  return (["web.search", "web.fetch"] as const).filter((t) => allowed.includes(t)).map((t) => ({ ...SERVER_TOOLS[t] }));
+/**
+ * Herramientas de servidor del agente: siempre las mismas y en el mismo orden.
+ * PI-16 · web_fetch lleva url_sources (solo resultados de web_search) y la
+ * política de dominios; si algo no cuadra, lanza un error (fallo cerrado).
+ */
+export function serverToolsFor(allowed: readonly ServerToolId[], agentId: string, stepAllowedDomains?: readonly string[] | null) {
+  return secureServerTools(allowed, { agentId, stepAllowedDomains }) as Array<{ type: string; name: string; [key: string]: unknown }>;
 }
 
 function reuseIdsOf(input: Record<string, unknown>): string[] {
